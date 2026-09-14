@@ -21,33 +21,25 @@
     </filter>
   </defs>
 
-  <!-- App Rounded Background with Gold Border -->
   <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
   <rect x="12" y="12" width="488" height="488" rx="100" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.4"/>
 
-  <!-- Outer Protective Shield -->
   <path d="M 256,70 C 350,70 410,105 410,185 C 410,310 320,395 256,435 C 192,395 102,310 102,185 C 102,105 162,70 256,70 Z" 
         fill="url(#shieldGrad)" stroke="url(#goldGrad)" stroke-width="12" filter="url(#goldGlow)"/>
 
-  <!-- Inner Subtle Shield Inset -->
   <path d="M 256,92 C 332,92 384,122 384,190 C 384,295 308,370 256,405 C 204,370 128,295 128,190 C 128,122 180,92 256,92 Z" 
         fill="none" stroke="#E5C378" stroke-width="2" stroke-opacity="0.5" stroke-dasharray="6,6"/>
 
-  <!-- Ascending Stock Trend Graphic Line behind Rupee -->
   <path d="M 160,290 L 220,250 L 275,280 L 355,180" 
         fill="none" stroke="#34D399" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Arrow Head -->
   <polygon points="355,160 365,195 335,185" fill="#34D399"/>
 
-  <!-- Central Gold Rupee Symbol & Crest -->
   <text x="256" y="295" font-family="'Cinzel', 'Playfair Display', Georgia, serif" font-size="160" font-weight="900" fill="url(#goldGrad)" text-anchor="middle" filter="url(#goldGlow)">₹</text>
 
-  <!-- Crown / Heritage 3 Stars at Top -->
   <polygon points="256,120 262,135 278,135 265,145 270,160 256,150 242,160 247,145 234,135 250,135" fill="url(#goldGrad)"/>
   <polygon points="215,130 219,141 230,141 221,148 224,159 215,152 206,159 209,148 200,141 211,141" fill="url(#goldGrad)" opacity="0.8"/>
   <polygon points="297,130 301,141 312,141 303,148 306,159 297,152 288,159 291,148 282,141 293,141" fill="url(#goldGrad)" opacity="0.8"/>
 
-  <!-- SuperApp Subtitle Ribbon Base -->
   <rect x="176" y="340" width="160" height="26" rx="13" fill="#B98B2A" fill-opacity="0.2" stroke="url(#goldGrad)" stroke-width="2"/>
   <text x="256" y="358" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="800" fill="#FBF8F2" text-anchor="middle" letter-spacing="3">SUPERAPP</text>
 </svg>
