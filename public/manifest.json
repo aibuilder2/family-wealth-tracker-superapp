@@ -1,0 +1,24 @@
+{
+  "name": "Family Wealth App — Parivar Tracker",
+  "short_name": "FamilyWealth",
+  "description": "Complete family finances, wealth, agriculture, transport fleet, health & document vault tracker",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#10263A",
+  "theme_color": "#10263A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
