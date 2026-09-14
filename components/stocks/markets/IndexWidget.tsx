@@ -12,29 +12,35 @@ export default function IndexWidget({ indexName, value = 0, change = 0, changePc
   const isNeutral = change === 0;
   
   return (
-    <div className="bg-[#111827] rounded-lg p-4 shadow-lg border border-slate-800 hover:border-slate-600 hover:shadow-md transition-all relative overflow-hidden">
+    <div className="bg-[#10263A]/85 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-[#B98B2A]/20 hover:border-[#B98B2A]/50 hover:shadow-xl transition-all relative overflow-hidden group">
       {/* Subtle background glow effect */}
-      <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full blur-2xl translate-x-1/3 -translate-y-1/3"></div>
+      <div className="absolute top-0 right-0 w-20 h-20 bg-[#B98B2A]/5 rounded-full blur-2xl group-hover:bg-[#B98B2A]/10 transition-colors pointer-events-none"></div>
 
       <div className="flex justify-between items-start mb-2 relative z-10">
-        <h4 className="text-sm font-bold text-slate-400">{indexName}</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-[#E5C378]">{indexName}</h4>
         {value > 0 && (
-          <div className="flex items-center gap-1">
-            <span className="relative flex h-2 w-2">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
             </span>
-            <span className="text-[10px] text-slate-500 font-medium tracking-wider">LIVE</span>
+            <span className="text-[9px] text-emerald-400 font-bold tracking-wider">LIVE</span>
           </div>
         )}
       </div>
       
-      <div className="text-2xl font-bold text-white mb-1 relative z-10">
-        {value ? value.toLocaleString("en-IN") : "---"}
+      <div className="text-2xl font-black text-white tracking-tight mb-1.5 relative z-10 font-mono">
+        {value ? value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "---"}
       </div>
       
-      <div className={`flex items-center gap-1 text-sm font-medium relative z-10 ${isNeutral ? "text-slate-400" : isPositive ? "text-green-500" : "text-red-500"}`}>
-        {!isNeutral && (isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />)}
+      <div className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md relative z-10 ${
+        isNeutral 
+          ? "bg-slate-800 text-slate-300" 
+          : isPositive 
+          ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" 
+          : "bg-rose-500/15 text-rose-400 border border-rose-500/25"
+      }`}>
+        {!isNeutral && (isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />)}
         <span>
           {isPositive ? "+" : ""}{change.toFixed(2)} ({isPositive ? "+" : ""}{changePct.toFixed(2)}%)
         </span>
