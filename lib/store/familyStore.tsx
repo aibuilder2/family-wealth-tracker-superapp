@@ -125,7 +125,11 @@ interface FamilyContextType {
 
 const FamilyContext = createContext<FamilyContextType | null>(null);
 
+import { createClient } from '@/lib/supabase/client';
+
 export function FamilyProvider({ children }: { children: React.ReactNode }) {
+  const supabase = React.useMemo(() => createClient(), []);
+
   const [family, setFamily] = useState<Family>({
     id: 'fam-1',
     name: 'Mera Parivar',
@@ -157,25 +161,50 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
 
+  // 1. Initial Data Fetching from Supabase & LocalStorage Fallback
   useEffect(() => {
-    try {
-      // Clear legacy mock cache on initial clean reset
-      const isCleaned = localStorage.getItem('fwa_clean_v3');
-      if (!isCleaned) {
-        localStorage.removeItem('fwa_transactions_v2');
-        localStorage.removeItem('fwa_staff');
-        localStorage.removeItem('fwa_cases');
-        localStorage.setItem('fwa_clean_v3', 'true');
-      } else {
+    const loadData = async () => {
+      // 1. LocalStorage Fallback
+      try {
         const savedTx = localStorage.getItem('fwa_transactions_v2');
         if (savedTx) setTransactions(JSON.parse(savedTx));
+        const savedAssets = localStorage.getItem('fwa_assets');
+        if (savedAssets) setAssets(JSON.parse(savedAssets));
+        const savedGoals = localStorage.getItem('fwa_goals');
+        if (savedGoals) setGoals(JSON.parse(savedGoals));
         const savedStaff = localStorage.getItem('fwa_staff');
         if (savedStaff) setStaff(JSON.parse(savedStaff));
         const savedCases = localStorage.getItem('fwa_cases');
         if (savedCases) setCourtCases(JSON.parse(savedCases));
+      } catch (e) {}
+
+      // 2. Real-time Supabase Fetch if connected
+      if (supabase) {
+        try {
+          const { data: supaTx } = await supabase.from('transactions').select('*').order('txn_date', { ascending: false }).limit(50);
+          if (supaTx && supaTx.length > 0) {
+            setTransactions(supaTx as any);
+          }
+          const { data: supaAssets } = await supabase.from('assets').select('*');
+          if (supaAssets && supaAssets.length > 0) {
+            setAssets(supaAssets as any);
+          }
+          const { data: supaGoals } = await supabase.from('goals').select('*');
+          if (supaGoals && supaGoals.length > 0) {
+            setGoals(supaGoals as any);
+          }
+          const { data: supaMembers } = await supabase.from('family_members').select('*');
+          if (supaMembers && supaMembers.length > 0) {
+            setMembers(supaMembers as any);
+          }
+        } catch (err) {
+          console.warn('Supabase sync info:', err);
+        }
       }
-    } catch (e) {}
-  }, []);
+    };
+
+    loadData();
+  }, [supabase]);
 
   const saveTransactions = (newTx: Transaction[]) => {
     setTransactions(newTx);
@@ -191,15 +220,29 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       created_at: new Date().toISOString(),
     };
     saveTransactions([newTx, ...transactions]);
+
+    if (supabase) {
+      supabase.from('transactions').insert(newTx).then(({ error }: any) => {
+        if (error) console.warn('Supabase tx insert note:', error.message);
+      });
+    }
   };
 
   const deleteTransaction = (id: string) => {
     saveTransactions(transactions.filter(t => t.id !== id));
+    if (supabase) {
+      supabase.from('transactions').delete().eq('id', id).then();
+    }
   };
 
   const addGoal = (g: Omit<Goal, 'id' | 'family_id'>) => {
     const newG: Goal = { ...g, id: 'g-' + Date.now(), family_id: family.id };
-    setGoals([...goals, newG]);
+    const updated = [...goals, newG];
+    setGoals(updated);
+    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    if (supabase) {
+      supabase.from('goals').insert(newG).then();
+    }
   };
 
   const addReminder = (r: Omit<Reminder, 'id' | 'family_id'>) => {
@@ -209,12 +252,20 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const addAsset = (a: Omit<Asset, 'id' | 'family_id'>) => {
     const newA: Asset = { ...a, id: 'a-' + Date.now(), family_id: family.id };
-    setAssets([...assets, newA]);
+    const updated = [...assets, newA];
+    setAssets(updated);
+    try { localStorage.setItem('fwa_assets', JSON.stringify(updated)); } catch (e) {}
+    if (supabase) {
+      supabase.from('assets').insert(newA).then();
+    }
   };
 
   const addMember = (m: Omit<Member, 'id' | 'family_id'>) => {
     const newM: Member = { ...m, id: 'm-' + Date.now(), family_id: family.id };
     setMembers([...members, newM]);
+    if (supabase) {
+      supabase.from('family_members').insert(newM).then();
+    }
   };
 
   const updateMemberPermissions = (memberId: string, perms: Partial<Member['permissions']>) => {

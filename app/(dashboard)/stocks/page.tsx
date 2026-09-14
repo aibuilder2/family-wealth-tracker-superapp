@@ -1,27 +1,50 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   TrendingUp, Sparkles, BookOpen, Layers, ShieldCheck, 
   BarChart3, RefreshCw, Award, ArrowUpRight, ArrowDownRight, 
   Zap, Compass, PlayCircle, Lock, CheckCircle2, ChevronRight
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import Top5Card from '@/components/predictions/Top5Card';
 import AccuracyTracker from '@/components/predictions/AccuracyTracker';
 import FnOWatchlist from '@/components/markets/FnOWatchlist';
 
 export default function StocksMasterHubPage() {
-  const samplePrediction = {
+  const [activePrediction, setActivePrediction] = useState<any>({
     symbol: 'TATAMOTORS',
     companyName: 'Tata Motors Ltd',
-    direction: 'up' as const,
+    direction: 'up',
     confidencePct: 88,
     overallScore: 8.5,
     patternDetected: 'Bullish Flag Breakout',
-    reasoning: 'Strong volume breakout above 200 EMA with bullish RSI convergence.',
-    dataSourceLinks: ['NSE', 'Quarterly Filings', 'Technical Momentum']
-  };
+    reasoning: 'Strong volume breakout above 200 EMA with bullish RSI convergence and expanding commercial EV orderbook.',
+    dataSourceLinks: ['NSE Live', 'Technical Volume', 'Quarterly Financials']
+  });
+
+  useEffect(() => {
+    const fetchTopPrediction = async () => {
+      try {
+        const supabase = createClient();
+        if (supabase) {
+          const { data, error } = await supabase
+            .from('predictions_log')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (!error && data && data.length > 0) {
+            setActivePrediction(data[0]);
+          }
+        }
+      } catch (e) {
+        console.warn('Prediction live fetch info:', e);
+      }
+    };
+    fetchTopPrediction();
+  }, []);
 
   return (
     <div className="space-y-6 pb-20 p-4">
@@ -145,7 +168,7 @@ export default function StocksMasterHubPage() {
             </Link>
           </div>
 
-          <Top5Card prediction={samplePrediction as any} />
+          <Top5Card prediction={activePrediction as any} />
 
           <AccuracyTracker />
         </div>
