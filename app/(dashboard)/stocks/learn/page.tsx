@@ -10,6 +10,59 @@ import InvestmentCompare from "@/components/learn/InvestmentCompare";
 import LessonCard from "@/components/learn/LessonCard";
 import WealthRealitySimulator from "@/components/learn/WealthRealitySimulator";
 
+const DEFAULT_ZERO_TO_HERO = [
+  {
+    id: "l-1",
+    lesson_number: 1,
+    title: "Share Market Basic: Share Kya Hota Hai?",
+    segment: "zero-to-hero",
+    content: "Jab aap kisi company ka ek share khareedte hain, to aap us company ke chote hissedar (part-owner) ban jaate hain. Company jab profit kamati hai to aapko dividend aur capital appreciation milta hai.",
+    quiz_data: [
+      { question: "Share khareedne par aap kya bante hain?", options: ["Company ke Malik/Part-Owner", "Bank Manager", "Auditor"], correct: 0 }
+    ]
+  },
+  {
+    id: "l-2",
+    lesson_number: 2,
+    title: "NSE, BSE aur SEBI: Market Kaise Kaam Karta Hai?",
+    segment: "zero-to-hero",
+    content: "NSE (National Stock Exchange) aur BSE (Bombay Stock Exchange) India ke do main exchanges hain jahan shares trade hote hain. SEBI (Securities & Exchange Board of India) market ka regulator hai jo investors ko protect karta hai.",
+    quiz_data: [
+      { question: "India me Stock Market ka regulator kaun hai?", options: ["RBI", "SEBI", "IRDAI"], correct: 1 }
+    ]
+  },
+  {
+    id: "l-3",
+    lesson_number: 3,
+    title: "Candlestick Patterns & Technical Analysis",
+    segment: "zero-to-hero",
+    content: "Har Green candle buyers ki strength aur Red candle sellers ki pressure show karti hai. Bullish Engulfing, Hammer, aur Doji key reversal patterns hain.",
+    quiz_data: [
+      { question: "Green candle ka matlab kya hota hai?", options: ["Price Open se upar Close hua (Buyers)", "Price gira", "Market closed"], correct: 0 }
+    ]
+  },
+  {
+    id: "l-4",
+    lesson_number: 4,
+    title: "Risk Management: 1% Rule & Stop Loss",
+    segment: "zero-to-hero",
+    content: "Kabhi bhi ek single trade me apni total capital ka 1-2% se jyada risk mat lein. Stop loss lagana har trade me anivarya (mandatory) hai.",
+    quiz_data: [
+      { question: "Ek trade me maximum kitna risk lena chahiye?", options: ["1% se 2%", "50%", "100%"], correct: 0 }
+    ]
+  },
+  {
+    id: "l-5",
+    lesson_number: 5,
+    title: "Futures & Options (F&O) Reality Check",
+    segment: "zero-to-hero",
+    content: "SEBI ke mutabik 90%+ retail F&O traders loss karte hain. Options tabhi trade karein jab aapke paas complete hedging aur data analysis ho.",
+    quiz_data: [
+      { question: "SEBI report ke mutabik kitne % retail F&O traders loss karte hain?", options: ["90% se jyada", "10%", "5%"], correct: 0 }
+    ]
+  }
+];
+
 export default function LearnPage() {
   const [activeTab, setActiveTab] = useState("0 Se Seekho");
   const [selectedChapter, setSelectedChapter] = useState<any>(null);
@@ -20,53 +73,57 @@ export default function LearnPage() {
   const [hoveredStar, setHoveredStar] = useState<number>(0);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
-  const [dbChapters, setDbChapters] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dbChapters, setDbChapters] = useState<any[]>(DEFAULT_ZERO_TO_HERO);
+  const [loading, setLoading] = useState(false);
   const [completedLessons, setCompletedLessons] = useState<number[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
 
   const BEGINNER_TAB = "0 Se Seekho";
   const isBeginnerTab = activeTab === BEGINNER_TAB;
 
-  const supabase: any = createClient();
-
-  useEffect(() => {
-    (supabase as any)?.auth?.getUser().then((res: any) => setUserId(res?.data?.user?.id ?? null));
-  }, [supabase]);
-
   useEffect(() => {
     const fetchChapters = async () => {
       setLoading(true);
 
-      if (isBeginnerTab) {
-        const { data, error } = await supabase
-          .from("learn_chapters")
-          .select("*")
-          .eq("segment", "zero-to-hero")
-          .order("lesson_number", { ascending: true });
-        setDbChapters(!error && data ? data : []);
-
-        if (userId) {
-          const { data: completions } = await supabase
-            .from("lesson_completions")
-            .select("lesson_number")
-            .eq("user_id", userId)
-            .eq("segment", "zero-to-hero");
-          setCompletedLessons((completions || []).map((c: any) => c.lesson_number));
+      try {
+        const supabase = createClient();
+        if (supabase) {
+          if (isBeginnerTab) {
+            const { data, error } = await supabase
+              .from("learn_chapters")
+              .select("*")
+              .eq("segment", "zero-to-hero")
+              .order("lesson_number", { ascending: true });
+            
+            if (!error && data && data.length > 0) {
+              setDbChapters(data);
+              setLoading(false);
+              return;
+            }
+          } else {
+            const { data, error } = await supabase
+              .from("learn_chapters")
+              .select("*")
+              .eq("category", activeTab)
+              .order("created_at", { ascending: true });
+            
+            if (!error && data && data.length > 0) {
+              setDbChapters(data);
+              setLoading(false);
+              return;
+            }
+          }
         }
-      } else {
-        const { data, error } = await supabase
-          .from("learn_chapters")
-          .select("*")
-          .eq("category", activeTab)
-          .order("created_at", { ascending: true });
-        setDbChapters(!error && data ? data : []);
+      } catch (e) {
+        // Fallback silently
       }
 
+      setDbChapters(isBeginnerTab ? DEFAULT_ZERO_TO_HERO : []);
       setLoading(false);
     };
+
     fetchChapters();
-  }, [activeTab, supabase, userId, isBeginnerTab]);
+  }, [activeTab, isBeginnerTab]);
 
   const activeChapterContent = {
     title: selectedChapter?.title || "",
@@ -151,190 +208,105 @@ export default function LearnPage() {
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><List className="w-5 h-5 text-blue-400"/> {activeTab} - Chapters</h2>
           <div className="space-y-3">
             {loading ? (
-              <div className="text-slate-400 p-4 text-center animate-pulse border border-slate-800 rounded-xl">Loading AI generated chapters...</div>
+              <p className="text-sm text-slate-500 animate-pulse">Loading modules...</p>
             ) : dbChapters.length === 0 ? (
-              <div className="text-slate-400 p-4 text-center border border-dashed border-slate-700 rounded-xl">
-                {isBeginnerTab
-                  ? "Beginner path abhi generate nahi hua — Admin Panel se /seed-beginner-path call karo (ek hi baar karna hai)."
-                  : `No chapters generated for ${activeTab} yet. Use Admin Panel to generate.`}
-              </div>
-            ) : isBeginnerTab ? (
-              dbChapters.map((ch: any, idx: number) => {
-                const isCompleted = completedLessons.includes(ch.lesson_number);
-                const isNextUnlocked = idx === 0 || completedLessons.includes(dbChapters[idx - 1]?.lesson_number);
-                const isLocked = !isCompleted && !isNextUnlocked;
-                return (
-                  <LessonCard
-                    key={ch.id}
-                    title={`${ch.lesson_number}. ${ch.title || ch.topic_name}`}
-                    description={isLocked ? "Pehle pichla lesson complete karo" : (ch.summary || `Learn about ${ch.category}`)}
-                    duration="15 mins"
-                    isCompleted={isCompleted}
-                    onClick={isLocked ? undefined : () => setSelectedChapter(ch)}
-                  />
-                );
-              })
+              <p className="text-sm text-slate-500">No chapters available for this category yet.</p>
             ) : (
-              dbChapters.map((ch: any) => (
-                <LessonCard
-                  key={ch.id}
-                  title={ch.title || ch.topic_name || "Untitled Lesson"}
-                  description={`Learn about ${ch.category || activeTab}`}
-                  duration="15 mins"
-                  isCompleted={false}
-                  onClick={() => setSelectedChapter(ch)}
-                />
+              dbChapters.map((ch, idx) => (
+                <div 
+                  key={ch.id || idx}
+                  onClick={() => { setSelectedChapter(ch); setShowTest(false); setSelectedAns(null); setCurrentQ(0); setRatingSubmitted(false); setRating(0); setIsLiked(false); }}
+                  className="flex items-center justify-between p-4 bg-[#0B0F19] border border-slate-800 rounded-xl hover:border-blue-500/50 cursor-pointer transition"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-amber-400">
+                      {ch.lesson_number || idx + 1}
+                    </span>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">{ch.title}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{ch.content}</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-500" />
+                </div>
               ))
             )}
           </div>
         </div>
-      ) : !showTest ? (
-        <div className="bg-[#111827] rounded-xl border border-slate-800 p-6 md:p-8">
-          <button onClick={() => setSelectedChapter(null)} className="text-sm text-blue-400 mb-6 hover:underline flex items-center">
-            &larr; Back to Chapters
-          </button>
-          
-          <h2 className="text-2xl font-bold text-white mb-6">{activeChapterContent.title}</h2>
-          <div 
-            className="prose prose-invert prose-amber max-w-none mb-8"
-            dangerouslySetInnerHTML={{ __html: activeChapterContent.content }}
-          />
-          
-          <div className="border-t border-slate-800 pt-6 flex justify-end">
-            <button 
-              onClick={() => setShowTest(true)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl transition-all"
-            >
-              Take Chapter Test <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
       ) : (
-        /* Quiz Area */
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-[#111827] rounded-xl border border-slate-800 p-6 md:p-8">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-xl font-bold flex items-center gap-2 text-white">
-                <HelpCircle className="w-5 h-5 text-blue-400" /> Knowledge Test
-              </h2>
-              <span className="text-sm font-bold text-slate-500">Question {currentQ + 1} of {activeChapterContent.quiz.length}</span>
-            </div>
+        /* Selected Chapter Content */
+        <div className="bg-[#111827] rounded-xl border border-slate-800 p-6 space-y-6">
+          <button 
+            onClick={() => setSelectedChapter(null)}
+            className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 mb-2"
+          >
+            ← Back to All Chapters
+          </button>
 
-            <h3 className="text-lg text-slate-200 mb-6">{activeChapterContent.quiz[currentQ].question}</h3>
+          <h2 className="text-2xl font-black text-white">{activeChapterContent.title}</h2>
 
-            <div className="space-y-3">
-              {activeChapterContent.quiz[currentQ].options.map((opt: string, idx: number) => {
-                const isSelected = selectedAns === idx;
-                const isCorrect = idx === activeChapterContent.quiz[currentQ].correct_index;
-                const showCorrect = selectedAns !== null && isCorrect;
-                const showWrong = selectedAns !== null && isSelected && !isCorrect;
-
-                return (
-                  <button
-                    key={idx}
-                    disabled={selectedAns !== null}
-                    onClick={() => handleAnswer(idx)}
-                    className={`w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between ${
-                      showCorrect ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400" :
-                      showWrong ? "bg-red-500/10 border-red-500/50 text-red-400" :
-                      "bg-slate-800/50 border-slate-700 hover:bg-slate-700 text-slate-300"
-                    }`}
-                  >
-                    <span>{opt}</span>
-                    {showCorrect && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
-                    {showWrong && <XCircle className="w-5 h-5 text-red-500" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedAns !== null && (
-              <div className={`mt-6 p-4 rounded-xl text-sm font-medium ${selectedAns === activeChapterContent.quiz[currentQ].correct_index ? "bg-emerald-500/10 text-emerald-200" : "bg-slate-800 text-slate-300"}`}>
-                <strong className="text-white block mb-1">AI Explanation:</strong>
-                {activeChapterContent.quiz[currentQ].explanation}
-              </div>
-            )}
-
-            {/* AI Feedback & Rating System */}
-            {selectedAns !== null && !ratingSubmitted && (
-              <div className="mt-8 p-6 bg-slate-800/40 rounded-xl border border-slate-700 text-center animate-in fade-in duration-300">
-                <h4 className="text-white font-bold mb-2">AI Feedback: Aapko ye learning kaisa laga?</h4>
-                <p className="text-xs text-slate-400 mb-4">Aapki rating mujhe (AI) aur platform ko aur behtar / aasaan sikhane me madad karegi.</p>
-                <div className="flex items-center justify-center gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onMouseEnter={() => setHoveredStar(star)}
-                      onMouseLeave={() => setHoveredStar(0)}
-                    onClick={async () => { 
-                      setRating(star); 
-                      setRatingSubmitted(true); 
-                      await (supabase as any)?.from("quiz_ratings").insert({
-                        chapter_id: selectedChapter?.id,
-                        rating: star,
-                        liked: isLiked,
-                        topic_name: selectedChapter?.title || selectedChapter?.topic_name
-                      } as any);
-                    }}
-                    >
-                      <Star className={`w-8 h-8 transition-all duration-200 ${star <= (hoveredStar || rating) ? 'fill-amber-400 text-amber-400 scale-110' : 'text-slate-600 hover:text-slate-500'}`} />
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Like & Share Actions */}
-                <div className="flex items-center justify-center gap-4 mt-6 pt-6 border-t border-slate-700/50">
-                  <button 
-                    onClick={() => setIsLiked(!isLiked)} 
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${isLiked ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}
-                  >
-                    <ThumbsUp className={`w-4 h-4 ${isLiked ? 'fill-blue-400' : ''}`} /> {isLiked ? 'Liked' : 'Like'}
-                  </button>
-                  <button 
-                    onClick={handleShare}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 rounded-full text-sm font-medium transition-all"
-                  >
-                    <Share2 className="w-4 h-4" /> Share
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {ratingSubmitted && (
-              <div className="mt-8 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center animate-in fade-in duration-300">
-                <p className="text-emerald-400 font-bold text-sm">⭐ Thank you! AI is rating ko use karke agli baar aur behtar questions/chapters banayega.</p>
-              </div>
-            )}
-
-            {selectedAns !== null && ratingSubmitted && (
-              <div className="mt-8 flex justify-end">
-                <button
-                  onClick={async () => {
-                    if (isBeginnerTab && userId && selectedChapter?.lesson_number) {
-                      await (supabase as any)?.from("lesson_completions").upsert({
-                        user_id: userId,
-                        segment: "zero-to-hero",
-                        lesson_number: selectedChapter.lesson_number,
-                      } as any);
-                      await (supabase as any)?.from("quiz_results").insert({
-                        user_id: userId,
-                        segment: "zero-to-hero",
-                        lesson_number: selectedChapter.lesson_number,
-                        score: selectedAns === activeChapterContent.quiz[currentQ].correct_index ? 1 : 0,
-                        total_questions: activeChapterContent.quiz.length,
-                      } as any);
-                      setCompletedLessons((prev) => Array.from(new Set([...prev, selectedChapter.lesson_number])));
-                    }
-                    setShowTest(false);
-                    setSelectedAns(null);
-                  }}
-                  className="bg-amber-500 text-slate-900 font-bold px-6 py-2 rounded-lg"
-                >
-                  Finish & Back to Chapter
-                </button>
-              </div>
-            )}
+          <div className="bg-[#0B0F19] p-6 rounded-xl border border-slate-800 text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+            {activeChapterContent.content}
           </div>
+
+          {/* Test / Quiz Button */}
+          {activeChapterContent.quiz && activeChapterContent.quiz.length > 0 && (
+            <div className="pt-4 border-t border-slate-800">
+              {!showTest ? (
+                <button
+                  onClick={() => setShowTest(true)}
+                  className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20"
+                >
+                  <HelpCircle className="w-4 h-4" /> Start Chapter Test (Practical Quiz)
+                </button>
+              ) : (
+                /* Quiz Area */
+                <div className="bg-[#0B0F19] p-6 rounded-xl border border-amber-500/30 space-y-4">
+                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider">
+                    Question {currentQ + 1} of {activeChapterContent.quiz.length}
+                  </h3>
+                  <p className="text-base font-bold text-white">
+                    {activeChapterContent.quiz[currentQ]?.question}
+                  </p>
+
+                  <div className="space-y-2">
+                    {activeChapterContent.quiz[currentQ]?.options.map((opt: string, optIdx: number) => {
+                      const isSelected = selectedAns === optIdx;
+                      const isCorrect = optIdx === activeChapterContent.quiz[currentQ]?.correct;
+                      return (
+                        <button
+                          key={optIdx}
+                          onClick={() => handleAnswer(optIdx)}
+                          className={`w-full p-3.5 rounded-xl text-left text-xs font-bold border transition-all flex items-center justify-between ${
+                            selectedAns !== null
+                              ? isCorrect
+                                ? "bg-emerald-500/20 border-emerald-500 text-emerald-300"
+                                : isSelected
+                                ? "bg-rose-500/20 border-rose-500 text-rose-300"
+                                : "bg-slate-900 border-slate-800 text-slate-400"
+                              : "bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-200"
+                          }`}
+                        >
+                          <span>{opt}</span>
+                          {selectedAns !== null && isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                          {selectedAns !== null && isSelected && !isCorrect && <XCircle className="w-4 h-4 text-rose-400" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedAns !== null && currentQ < activeChapterContent.quiz.length - 1 && (
+                    <button
+                      onClick={() => { setCurrentQ(currentQ + 1); setSelectedAns(null); }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg mt-2"
+                    >
+                      Next Question →
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
