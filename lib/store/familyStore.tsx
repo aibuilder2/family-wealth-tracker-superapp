@@ -763,9 +763,22 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       // 2. Real-time Supabase Fetch if connected
       if (supabase) {
         try {
-          const { data: supaTx } = await supabase.from('transactions').select('*').order('txn_date', { ascending: false }).limit(50);
-          if (supaTx && supaTx.length > 0) {
-            setTransactions(supaTx as any);
+          let supaTxData: any = null;
+          const { data: tx1, error: err1 } = await supabase.from('transactions').select('*').order('txn_date', { ascending: false }).limit(50);
+          if (!err1 && tx1) {
+            supaTxData = tx1;
+          } else {
+            // Fallback if txn_date column doesn't exist yet
+            const { data: tx2 } = await supabase.from('transactions').select('*').limit(50);
+            if (tx2) supaTxData = tx2;
+          }
+
+          if (supaTxData && supaTxData.length > 0) {
+            const mapped = supaTxData.map((t: any) => ({
+              ...t,
+              txn_date: t.txn_date || t.date || new Date().toISOString().split('T')[0]
+            }));
+            setTransactions(mapped as any);
           }
           const { data: supaAssets } = await supabase.from('assets').select('*');
           if (supaAssets && supaAssets.length > 0) {
