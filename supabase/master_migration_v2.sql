@@ -227,7 +227,23 @@ CREATE TABLE IF NOT EXISTS public.medical_records (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 15. STOCK ACADEMY & AI PREDICTIONS
+-- 15. MEMBER AAPSI HISAB-KITAB LEDGER TABLE
+CREATE TABLE IF NOT EXISTS public.member_ledgers (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    family_id TEXT NOT NULL DEFAULT 'fam-1',
+    from_member_id TEXT NOT NULL,
+    to_member_id TEXT NOT NULL,
+    type TEXT NOT NULL, -- 'cash_transfer' | 'samaan_shopping' | 'work_payment' | 'settlement'
+    amount NUMERIC NOT NULL DEFAULT 0,
+    title TEXT NOT NULL,
+    items_detail TEXT,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    is_settled BOOLEAN DEFAULT false,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 16. STOCK ACADEMY & AI PREDICTIONS
 CREATE TABLE IF NOT EXISTS public.learn_chapters (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     lesson_number INTEGER NOT NULL,
@@ -255,6 +271,15 @@ CREATE TABLE IF NOT EXISTS public.predictions_log (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 17. STORAGE BUCKETS (FOR PDF, EXCEL, SCANNED REGISTRIES & MEDICAL DOCS)
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('vault_documents', 'vault_documents', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('medical_prescriptions', 'medical_prescriptions', true)
+ON CONFLICT (id) DO NOTHING;
+
 -- Disable Row Level Security (RLS) for seamless client operations
 ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions DISABLE ROW LEVEL SECURITY;
@@ -270,5 +295,7 @@ ALTER TABLE public.agricultural_lands DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vault_documents DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.udhar_contacts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.medical_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.member_ledgers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.learn_chapters DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.predictions_log DISABLE ROW LEVEL SECURITY;
+
