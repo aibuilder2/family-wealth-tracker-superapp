@@ -31,7 +31,15 @@
    - Bed Matrix (Single, Double, 3-Sharing, 4-Sharing) with vacancy/occupancy tracking.
    - Electricity Sub-meter calculation (Previous reading, Current reading, Rate/unit).
    - Cook/Maid mess expense tracking & Tenant digital agreement vault.
-2. **Commercial Fleet & Transport Logistics (`/fleet`)**:
+2. **Gold Loan, Girvi & Private Finance Hub (`/gold-loans`)**:
+   - 75% RBI LTV valuation calculator with live 24K gold rates.
+   - Gross weight, stone deduction, Karat purity (24K, 22K, 18K, 14K), and net pure gold calculator.
+   - Tamper-evident barcode pouch `#SEC-GOLD-XXXXX` and safe locker box tracking.
+   - ₹2 Saikda (2% per month) simple/compound byaaj engine.
+   - 1-Click WhatsApp Girvi Parchi receipt generator.
+   - OTP-verified customer Gold Return NOC Slip to prevent false accusations.
+   - 15-Day Legal Auction Notice Generator (Indian Contract Act Sec 176).
+3. **Commercial Fleet & Transport Logistics (`/fleet`)**:
    - Trucks, School Buses, Cabs, Delivery Vans.
    - Trip logs (Diesel, Toll, Driver advance, Revenue, Net Profit).
    - Lifetime vehicle ROI & depreciation.
