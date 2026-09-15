@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFamilyStore } from '@/lib/store/familyStore';
 import {
   Coins,
@@ -22,7 +22,11 @@ import {
   Sparkles,
   Search,
   KeyRound,
-  FileCheck
+  FileCheck,
+  RefreshCw,
+  Edit3,
+  Sliders,
+  Flame
 } from 'lucide-react';
 import { GoldLoanPledge, GoldPurityKarat, GoldLoanStatus } from '@/types';
 
@@ -31,6 +35,13 @@ export default function GoldLoansPage() {
 
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'settled' | 'overdue'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Live Market Gold Rate State
+  const [live24kRate, setLive24kRate] = useState<number>(7450); // ₹ per gram
+  const [isLiveLoading, setIsLiveLoading] = useState<boolean>(false);
+  const [rateSource, setRateSource] = useState<string>('Live IBJA / MCX Bullion');
+  const [lastRateUpdated, setLastRateUpdated] = useState<string>('Just now');
+  const [isManualOverride, setIsManualOverride] = useState<boolean>(false);
 
   // Modals
   const [showAddPledgeModal, setShowAddPledgeModal] = useState(false);
@@ -46,7 +57,7 @@ export default function GoldLoansPage() {
   const [grossWeight, setGrossWeight] = useState<number>(20.0);
   const [stoneWeight, setStoneWeight] = useState<number>(0.5);
   const [purity, setPurity] = useState<GoldPurityKarat>('22K');
-  const [goldRate, setGoldRate] = useState<number>(7400); // Live 24K Gold Rate / gram
+  const [goldRate, setGoldRate] = useState<number>(7450); // Live 24K Gold Rate / gram
   const [loanAmount, setLoanAmount] = useState<number>(85000);
   const [interestRate, setInterestRate] = useState<number>(2.0); // 2% per month (₹2 saikda)
   const [lockerTag, setLockerTag] = useState('Safe Vault A - Box 12');
@@ -57,7 +68,7 @@ export default function GoldLoansPage() {
   const [calcGross, setCalcGross] = useState<number>(25.0);
   const [calcStone, setCalcStone] = useState<number>(1.0);
   const [calcPurity, setCalcPurity] = useState<GoldPurityKarat>('22K');
-  const [calcRate, setCalcRate] = useState<number>(7400);
+  const [calcRate, setCalcRate] = useState<number>(7450);
   const [calcMonthlyRate, setCalcMonthlyRate] = useState<number>(2.0);
 
   // Interest Form
@@ -72,6 +83,37 @@ export default function GoldLoansPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [settleNote, setSettleNote] = useState('');
   const [otpError, setOtpError] = useState(false);
+
+  // Fetch Live Gold Rate from API
+  const fetchLiveGoldPrice = async () => {
+    setIsLiveLoading(true);
+    try {
+      const res = await fetch('/api/market-prices');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.gold?.rate_per_gram_24k) {
+          const new24k = data.gold.rate_per_gram_24k;
+          setLive24kRate(new24k);
+          setRateSource(data.gold.source || 'IBJA / MCX Benchmark');
+          setLastRateUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+          
+          // If user hasn't typed custom rate, update calculator & form rate
+          if (!isManualOverride) {
+            setCalcRate(new24k);
+            setGoldRate(new24k);
+          }
+        }
+      }
+    } catch (err) {
+      console.log('Error fetching live gold price:', err);
+    } finally {
+      setIsLiveLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveGoldPrice();
+  }, []);
 
   // Computed metrics
   const activePledges = goldLoans.filter(p => p.status === 'active' || p.status === 'overdue');
@@ -113,6 +155,13 @@ export default function GoldLoansPage() {
       default: return 22 / 24;
     }
   };
+
+  // Live Karat Rates for Quick Display
+  const currentBaseRate = calcRate || live24kRate || 7450;
+  const rate24k = Math.round(currentBaseRate);
+  const rate22k = Math.round(currentBaseRate * (22 / 24));
+  const rate18k = Math.round(currentBaseRate * (18 / 24));
+  const rate14k = Math.round(currentBaseRate * (14 / 24));
 
   // Live Calculator calculations
   const calcNetWeight = Math.max(0, calcGross - calcStone);
@@ -259,13 +308,16 @@ export default function GoldLoansPage() {
               🥇 Sona Girvi, Private Loan & Safe Locker Hub
             </h1>
             <p className="text-amber-100 text-sm max-w-2xl leading-relaxed">
-              Manage pawn gold loans, live Karat valuation (75% LTV), tamper-proof pouch barcodes, monthly byaaj (₹2 saikda), and secure OTP-verified return slips.
+              Real-time gold rate updates & manual override, live Karat valuation (75% LTV), tamper-proof pouch barcodes, monthly byaaj (₹2 saikda), and secure OTP-verified return slips.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => setShowAddPledgeModal(true)}
+              onClick={() => {
+                setGoldRate(calcRate || live24kRate);
+                setShowAddPledgeModal(true);
+              }}
               className="flex items-center gap-2 bg-white text-amber-900 font-bold px-5 py-2.5 rounded-xl shadow-lg hover:bg-amber-50 active:scale-95 transition-all text-sm"
             >
               <Plus className="h-4 w-4" />
@@ -276,6 +328,129 @@ export default function GoldLoansPage() {
 
         <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-yellow-400/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-0 right-1/4 w-32 h-32 bg-amber-300/15 rounded-full blur-2xl pointer-events-none" />
+      </div>
+
+      {/* 🌟 LIVE GOLD RATE & REAL-TIME / MANUAL CONTROLLER STRIP */}
+      <div className="bg-card border border-amber-500/40 rounded-2xl p-4 shadow-md space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-foreground">
+              {isManualOverride ? '✏️ Custom Sarrafa Bazaar Rate (Manual Set)' : `🟢 ${rateSource} (Live)`}
+            </span>
+            <span className="text-[11px] text-muted-foreground">· Updated: {lastRateUpdated}</span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={fetchLiveGoldPrice}
+              disabled={isLiveLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold border border-amber-500/30 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLiveLoading ? 'animate-spin' : ''}`} />
+              <span>{isLiveLoading ? 'Fetching...' : '1-Click Live MCX Refresh'}</span>
+            </button>
+
+            {isManualOverride && (
+              <button
+                onClick={() => {
+                  setIsManualOverride(false);
+                  setCalcRate(live24kRate);
+                  setGoldRate(live24kRate);
+                }}
+                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                ↺ Reset to Live MCX (₹{live24kRate}/g)
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Live Karat Rates Ticker */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+            <div className="text-[11px] font-bold text-amber-800 dark:text-amber-300 flex items-center justify-between">
+              <span>24K (99.9% Pure)</span>
+              <span className="text-[9px] px-1 bg-amber-500/20 rounded">Bullion</span>
+            </div>
+            <div className="text-lg font-black text-foreground mt-0.5">₹{rate24k.toLocaleString('en-IN')} <span className="text-[11px] font-normal text-muted-foreground">/ gram</span></div>
+            <div className="text-[10px] text-muted-foreground">₹{(rate24k * 10).toLocaleString('en-IN')} / 10g</div>
+          </div>
+
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3">
+            <div className="text-[11px] font-bold text-yellow-800 dark:text-yellow-300 flex items-center justify-between">
+              <span>22K (91.6% Hallmark)</span>
+              <span className="text-[9px] px-1 bg-yellow-500/20 rounded">Jewelry</span>
+            </div>
+            <div className="text-lg font-black text-amber-600 dark:text-amber-400 mt-0.5">₹{rate22k.toLocaleString('en-IN')} <span className="text-[11px] font-normal text-muted-foreground">/ gram</span></div>
+            <div className="text-[10px] text-muted-foreground">₹{(rate22k * 10).toLocaleString('en-IN')} / 10g</div>
+          </div>
+
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+            <div className="text-[11px] font-bold text-blue-800 dark:text-blue-300 flex items-center justify-between">
+              <span>18K (75.0% Gold)</span>
+              <span className="text-[9px] px-1 bg-blue-500/20 rounded">Diamond</span>
+            </div>
+            <div className="text-lg font-black text-blue-600 dark:text-blue-400 mt-0.5">₹{rate18k.toLocaleString('en-IN')} <span className="text-[11px] font-normal text-muted-foreground">/ gram</span></div>
+            <div className="text-[10px] text-muted-foreground">₹{(rate18k * 10).toLocaleString('en-IN')} / 10g</div>
+          </div>
+
+          <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3">
+            <div className="text-[11px] font-bold text-purple-800 dark:text-purple-300 flex items-center justify-between">
+              <span>14K (58.3% Gold)</span>
+              <span className="text-[9px] px-1 bg-purple-500/20 rounded">Antique</span>
+            </div>
+            <div className="text-lg font-black text-purple-600 dark:text-purple-400 mt-0.5">₹{rate14k.toLocaleString('en-IN')} <span className="text-[11px] font-normal text-muted-foreground">/ gram</span></div>
+            <div className="text-[10px] text-muted-foreground">₹{(rate14k * 10).toLocaleString('en-IN')} / 10g</div>
+          </div>
+        </div>
+
+        {/* Quick Rate Adjuster Chips */}
+        <div className="flex items-center gap-2 flex-wrap pt-1 text-xs">
+          <span className="text-muted-foreground font-semibold flex items-center gap-1">
+            <Edit3 className="h-3 w-3" /> Quick Bhaav Adjust (₹/g):
+          </span>
+          <button
+            onClick={() => {
+              setIsManualOverride(true);
+              setCalcRate(prev => prev - 50);
+              setGoldRate(prev => prev - 50);
+            }}
+            className="px-2 py-0.5 rounded-lg bg-muted hover:bg-muted/80 font-bold text-foreground border border-border"
+          >
+            -₹50
+          </button>
+          <button
+            onClick={() => {
+              setIsManualOverride(true);
+              setCalcRate(prev => prev - 10);
+              setGoldRate(prev => prev - 10);
+            }}
+            className="px-2 py-0.5 rounded-lg bg-muted hover:bg-muted/80 font-bold text-foreground border border-border"
+          >
+            -₹10
+          </button>
+          <button
+            onClick={() => {
+              setIsManualOverride(true);
+              setCalcRate(prev => prev + 10);
+              setGoldRate(prev => prev + 10);
+            }}
+            className="px-2 py-0.5 rounded-lg bg-muted hover:bg-muted/80 font-bold text-foreground border border-border"
+          >
+            +₹10
+          </button>
+          <button
+            onClick={() => {
+              setIsManualOverride(true);
+              setCalcRate(prev => prev + 50);
+              setGoldRate(prev => prev + 50);
+            }}
+            className="px-2 py-0.5 rounded-lg bg-muted hover:bg-muted/80 font-bold text-foreground border border-border"
+          >
+            +₹50
+          </button>
+        </div>
       </div>
 
       {/* Overview Stat Cards */}
@@ -346,14 +521,20 @@ export default function GoldLoansPage() {
 
       {/* Live Karat & LTV Calculator Widget */}
       <div className="bg-gradient-to-br from-card via-card to-amber-950/10 border border-amber-500/30 rounded-2xl p-5 shadow-md">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-            <Calculator className="h-4 w-4" />
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <Calculator className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-foreground">Live Gold Karat & 75% LTV Calculator</h2>
+              <p className="text-xs text-muted-foreground">Type any custom market rate or weight to calculate instant loan limits</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-bold text-foreground">Live Gold Karat & 75% LTV Calculator</h2>
-            <p className="text-xs text-muted-foreground">Calculate net gold value, safe loan limits, and monthly interest in seconds</p>
-          </div>
+
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300">
+            {isManualOverride ? 'Manual Rate' : 'Live Auto Rate'}
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
@@ -394,12 +575,18 @@ export default function GoldLoansPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-muted-foreground">24K Market Rate (₹/g)</label>
+            <label className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center justify-between">
+              <span>24K Market Rate (₹/g)</span>
+              <span className="text-[10px] text-muted-foreground">Editable</span>
+            </label>
             <input
               type="number"
               value={calcRate}
-              onChange={(e) => setCalcRate(Number(e.target.value))}
-              className="w-full mt-1 px-3 py-2 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              onChange={(e) => {
+                setCalcRate(Number(e.target.value));
+                setIsManualOverride(true);
+              }}
+              className="w-full mt-1 px-3 py-2 text-sm font-bold text-amber-600 rounded-xl border border-amber-500/40 bg-background focus:ring-2 focus:ring-amber-500 focus:outline-none"
             />
           </div>
 
@@ -495,7 +682,10 @@ export default function GoldLoansPage() {
               Naya Girvi Pledge add karne ke liye upar diye button par click karein.
             </p>
             <button
-              onClick={() => setShowAddPledgeModal(true)}
+              onClick={() => {
+                setGoldRate(calcRate || live24kRate);
+                setShowAddPledgeModal(true);
+              }}
               className="inline-flex items-center gap-2 bg-amber-600 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md hover:bg-amber-700"
             >
               <Plus className="h-3.5 w-3.5" /> Naya Pledge Banaye
@@ -790,12 +980,15 @@ export default function GoldLoansPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-muted-foreground">24K Gold Rate (₹/g)</label>
+                  <label className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
+                    <span>24K Gold Rate (₹/g)</span>
+                    <span className="text-[10px] text-muted-foreground">Editable</span>
+                  </label>
                   <input
                     type="number"
                     value={goldRate}
                     onChange={(e) => setGoldRate(Number(e.target.value))}
-                    className="w-full mt-1 px-3 py-2 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    className="w-full mt-1 px-3 py-2 text-sm font-bold text-amber-600 rounded-xl border border-amber-500/40 bg-background focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   />
                 </div>
                 <div>
