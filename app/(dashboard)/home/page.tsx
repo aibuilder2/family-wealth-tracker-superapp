@@ -103,33 +103,47 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Quick Business Hub & Rentals Strip */}
-      <div className="px-4 grid grid-cols-2 gap-2.5">
+      {/* Quick Business Hub, Gold Loans & Rentals Strip */}
+      <div className="px-4 grid grid-cols-3 gap-2">
         <Link 
-          href="/rentals"
-          className="rounded-xl p-3 bg-gradient-to-br from-[#1c2a38] to-navy border border-amber-500/30 flex flex-col justify-between shadow-sm group hover:border-amber-400 transition-all block"
+          href="/gold-loans"
+          className="rounded-xl p-2.5 bg-gradient-to-br from-[#2a2010] to-[#1c160c] border border-yellow-500/40 flex flex-col justify-between shadow-sm group hover:border-yellow-400 transition-all block"
         >
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-base">🏠</span>
-            <span className="px-1.5 py-0.2 text-[9px] font-bold bg-amber-500/20 text-amber-300 rounded">NEW</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm">🥇</span>
+            <span className="px-1 py-0.2 text-[8px] font-bold bg-yellow-500/20 text-yellow-300 rounded">GIRVI</span>
           </div>
           <div>
-            <p className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors">Rentals & PG Hostel</p>
-            <p className="text-[10px] text-slate-300">Rooms, Bed Matrix & Rent</p>
+            <p className="text-[11px] font-bold text-white group-hover:text-yellow-300 transition-colors leading-tight">Gold Loans</p>
+            <p className="text-[9px] text-slate-300 truncate">75% LTV & Parchi</p>
+          </div>
+        </Link>
+
+        <Link 
+          href="/rentals"
+          className="rounded-xl p-2.5 bg-gradient-to-br from-[#1c2a38] to-navy border border-amber-500/30 flex flex-col justify-between shadow-sm group hover:border-amber-400 transition-all block"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm">🏠</span>
+            <span className="px-1 py-0.2 text-[8px] font-bold bg-amber-500/20 text-amber-300 rounded">RENT</span>
+          </div>
+          <div>
+            <p className="text-[11px] font-bold text-white group-hover:text-amber-300 transition-colors leading-tight">Rentals & PG</p>
+            <p className="text-[9px] text-slate-300 truncate">Rooms & Meter</p>
           </div>
         </Link>
 
         <Link 
           href="/stocks"
-          className="rounded-xl p-3 bg-gradient-to-br from-navy via-[#1b3b5a] to-navy border border-gold/30 flex flex-col justify-between shadow-sm group hover:border-gold transition-all block"
+          className="rounded-xl p-2.5 bg-gradient-to-br from-navy via-[#1b3b5a] to-navy border border-gold/30 flex flex-col justify-between shadow-sm group hover:border-gold transition-all block"
         >
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-base">📈</span>
-            <span className="px-1.5 py-0.2 text-[9px] font-bold bg-gold/20 text-gold-soft rounded">LIVE</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm">📈</span>
+            <span className="px-1 py-0.2 text-[8px] font-bold bg-gold/20 text-gold-soft rounded">LIVE</span>
           </div>
           <div>
-            <p className="text-xs font-bold text-white group-hover:text-gold-soft transition-colors">Stocks & AI Hub</p>
-            <p className="text-[10px] text-slate-300">AI Picks, F&O & Academy</p>
+            <p className="text-[11px] font-bold text-white group-hover:text-gold-soft transition-colors leading-tight">Stock AI Hub</p>
+            <p className="text-[9px] text-slate-300 truncate">Picks & Academy</p>
           </div>
         </Link>
       </div>

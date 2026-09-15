@@ -7,7 +7,7 @@ import {
   Sparkles, Smartphone, ArrowRight, CheckCircle2, 
   Briefcase, Landmark, BookOpen, Award, Flame, 
   Cpu, Lock, Database, Sprout, Truck, HeartPulse, 
-  ChevronRight, BarChart3, Star, Download
+  ChevronRight, BarChart3, Star, Download, Coins
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -137,7 +137,7 @@ export default function LandingPage() {
         </div>
 
         {/* Feature Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Card 1: Aapsi Hisab */}
           <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 transition-all space-y-4 group">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xl group-hover:scale-110 transition-transform">
@@ -188,6 +188,24 @@ export default function LandingPage() {
             <div className="pt-2 flex items-center gap-2 text-[11px] font-semibold text-blue-400">
               <Link href="/wealth/goals" className="hover:underline flex items-center gap-1">
                 Goals Hub Kholein <ArrowRight size={13} />
+              </Link>
+            </div>
+          </div>
+
+          {/* Card 4: Gold Loan & Girvi Hub */}
+          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-yellow-500/40 transition-all space-y-4 group">
+            <div className="w-12 h-12 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 flex items-center justify-center font-bold text-xl group-hover:scale-110 transition-transform">
+              <Coins size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-white group-hover:text-yellow-300 transition-colors">
+              🥇 Sona Girvi & Gold Loans
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Live Karat valuation (75% LTV), tamper-proof barcode seal pouch, ₹2 saikda byaaj engine, aur OTP-verified return NOC slips.
+            </p>
+            <div className="pt-2 flex items-center gap-2 text-[11px] font-semibold text-yellow-400">
+              <Link href="/gold-loans" className="hover:underline flex items-center gap-1">
+                Gold Loan Hub Kholein <ArrowRight size={13} />
               </Link>
             </div>
           </div>

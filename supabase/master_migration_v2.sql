@@ -280,6 +280,39 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('medical_prescriptions', 'medical_prescriptions', true)
 ON CONFLICT (id) DO NOTHING;
 
+-- 18. GOLD LOANS (GIRVI & PAWN FINANCE) TABLE
+CREATE TABLE IF NOT EXISTS public.gold_loans (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    family_id TEXT NOT NULL DEFAULT 'fam-1',
+    pledge_no TEXT NOT NULL,
+    customer_name TEXT NOT NULL,
+    customer_phone TEXT NOT NULL,
+    customer_aadhaar TEXT,
+    item_title TEXT NOT NULL,
+    gross_weight_grams NUMERIC NOT NULL DEFAULT 0,
+    stone_weight_grams NUMERIC NOT NULL DEFAULT 0,
+    net_gold_weight_grams NUMERIC NOT NULL DEFAULT 0,
+    purity_karat TEXT NOT NULL DEFAULT '22K',
+    market_gold_rate_per_gram NUMERIC NOT NULL DEFAULT 7400,
+    valuation_amount NUMERIC NOT NULL DEFAULT 0,
+    loan_amount_given NUMERIC NOT NULL DEFAULT 0,
+    ltv_percentage NUMERIC NOT NULL DEFAULT 75,
+    interest_rate_monthly NUMERIC NOT NULL DEFAULT 2.0,
+    interest_type TEXT NOT NULL DEFAULT 'simple',
+    pledge_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date DATE,
+    status TEXT NOT NULL DEFAULT 'active', -- 'active' | 'settled' | 'overdue' | 'auction_notice'
+    safe_locker_tag TEXT NOT NULL DEFAULT 'Vault Safe A',
+    packet_barcode TEXT NOT NULL,
+    customer_photo_url TEXT,
+    gold_photo_url TEXT,
+    interest_payments JSONB DEFAULT '[]',
+    noc_otp_verified BOOLEAN DEFAULT false,
+    noc_date DATE,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Disable Row Level Security (RLS) for seamless client operations
 ALTER TABLE public.family_members DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions DISABLE ROW LEVEL SECURITY;
@@ -298,4 +331,5 @@ ALTER TABLE public.medical_records DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.member_ledgers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.learn_chapters DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.predictions_log DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gold_loans DISABLE ROW LEVEL SECURITY;
 

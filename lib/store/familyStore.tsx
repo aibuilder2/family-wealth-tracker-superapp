@@ -7,7 +7,8 @@ import {
   UtilityBill, CalendarEventItem, AgriculturalLand, CropCycle, AgricultureExpense,
   Vehicle, VehicleServiceLog, UdharContact, UdharSettlement, UdharSettlementMode, CommercialFleetVehicle, FleetTrip, FleetBusinessType, CommercialVehicleType, LawyerFeePayment, LawyerPaymentType, BusinessFirm, FirmDrawing, EntityType,
   RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentalPropertyType,
-  MemberLedgerEntry, MemberLedgerType
+  MemberLedgerEntry, MemberLedgerType,
+  GoldLoanPledge, GoldLoanInterestPayment, GoldLoanStatus, GoldPurityKarat
 } from '@/types';
 
 export const INITIAL_MEMBERS: Member[] = [
@@ -468,6 +469,89 @@ export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
   }
 ];
 
+export const INITIAL_GOLD_LOANS: GoldLoanPledge[] = [
+  {
+    id: 'gl-1',
+    family_id: 'fam-1',
+    pledge_no: 'GL-2026-001',
+    customer_name: 'Rameshwar Lal Verma',
+    customer_phone: '+91 98765 11223',
+    customer_aadhaar: '5412 8901 2345',
+    item_title: '22K Gold Chain + 2 Rings (Hallmark)',
+    gross_weight_grams: 28.5,
+    stone_weight_grams: 1.5,
+    net_gold_weight_grams: 27.0,
+    purity_karat: '22K',
+    market_gold_rate_per_gram: 7200,
+    valuation_amount: 178200,
+    loan_amount_given: 120000,
+    ltv_percentage: 67.3,
+    interest_rate_monthly: 2.0,
+    interest_type: 'simple',
+    pledge_date: '2026-08-01',
+    due_date: '2026-11-01',
+    status: 'active',
+    safe_locker_tag: 'Safe Vault B - Tray 3 - Box 102',
+    packet_barcode: 'SEC-GOLD-98421',
+    notes: 'Seal pouch verified & barcoded. Aadhaar copy verified.',
+    interest_payments: [
+      {
+        id: 'gl-pay-1',
+        amount: 2400,
+        payment_date: '2026-09-01',
+        mode: 'upi',
+        notes: 'August interest paid via UPI'
+      }
+    ],
+    noc_otp_verified: false,
+    created_at: '2026-08-01T10:30:00Z'
+  },
+  {
+    id: 'gl-2',
+    family_id: 'fam-1',
+    pledge_no: 'GL-2026-002',
+    customer_name: 'Suresh Chandra Sharma',
+    customer_phone: '+91 98112 33445',
+    customer_aadhaar: '6789 0123 4567',
+    item_title: '18K Gold Bangles (2 Pcs)',
+    gross_weight_grams: 18.0,
+    stone_weight_grams: 0.0,
+    net_gold_weight_grams: 18.0,
+    purity_karat: '18K',
+    market_gold_rate_per_gram: 7200,
+    valuation_amount: 97200,
+    loan_amount_given: 65000,
+    ltv_percentage: 66.8,
+    interest_rate_monthly: 2.0,
+    interest_type: 'simple',
+    pledge_date: '2026-07-15',
+    due_date: '2026-09-15',
+    status: 'settled',
+    safe_locker_tag: 'Safe Vault A - Box 45',
+    packet_barcode: 'SEC-GOLD-77124',
+    notes: 'Loan settled in full. Gold returned with OTP verification.',
+    interest_payments: [
+      {
+        id: 'gl-pay-2',
+        amount: 1300,
+        payment_date: '2026-08-15',
+        mode: 'cash',
+        notes: 'Month 1 interest'
+      },
+      {
+        id: 'gl-pay-3',
+        amount: 1300,
+        payment_date: '2026-09-15',
+        mode: 'upi',
+        notes: 'Month 2 interest + Principal Settled'
+      }
+    ],
+    noc_otp_verified: true,
+    noc_date: '2026-09-15',
+    created_at: '2026-07-15T11:00:00Z'
+  }
+];
+
 interface FamilyContextType {
   family: Family;
   members: Member[];
@@ -489,6 +573,12 @@ interface FamilyContextType {
   businessFirms: BusinessFirm[];
   rentalProperties: RentalProperty[];
   memberLedgers: MemberLedgerEntry[];
+  goldLoans: GoldLoanPledge[];
+
+  addGoldLoan: (pledge: Omit<GoldLoanPledge, 'id' | 'family_id' | 'created_at' | 'interest_payments'>) => void;
+  recordGoldInterestPayment: (pledgeId: string, payment: Omit<GoldLoanInterestPayment, 'id'>) => void;
+  settleAndReleaseGoldLoan: (pledgeId: string, otpCode: string, note?: string) => void;
+  updateGoldLoanStatus: (pledgeId: string, status: GoldLoanStatus) => void;
 
   addMemberLedgerEntry: (entry: Omit<MemberLedgerEntry, 'id' | 'family_id' | 'created_at'>) => void;
   deleteMemberLedgerEntry: (id: string) => void;
@@ -598,6 +688,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [fleetVehicles, setFleetVehicles] = useState<CommercialFleetVehicle[]>(INITIAL_FLEET);
   const [businessFirms, setBusinessFirms] = useState<BusinessFirm[]>(INITIAL_FIRMS);
   const [memberLedgers, setMemberLedgers] = useState<MemberLedgerEntry[]>(INITIAL_MEMBER_LEDGERS);
+  const [goldLoans, setGoldLoans] = useState<GoldLoanPledge[]>(INITIAL_GOLD_LOANS);
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
@@ -1385,6 +1476,87 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const addGoldLoan = (pledge: Omit<GoldLoanPledge, 'id' | 'family_id' | 'created_at' | 'interest_payments'>) => {
+    const newPledge: GoldLoanPledge = {
+      ...pledge,
+      id: `gl-${Date.now()}`,
+      family_id: family.id,
+      created_at: new Date().toISOString(),
+      interest_payments: []
+    };
+    setGoldLoans(prev => [newPledge, ...prev]);
+
+    addTransaction({
+      member_id: currentUserId,
+      type: 'udhar_given',
+      amount: pledge.loan_amount_given,
+      category: 'Gold Loan Disbursal (Girvi)',
+      category_type: 'main_ghar',
+      mode: 'offline',
+      scope: 'bahar',
+      note: `Gold loan given to ${pledge.customer_name} against ${pledge.item_title} (Pledge #${pledge.pledge_no})`,
+      txn_date: pledge.pledge_date || new Date().toISOString().split('T')[0]
+    });
+  };
+
+  const recordGoldInterestPayment = (pledgeId: string, payment: Omit<GoldLoanInterestPayment, 'id'>) => {
+    const newPay: GoldLoanInterestPayment = {
+      ...payment,
+      id: `gl-pay-${Date.now()}`
+    };
+    setGoldLoans(prev => prev.map(p => {
+      if (p.id !== pledgeId) return p;
+      return {
+        ...p,
+        interest_payments: [...(p.interest_payments || []), newPay]
+      };
+    }));
+
+    addTransaction({
+      member_id: currentUserId,
+      type: 'income',
+      amount: payment.amount,
+      category: 'Gold Loan Interest Income (Byaaj)',
+      category_type: 'main_ghar',
+      mode: payment.mode === 'cash' ? 'offline' : 'online',
+      scope: 'bahar',
+      note: `Byaaj received for Gold Pledge #${pledgeId}`,
+      txn_date: payment.payment_date || new Date().toISOString().split('T')[0]
+    });
+  };
+
+  const settleAndReleaseGoldLoan = (pledgeId: string, otpCode: string, note?: string) => {
+    setGoldLoans(prev => prev.map(p => {
+      if (p.id !== pledgeId) return p;
+      return {
+        ...p,
+        status: 'settled',
+        noc_otp_verified: true,
+        noc_date: new Date().toISOString().split('T')[0],
+        notes: note ? `${p.notes || ''} | Settle note: ${note} (OTP: ${otpCode})` : p.notes
+      };
+    }));
+
+    const target = goldLoans.find(p => p.id === pledgeId);
+    if (target) {
+      addTransaction({
+        member_id: currentUserId,
+        type: 'udhar_taken',
+        amount: target.loan_amount_given,
+        category: 'Gold Loan Principal Repaid',
+        category_type: 'main_ghar',
+        mode: 'offline',
+        scope: 'bahar',
+        note: `Principal returned for settled Pledge #${target.pledge_no} (${target.customer_name})`,
+        txn_date: new Date().toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const updateGoldLoanStatus = (pledgeId: string, status: GoldLoanStatus) => {
+    setGoldLoans(prev => prev.map(p => p.id === pledgeId ? { ...p, status } : p));
+  };
+
   const openQuickAdd = (type: 'expense' | 'income' | 'udhar' = 'expense') => {
     setQuickAddType(type);
     setIsQuickAddOpen(true);
@@ -1544,6 +1716,11 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addMemberLedgerEntry,
         deleteMemberLedgerEntry,
         settleMemberLedger,
+        goldLoans,
+        addGoldLoan,
+        recordGoldInterestPayment,
+        settleAndReleaseGoldLoan,
+        updateGoldLoanStatus,
         totalWealth,
         liquidWealth,
         fixedWealth,

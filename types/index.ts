@@ -585,3 +585,47 @@ export interface MemberLedgerEntry {
   created_at?: string;
 }
 
+export type GoldPurityKarat = '24K' | '22K' | '18K' | '14K';
+export type GoldLoanStatus = 'active' | 'settled' | 'overdue' | 'auction_notice';
+
+export interface GoldLoanInterestPayment {
+  id: string;
+  amount: number;
+  payment_date: string;
+  mode: 'cash' | 'upi' | 'bank_transfer';
+  notes?: string;
+}
+
+export interface GoldLoanPledge {
+  id: string;
+  family_id: string;
+  pledge_no: string; // e.g. "GL-2026-001"
+  customer_name: string;
+  customer_phone: string;
+  customer_aadhaar?: string;
+  item_title: string; // e.g. "22K Gold Chain + 2 Rings"
+  gross_weight_grams: number;
+  stone_weight_grams: number;
+  net_gold_weight_grams: number;
+  purity_karat: GoldPurityKarat;
+  market_gold_rate_per_gram: number;
+  valuation_amount: number;
+  loan_amount_given: number;
+  ltv_percentage: number;
+  interest_rate_monthly: number; // e.g. 2 for 2% per month (₹2 saikda)
+  interest_type: 'simple' | 'monthly_compound';
+  pledge_date: string;
+  due_date?: string;
+  status: GoldLoanStatus;
+  safe_locker_tag: string; // e.g. "Safe Vault B - Tray 3 - Box 102"
+  packet_barcode: string; // e.g. "SEC-GOLD-98421"
+  customer_photo_url?: string;
+  gold_photo_url?: string;
+  interest_payments?: GoldLoanInterestPayment[];
+  notes?: string;
+  noc_otp_verified?: boolean;
+  noc_date?: string;
+  created_at?: string;
+}
+
+
