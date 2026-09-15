@@ -469,6 +469,9 @@ interface FamilyContextType {
   addTransaction: (tx: Omit<Transaction, 'id' | 'family_id' | 'created_at'>) => void;
   deleteTransaction: (id: string) => void;
   addGoal: (goal: Omit<Goal, 'id' | 'family_id'>) => void;
+  contributeToGoal: (goalId: string, amount: number, note?: string) => void;
+  deleteGoal: (goalId: string) => void;
+  updateGoal: (goalId: string, updates: Partial<Goal>) => void;
   addReminder: (rem: Omit<Reminder, 'id' | 'family_id'>) => void;
   addAsset: (asset: Omit<Asset, 'id' | 'family_id'>) => void;
   addMember: (member: Omit<Member, 'id' | 'family_id'>) => void;
@@ -624,6 +627,57 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
     if (supabase) {
       supabase.from('goals').insert(newG).then();
+    }
+  };
+
+  const contributeToGoal = (goalId: string, amount: number, note?: string) => {
+    const updated = goals.map(g => {
+      if (g.id === goalId) {
+        return { ...g, saved_amount: Math.min(g.target_amount * 2, (g.saved_amount || 0) + amount) };
+      }
+      return g;
+    });
+    setGoals(updated);
+    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    
+    // Also record an expense/savings transaction
+    const targetG = goals.find(g => g.id === goalId);
+    if (targetG) {
+      addTransaction({
+        member_id: currentUser.id,
+        type: 'expense',
+        category: 'investments',
+        amount: amount,
+        description: `Goal Deposit: ${targetG.title}${note ? ` (${note})` : ''}`,
+        date: new Date().toISOString().split('T')[0],
+        payment_method: 'bank_transfer',
+        is_recurring: false
+      });
+    }
+
+    if (supabase) {
+      const g = updated.find(x => x.id === goalId);
+      if (g) {
+        supabase.from('goals').update({ saved_amount: g.saved_amount }).eq('id', goalId).then();
+      }
+    }
+  };
+
+  const deleteGoal = (id: string) => {
+    const updated = goals.filter(g => g.id !== id);
+    setGoals(updated);
+    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    if (supabase) {
+      supabase.from('goals').delete().eq('id', id).then();
+    }
+  };
+
+  const updateGoal = (id: string, updates: Partial<Goal>) => {
+    const updated = goals.map(g => g.id === id ? { ...g, ...updates } : g);
+    setGoals(updated);
+    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    if (supabase) {
+      supabase.from('goals').update(updates).eq('id', id).then();
     }
   };
 
@@ -1299,6 +1353,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addTransaction,
         deleteTransaction,
         addGoal,
+        contributeToGoal,
+        deleteGoal,
+        updateGoal,
         addReminder,
         addAsset,
         addMember,

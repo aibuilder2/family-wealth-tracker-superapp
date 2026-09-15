@@ -68,20 +68,38 @@ export default function HomePage() {
       {/* 3. Featured Goal Widget */}
       {primaryGoal && (
         <div className="px-4">
-          <div className="rounded-xl p-4 bg-paper border border-paper-dim flex items-center gap-4 shadow-sm">
-            <ProgressRing percent={goalPercent} size={80} />
-            <div className="flex-1 min-w-0">
-              <p className="font-serif font-semibold text-ink text-sm truncate">
-                {primaryGoal.title}
-              </p>
-              <p className="text-xs text-ink-muted mt-0.5">
-                Goal: <Mono>₹{primaryGoal.target_amount.toLocaleString('en-IN')}</Mono>
-              </p>
-              <p className="text-xs text-ink-muted">
-                Jama: <Mono className="text-gold font-semibold">₹{primaryGoal.saved_amount.toLocaleString('en-IN')}</Mono>
-              </p>
-            </div>
+          <div className="flex items-center justify-between mb-1.5">
+            <h2 className="font-serif font-semibold text-ink text-xs uppercase tracking-wider">
+              Family Goal (Lakshya)
+            </h2>
+            <Link href="/wealth/goals" className="text-xs text-gold font-bold hover:underline flex items-center gap-0.5">
+              Sabhi Lakshya Dekho <ChevronRight size={14} />
+            </Link>
           </div>
+          <Link 
+            href="/wealth/goals" 
+            className="rounded-xl p-4 bg-paper border border-paper-dim flex items-center gap-4 shadow-sm hover:border-gold/50 transition-all block group"
+          >
+            <div className="flex items-center gap-4 w-full">
+              <ProgressRing percent={goalPercent} size={74} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="font-serif font-bold text-ink text-sm truncate group-hover:text-gold transition-colors">
+                    {primaryGoal.title}
+                  </p>
+                  <span className="text-[10px] font-bold text-gold px-1.5 py-0.5 bg-gold/10 rounded">
+                    {goalPercent}%
+                  </span>
+                </div>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  Target: <Mono>₹{primaryGoal.target_amount.toLocaleString('en-IN')}</Mono>
+                </p>
+                <p className="text-xs text-ink-muted">
+                  Jama: <Mono className="text-gold font-bold">₹{primaryGoal.saved_amount.toLocaleString('en-IN')}</Mono>
+                </p>
+              </div>
+            </div>
+          </Link>
         </div>
       )}
 

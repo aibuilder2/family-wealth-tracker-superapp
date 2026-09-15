@@ -5,6 +5,7 @@ import { Bell, AlertTriangle } from 'lucide-react';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { AddTransactionModal } from '@/components/money/AddTransactionModal';
 import { useFamilyStore } from '@/lib/store/familyStore';
+import { EmergencySOSModal } from '@/components/sos/EmergencySOSModal';
 import Link from 'next/link';
 
 export default function DashboardLayout({
@@ -12,14 +13,8 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { family, reminders, triggerEmergencySOS, currentUser } = useFamilyStore();
-  const [sosStatus, setSosStatus] = useState<string | null>(null);
-
-  const handleSOS = () => {
-    const res = triggerEmergencySOS();
-    setSosStatus(res.message);
-    setTimeout(() => setSosStatus(null), 6000);
-  };
+  const { family, reminders, currentUser } = useFamilyStore();
+  const [isSosOpen, setIsSosOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-0 sm:p-6 bg-[#E7E1D2]">
@@ -39,11 +34,11 @@ export default function DashboardLayout({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleSOS}
-              className="px-2 py-1 bg-coral text-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow animate-pulse hover:opacity-90 transition-all"
+              onClick={() => setIsSosOpen(true)}
+              className="px-2.5 py-1 bg-coral text-white text-[11px] font-black rounded-lg flex items-center gap-1 shadow-md shadow-coral/30 animate-pulse hover:opacity-90 transition-all cursor-pointer"
               title="Emergency SOS"
             >
-              <AlertTriangle size={12} /> SOS
+              <AlertTriangle size={13} strokeWidth={2.6} /> SOS
             </button>
 
             <Link
@@ -61,18 +56,13 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        {sosStatus && (
-          <div className="bg-coral text-white text-xs p-3 font-semibold text-center shrink-0 animate-bounce">
-            {sosStatus}
-          </div>
-        )}
-
         <main className="flex-1 overflow-y-auto bg-[#EFEAE0] no-scrollbar pb-6">
           {children}
         </main>
 
         <BottomNav />
         <AddTransactionModal />
+        <EmergencySOSModal isOpen={isSosOpen} onClose={() => setIsSosOpen(false)} />
       </div>
     </div>
   );

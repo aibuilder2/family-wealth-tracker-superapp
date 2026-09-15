@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, TrendingUp, Cpu, Briefcase, Bitcoin, BookOpen, Newspaper, PieChart, Landmark, Layers, Flame, Filter, Bell, Menu, X, Lightbulb, Eye, Award } from "lucide-react";
+import { Home, TrendingUp, Cpu, Briefcase, Bitcoin, BookOpen, Newspaper, PieChart, Landmark, Layers, Flame, Filter, Bell, Menu, X, Lightbulb, Eye, Award, Target } from "lucide-react";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -52,6 +52,7 @@ export default function Sidebar() {
         </div>
         
         <NavItem path="/portfolio" label="My Portfolio" Icon={PieChart} activeColor="text-purple-400" />
+        <NavItem path="/wealth/goals" label="Goals & Lakshya Hub" Icon={Target} activeColor="text-yellow-400" />
         <NavItem path="/rentals" label="Rentals & PG Hostel" Icon={Landmark} activeColor="text-amber-400" />
         <NavItem path="/watchlist" label="My Watchlist" Icon={Eye} activeColor="text-yellow-400" />
         <NavItem path="/mutual-funds" label="Mutual Funds" Icon={Landmark} activeColor="text-emerald-400" />

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Wallet, PiggyBank, Calendar, Menu, FileText, Users, Scale, HeartPulse, Sparkles, Settings, Sprout, Car, Truck, Building2, X } from 'lucide-react';
+import { Home, Wallet, PiggyBank, Calendar, Menu, FileText, Users, Scale, HeartPulse, Sparkles, Settings, Sprout, Car, Truck, Building2, Target, X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 export function BottomNav() {
@@ -18,6 +18,7 @@ export function BottomNav() {
   ];
 
   const moreItems = [
+    { href: '/wealth/goals', label: '🎯 Family Goals & Lakshya Hub', icon: Target, desc: 'Education, Shadi, Home & Retirement progress' },
     { href: '/stocks', label: '📈 Stocks & AI Trading Hub', icon: Sparkles, desc: 'AI Top 5 Picks, F&O Heatmap, Academy & Paper Trading' },
     { href: '/rentals', label: '🏠 Rentals, PG & Hostel Manager', icon: Building2, desc: 'Flats, Shops, PG Rooms, Bed Matrix, Sub-meter & Mess' },
     { href: '/firms', label: '🏢 Business Firms & GST', icon: Building2, desc: 'Registered firms, GST, TDS & Family Drawings' },
