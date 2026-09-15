@@ -263,45 +263,124 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 5. Additional Power Modules (Vault, Medical, Fleet, Agriculture) */}
-      <section className="py-12 px-4 md:px-8 max-w-6xl mx-auto space-y-8">
-        <div className="text-center space-y-2">
-          <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">Complete Ecosystem</span>
-          <h2 className="text-xl sm:text-3xl font-extrabold text-white">Aur Bhi Powerful Modules</h2>
+      {/* 5. 8+ Multi-Business & Enterprise Management Suite */}
+      <section className="py-16 px-4 md:px-8 max-w-6xl mx-auto space-y-10">
+        <div className="text-center space-y-3">
+          <span className="text-xs uppercase font-bold text-emerald-400 tracking-wider bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+            🏢 Complete Multi-Business Ecosystem
+          </span>
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
+            8+ Family & Commercial Business Modules
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto">
+            Chahe aapka transport ka kaam ho, kheti-badi ho, rental rooms/hostel ho ya registered firms — sabhi businesses ka profit-loss aur cashflow ek hi dashboard par.
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
-            <Lock size={20} className="text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-xs font-bold text-white">Digital Vault</h4>
-              <p className="text-[10px] text-slate-400 mt-0.5">Zameen registry & insurance</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Business 1: Rentals & Hostel */}
+          <Link href="/rentals" className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/50 transition-all space-y-3 group block">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition-transform">
+              <Building2 size={20} />
             </div>
-          </div>
+            <h4 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+              1. Rentals, PG & Hostel
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Bed Matrix, Flats, Sub-meter bijli calculation, monthly rent receipt aur tenant background check.
+            </p>
+          </Link>
 
-          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
-            <HeartPulse size={20} className="text-coral shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-xs font-bold text-white">Medical & SOS</h4>
-              <p className="text-[10px] text-slate-400 mt-0.5">Blood group & emergency meds</p>
+          {/* Business 2: Fleet & Transport */}
+          <Link href="/fleet" className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-blue-500/50 transition-all space-y-3 group block">
+            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition-transform">
+              <Truck size={20} />
             </div>
-          </div>
+            <h4 className="text-sm font-bold text-white group-hover:text-blue-300 transition-colors">
+              2. Fleet & Transport Business
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Trucks, School Bus, Cabs ka diesel, toll kharcha, trip net profit aur vehicle lifetime ROI.
+            </p>
+          </Link>
 
-          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
-            <Truck size={20} className="text-blue-400 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-xs font-bold text-white">Fleet & Transport</h4>
-              <p className="text-[10px] text-slate-400 mt-0.5">Trucks, cabs & diesel hisab</p>
+          {/* Business 3: Business Firms & GST */}
+          <Link href="/firms" className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-purple-500/50 transition-all space-y-3 group block">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition-transform">
+              <Briefcase size={20} />
             </div>
-          </div>
+            <h4 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">
+              3. Registered Firms & GST
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Proprietorship, Partnership, GST collection, TDS deduction aur parivar ke members ki drawings.
+            </p>
+          </Link>
 
-          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
-            <Sprout size={20} className="text-emerald-400 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-xs font-bold text-white">Krishi & Agri Land</h4>
-              <p className="text-[10px] text-slate-400 mt-0.5">Kheti, theka & mandi fasal</p>
+          {/* Business 4: Krishi & Agri Land */}
+          <Link href="/agriculture" className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-emerald-500/50 transition-all space-y-3 group block">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition-transform">
+              <Sprout size={20} />
             </div>
-          </div>
+            <h4 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+              4. Krishi & Agri Land
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Kheti fasal cycles (Rabi/Kharif), Theka/Adhiya contract farming aur mandi rate selling calculation.
+            </p>
+          </Link>
+
+          {/* Business 5: Court & Legal Cases */}
+          <Link href="/cases" className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-rose-500/50 transition-all space-y-3 group block">
+            <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition-transform">
+              <Landmark size={20} />
+            </div>
+            <h4 className="text-sm font-bold text-white group-hover:text-rose-300 transition-colors">
+              5. Court Case & Legal Tracker
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Zameen/Property court cases, hearing dates, order copies aur Vakil ki fee payment ledger.
+            </p>
+          </Link>
+
+          {/* Business 6: Staff & Payroll */}
+          <Link href="/staff" className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 transition-all space-y-3 group block">
+            <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition-transform">
+              <Users size={20} />
+            </div>
+            <h4 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
+              6. Household & Staff Payroll
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Driver, Maid, Cook, Security guard daily attendance, monthly salary aur advance payment tracking.
+            </p>
+          </Link>
+
+          {/* Business 7: Personal Garage & Vehicles */}
+          <Link href="/vehicles" className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-yellow-500/50 transition-all space-y-3 group block">
+            <div className="w-10 h-10 rounded-2xl bg-yellow-500/10 text-yellow-400 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition-transform">
+              <Sparkles size={20} />
+            </div>
+            <h4 className="text-sm font-bold text-white group-hover:text-yellow-300 transition-colors">
+              7. Personal Garage & Vehicles
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Cars, Bikes service logs, insurance expiry, PUC renewal aur monthly maintenance cost.
+            </p>
+          </Link>
+
+          {/* Business 8: Encrypted Digital Vault */}
+          <Link href="/vault" className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-gold/50 transition-all space-y-3 group block">
+            <div className="w-10 h-10 rounded-2xl bg-gold/10 text-gold flex items-center justify-center font-bold text-lg group-hover:scale-110 transition-transform">
+              <Lock size={20} />
+            </div>
+            <h4 className="text-sm font-bold text-white group-hover:text-gold transition-colors">
+              8. Encrypted Digital Vault
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Zameen registry, Insurance policies, Gold purchase bills aur Wasiyat/Will ka secure digital vault.
+            </p>
+          </Link>
         </div>
       </section>
 

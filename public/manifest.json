@@ -2,7 +2,7 @@
   "name": "Family Wealth & Stock SuperApp",
   "short_name": "SuperApp",
   "description": "Unified AI Family Wealth Tracker, Asset Vault & Stock Market Intelligence",
-  "start_url": "/home",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

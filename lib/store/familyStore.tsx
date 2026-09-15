@@ -548,6 +548,10 @@ interface FamilyContextType {
   allCalendarEvents: CalendarEventItem[];
   currentUser: Member;
   isAdmin: boolean;
+  // Auth State
+  isLoggedIn: boolean;
+  authUser: any;
+  logout: () => Promise<void>;
 
   // Quick Add Modal
   isQuickAddOpen: boolean;
@@ -563,9 +567,12 @@ import { createClient } from '@/lib/supabase/client';
 export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const supabase = React.useMemo(() => createClient(), []);
 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authUser, setAuthUser] = useState<any>(null);
+
   const [family, setFamily] = useState<Family>({
     id: 'fam-1',
-    name: 'Mera Parivar',
+    name: 'Sharma Parivar',
     currency: 'INR',
     invite_code: 'SHARMA77',
   });
@@ -594,6 +601,56 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
+
+  // Supabase Auth Listener
+  useEffect(() => {
+    if (!supabase) return;
+
+    // Check initial user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setIsLoggedIn(true);
+        setAuthUser(user);
+        const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Parivar Head';
+        setFamily(prev => ({
+          ...prev,
+          name: `${name}'s Family`
+        }));
+        setMembers(prev => prev.map(m => m.id === 'm-head' ? { ...m, name, phone: user.email } : m));
+      } else {
+        setIsLoggedIn(false);
+        setAuthUser(null);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setIsLoggedIn(true);
+        setAuthUser(session.user);
+        const name = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Parivar Head';
+        setFamily(prev => ({
+          ...prev,
+          name: `${name}'s Family`
+        }));
+        setMembers(prev => prev.map(m => m.id === 'm-head' ? { ...m, name, phone: session.user.email } : m));
+      } else {
+        setIsLoggedIn(false);
+        setAuthUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const logout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    setIsLoggedIn(false);
+    setAuthUser(null);
+  };
 
   // 1. Initial Data Fetching from Supabase & LocalStorage Fallback
   useEffect(() => {
@@ -1498,6 +1555,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         allCalendarEvents,
         currentUser,
         isAdmin,
+        isLoggedIn,
+        authUser,
+        logout,
         isQuickAddOpen,
         quickAddType,
         openQuickAdd,
