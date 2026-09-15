@@ -638,9 +638,12 @@ interface FamilyContextType {
   allCalendarEvents: CalendarEventItem[];
   currentUser: Member;
   isAdmin: boolean;
-  // Auth State
+  // Auth & Workspace State
   isLoggedIn: boolean;
   authUser: any;
+  isDemoMode: boolean;
+  loadDemoData: () => void;
+  resetToClean: () => void;
   logout: () => Promise<void>;
 
   // Quick Add Modal
@@ -659,6 +662,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<any>(null);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const [family, setFamily] = useState<Family>({
     id: 'fam-1',
@@ -693,41 +697,243 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
 
+  // Scoped Storage Helper for Multi-Tenant SaaS
+  const getStorageKey = (k: string) => {
+    const uid = authUser?.id || 'guest';
+    return 'fwa_' + uid + '_' + k;
+  };
+
+  // Switch to Sample Demo Data (For testing/preview)
+  const loadDemoData = () => {
+    setFamily({ id: 'fam-demo', name: 'Sharma Parivar (Demo Mode)', currency: 'INR', invite_code: 'DEMO77' });
+    setMembers(INITIAL_MEMBERS);
+    setCurrentUserId('m-head');
+    setTransactions(INITIAL_TRANSACTIONS);
+    setAssets(INITIAL_ASSETS);
+    setGoals(INITIAL_GOALS);
+    setReminders(INITIAL_REMINDERS);
+    setDocuments(INITIAL_DOCUMENTS);
+    setMedicalRecords(INITIAL_MEDICAL);
+    setStaff(INITIAL_STAFF);
+    setCourtCases(INITIAL_CASES);
+    setCreditCards(INITIAL_CREDIT_CARDS);
+    setRecurringIncomes(INITIAL_RECURRING_INCOME);
+    setUtilityBills(INITIAL_UTILITY_BILLS);
+    setAgriculturalLands(INITIAL_AGRI_LANDS);
+    setVehicles(INITIAL_VEHICLES);
+    setUdharContacts(INITIAL_UDHAR_CONTACTS);
+    setFleetVehicles(INITIAL_FLEET);
+    setBusinessFirms(INITIAL_FIRMS);
+    setMemberLedgers(INITIAL_MEMBER_LEDGERS);
+    setGoldLoans(INITIAL_GOLD_LOANS);
+    setIsDemoMode(true);
+    if (authUser?.id) {
+      try { localStorage.setItem(getStorageKey('mode'), 'demo'); } catch (e) {}
+    }
+  };
+
+  // Reset to 100% Clean Slate (0 Dummy Records)
+  const resetToClean = () => {
+    const name = authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || 'Parivar Mukhiya';
+    const cleanFamId = authUser?.id ? 'fam-' + authUser.id : 'fam-user';
+    const cleanMemId = authUser?.id ? 'm-' + authUser.id : 'm-user';
+    const ownerMember: Member = {
+      id: cleanMemId,
+      family_id: cleanFamId,
+      name: name,
+      role: 'owner',
+      color: '#B98B2A',
+      initials: name.charAt(0).toUpperCase() || 'M',
+      relationship: 'Self / Mukhiya',
+      phone: authUser?.email || '',
+      permissions: {
+        can_view_investments: true,
+        can_view_bills: true,
+        can_view_vault: true,
+        can_view_medical: true,
+        can_view_staff: true,
+        can_view_cases: true,
+        is_admin: true,
+      }
+    };
+    setFamily({
+      id: cleanFamId,
+      name: name + "'s Family",
+      currency: 'INR',
+      invite_code: (name.slice(0, 4).toUpperCase() + Math.floor(1000 + Math.random() * 9000)),
+    });
+    setMembers([ownerMember]);
+    setCurrentUserId(cleanMemId);
+    setTransactions([]);
+    setAssets([]);
+    setGoals([]);
+    setReminders([]);
+    setDocuments([]);
+    setMedicalRecords([]);
+    setStaff([]);
+    setCourtCases([]);
+    setCreditCards([]);
+    setRecurringIncomes([]);
+    setUtilityBills([]);
+    setAgriculturalLands([]);
+    setVehicles([]);
+    setUdharContacts([]);
+    setFleetVehicles([]);
+    setBusinessFirms([]);
+    setMemberLedgers([]);
+    setGoldLoans([]);
+    setIsDemoMode(false);
+
+    if (authUser?.id) {
+      try {
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+        localStorage.setItem(getStorageKey('mode'), 'clean');
+        localStorage.setItem(getStorageKey('family'), JSON.stringify({ id: cleanFamId, name: name + "'s Family", currency: 'INR', invite_code: (name.slice(0, 4).toUpperCase() + '99') }));
+        localStorage.setItem(getStorageKey('members'), JSON.stringify([ownerMember]));
+        localStorage.setItem(getStorageKey('transactions'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('assets'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('goals'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('gold_loans'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('rentals'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('fleet'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('firms'), JSON.stringify([]));
+      } catch (e) {}
+    }
+  };
+
+  // Multi-Tenant SaaS Workspace Synchronization
+  const syncUserWorkspace = async (user: any) => {
+    if (!user) {
+      setIsLoggedIn(false);
+      setAuthUser(null);
+      return;
+    }
+
+    setIsLoggedIn(true);
+    setAuthUser(user);
+    const userId = user.id;
+    const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Parivar Mukhiya';
+    const cleanFamId = 'fam-' + userId;
+    const cleanMemId = 'm-' + userId;
+    const key = (k: string) => 'fwa_' + userId + '_' + k;
+
+    const ownerMember: Member = {
+      id: cleanMemId,
+      family_id: cleanFamId,
+      name: name,
+      role: 'owner',
+      color: '#B98B2A',
+      initials: name.charAt(0).toUpperCase() || 'M',
+      relationship: 'Self / Mukhiya',
+      phone: user.email || '',
+      permissions: {
+        can_view_investments: true,
+        can_view_bills: true,
+        can_view_vault: true,
+        can_view_medical: true,
+        can_view_staff: true,
+        can_view_cases: true,
+        is_admin: true,
+      }
+    };
+
+    const hasInit = localStorage.getItem(key('has_initialized'));
+    const mode = localStorage.getItem(key('mode'));
+
+    if (mode === 'demo') {
+      loadDemoData();
+      return;
+    }
+
+    if (hasInit) {
+      // Load user's saved isolated data
+      try {
+        const sf = localStorage.getItem(key('family'));
+        if (sf) setFamily(JSON.parse(sf));
+        const sm = localStorage.getItem(key('members'));
+        if (sm) setMembers(JSON.parse(sm));
+        else setMembers([ownerMember]);
+        const stx = localStorage.getItem(key('transactions'));
+        if (stx) setTransactions(JSON.parse(stx));
+        const sa = localStorage.getItem(key('assets'));
+        if (sa) setAssets(JSON.parse(sa));
+        const sg = localStorage.getItem(key('goals'));
+        if (sg) setGoals(JSON.parse(sg));
+        const sgl = localStorage.getItem(key('gold_loans'));
+        if (sgl) setGoldLoans(JSON.parse(sgl));
+        const srt = localStorage.getItem(key('rentals'));
+        if (srt) setRentalProperties(JSON.parse(srt));
+        const sfl = localStorage.getItem(key('fleet'));
+        if (sfl) setFleetVehicles(JSON.parse(sfl));
+        const sfm = localStorage.getItem(key('firms'));
+        if (sfm) setBusinessFirms(JSON.parse(sfm));
+        setCurrentUserId(cleanMemId);
+        setIsDemoMode(false);
+      } catch (e) {}
+    } else {
+      // BRAND NEW USER: 100% CLEAN SAAS WORKSPACE (0 Dummy Records)
+      setFamily({
+        id: cleanFamId,
+        name: name + "'s Family",
+        currency: 'INR',
+        invite_code: (name.slice(0, 4).toUpperCase() + Math.floor(1000 + Math.random() * 9000)),
+      });
+      setMembers([ownerMember]);
+      setCurrentUserId(cleanMemId);
+      setTransactions([]);
+      setAssets([]);
+      setGoals([]);
+      setReminders([]);
+      setDocuments([]);
+      setMedicalRecords([]);
+      setStaff([]);
+      setCourtCases([]);
+      setCreditCards([]);
+      setRecurringIncomes([]);
+      setUtilityBills([]);
+      setAgriculturalLands([]);
+      setVehicles([]);
+      setUdharContacts([]);
+      setFleetVehicles([]);
+      setBusinessFirms([]);
+      setMemberLedgers([]);
+      setGoldLoans([]);
+      setIsDemoMode(false);
+
+      try {
+        localStorage.setItem(key('has_initialized'), 'true');
+        localStorage.setItem(key('mode'), 'clean');
+        localStorage.setItem(key('members'), JSON.stringify([ownerMember]));
+        localStorage.setItem(key('family'), JSON.stringify({ id: cleanFamId, name: name + "'s Family", currency: 'INR', invite_code: (name.slice(0, 4).toUpperCase() + '99') }));
+      } catch (e) {}
+    }
+
+    // Real-time Supabase Fetch for this family
+    if (supabase) {
+      try {
+        const { data: supaTx } = await supabase.from('transactions').select('*').eq('family_id', cleanFamId).limit(50);
+        if (supaTx && supaTx.length > 0) {
+          setTransactions(supaTx as any);
+        }
+        const { data: supaAssets } = await supabase.from('assets').select('*').eq('family_id', cleanFamId);
+        if (supaAssets && supaAssets.length > 0) setAssets(supaAssets as any);
+        const { data: supaGoals } = await supabase.from('goals').select('*').eq('family_id', cleanFamId);
+        if (supaGoals && supaGoals.length > 0) setGoals(supaGoals as any);
+      } catch (e) {}
+    }
+  };
+
   // Supabase Auth Listener
   useEffect(() => {
     if (!supabase) return;
 
     // Check initial user
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setIsLoggedIn(true);
-        setAuthUser(user);
-        const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Parivar Head';
-        setFamily(prev => ({
-          ...prev,
-          name: `${name}'s Family`
-        }));
-        setMembers(prev => prev.map(m => m.id === 'm-head' ? { ...m, name, phone: user.email } : m));
-      } else {
-        setIsLoggedIn(false);
-        setAuthUser(null);
-      }
+      syncUserWorkspace(user);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setIsLoggedIn(true);
-        setAuthUser(session.user);
-        const name = session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Parivar Head';
-        setFamily(prev => ({
-          ...prev,
-          name: `${name}'s Family`
-        }));
-        setMembers(prev => prev.map(m => m.id === 'm-head' ? { ...m, name, phone: session.user.email } : m));
-      } else {
-        setIsLoggedIn(false);
-        setAuthUser(null);
-      }
+      syncUserWorkspace(session?.user || null);
     });
 
     return () => {
@@ -743,67 +949,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setAuthUser(null);
   };
 
-  // 1. Initial Data Fetching from Supabase & LocalStorage Fallback
-  useEffect(() => {
-    const loadData = async () => {
-      // 1. LocalStorage Fallback
-      try {
-        const savedTx = localStorage.getItem('fwa_transactions_v2');
-        if (savedTx) setTransactions(JSON.parse(savedTx));
-        const savedAssets = localStorage.getItem('fwa_assets');
-        if (savedAssets) setAssets(JSON.parse(savedAssets));
-        const savedGoals = localStorage.getItem('fwa_goals');
-        if (savedGoals) setGoals(JSON.parse(savedGoals));
-        const savedStaff = localStorage.getItem('fwa_staff');
-        if (savedStaff) setStaff(JSON.parse(savedStaff));
-        const savedCases = localStorage.getItem('fwa_cases');
-        if (savedCases) setCourtCases(JSON.parse(savedCases));
-      } catch (e) {}
-
-      // 2. Real-time Supabase Fetch if connected
-      if (supabase) {
-        try {
-          let supaTxData: any = null;
-          const { data: tx1, error: err1 } = await supabase.from('transactions').select('*').order('txn_date', { ascending: false }).limit(50);
-          if (!err1 && tx1) {
-            supaTxData = tx1;
-          } else {
-            // Fallback if txn_date column doesn't exist yet
-            const { data: tx2 } = await supabase.from('transactions').select('*').limit(50);
-            if (tx2) supaTxData = tx2;
-          }
-
-          if (supaTxData && supaTxData.length > 0) {
-            const mapped = supaTxData.map((t: any) => ({
-              ...t,
-              txn_date: t.txn_date || t.date || new Date().toISOString().split('T')[0]
-            }));
-            setTransactions(mapped as any);
-          }
-          const { data: supaAssets } = await supabase.from('assets').select('*');
-          if (supaAssets && supaAssets.length > 0) {
-            setAssets(supaAssets as any);
-          }
-          const { data: supaGoals } = await supabase.from('goals').select('*');
-          if (supaGoals && supaGoals.length > 0) {
-            setGoals(supaGoals as any);
-          }
-          const { data: supaMembers } = await supabase.from('family_members').select('*');
-          if (supaMembers && supaMembers.length > 0) {
-            setMembers(supaMembers as any);
-          }
-        } catch (err) {
-          console.warn('Supabase sync info:', err);
-        }
-      }
-    };
-
-    loadData();
-  }, [supabase]);
-
   const saveTransactions = (newTx: Transaction[]) => {
     setTransactions(newTx);
-    try { localStorage.setItem('fwa_transactions_v2', JSON.stringify(newTx)); } catch (e) {}
+    try { 
+      localStorage.setItem(getStorageKey('transactions'), JSON.stringify(newTx));
+      localStorage.setItem(getStorageKey('has_initialized'), 'true');
+    } catch (e) {}
   };
 
   const addTransaction = (txData: Omit<Transaction, 'id' | 'family_id' | 'created_at'>) => {
@@ -834,7 +985,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     const newG: Goal = { ...g, id: 'g-' + Date.now(), family_id: family.id };
     const updated = [...goals, newG];
     setGoals(updated);
-    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('goals'), JSON.stringify(updated)); } catch (e) {}
     if (supabase) {
       supabase.from('goals').insert(newG).then();
     }
@@ -848,7 +999,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       return g;
     });
     setGoals(updated);
-    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('goals'), JSON.stringify(updated)); } catch (e) {}
     
     // Also record an expense/savings transaction
     const targetG = goals.find(g => g.id === goalId);
@@ -877,7 +1028,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const deleteGoal = (id: string) => {
     const updated = goals.filter(g => g.id !== id);
     setGoals(updated);
-    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('goals'), JSON.stringify(updated)); } catch (e) {}
     if (supabase) {
       supabase.from('goals').delete().eq('id', id).then();
     }
@@ -886,7 +1037,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const updateGoal = (id: string, updates: Partial<Goal>) => {
     const updated = goals.map(g => g.id === id ? { ...g, ...updates } : g);
     setGoals(updated);
-    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('goals'), JSON.stringify(updated)); } catch (e) {}
     if (supabase) {
       supabase.from('goals').update(updates).eq('id', id).then();
     }
@@ -901,7 +1052,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     const newA: Asset = { ...a, id: 'a-' + Date.now(), family_id: family.id };
     const updated = [...assets, newA];
     setAssets(updated);
-    try { localStorage.setItem('fwa_assets', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('assets'), JSON.stringify(updated)); } catch (e) {}
     if (supabase) {
       supabase.from('assets').insert(newA).then();
     }
@@ -933,7 +1084,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       return st;
     });
     setStaff(updated);
-    try { localStorage.setItem('fwa_staff', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('staff'), JSON.stringify(updated)); } catch (e) {}
   };
 
   const addStaffPayment = (staffId: string, amount: number, type: 'salary' | 'advance' | 'bonus') => {
@@ -971,7 +1122,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     };
     const updated = [...courtCases, newCase];
     setCourtCases(updated);
-    try { localStorage.setItem('fwa_cases', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('cases'), JSON.stringify(updated)); } catch (e) {}
   };
 
   const addCourtHearing = (caseId: string, h: Omit<CourtHearing, 'id' | 'case_id'>) => {
@@ -1006,7 +1157,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     };
     const updated = [newEntry, ...memberLedgers];
     setMemberLedgers(updated);
-    try { localStorage.setItem('fwa_member_ledgers', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('member_ledgers'), JSON.stringify(updated)); } catch (e) {}
     if (supabase) {
       supabase.from('member_ledgers').insert(newEntry).then();
     }
@@ -1015,7 +1166,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const deleteMemberLedgerEntry = (id: string) => {
     const updated = memberLedgers.filter(m => m.id !== id);
     setMemberLedgers(updated);
-    try { localStorage.setItem('fwa_member_ledgers', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('member_ledgers'), JSON.stringify(updated)); } catch (e) {}
     if (supabase) {
       supabase.from('member_ledgers').delete().eq('id', id).then();
     }
@@ -1037,7 +1188,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     };
     const updated = [settlementEntry, ...memberLedgers];
     setMemberLedgers(updated);
-    try { localStorage.setItem('fwa_member_ledgers', JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey('member_ledgers'), JSON.stringify(updated)); } catch (e) {}
     if (supabase) {
       supabase.from('member_ledgers').insert(settlementEntry).then();
     }
@@ -1747,6 +1898,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         isAdmin,
         isLoggedIn,
         authUser,
+        isDemoMode,
+        loadDemoData,
+        resetToClean,
         logout,
         isQuickAddOpen,
         quickAddType,

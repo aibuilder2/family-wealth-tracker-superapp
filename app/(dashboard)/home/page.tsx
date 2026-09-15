@@ -11,28 +11,75 @@ import { ArrowUpRight, ArrowDownRight, ChevronRight, HandCoins } from 'lucide-re
 
 export default function HomePage() {
   const {
+    family,
     transactions,
     members,
     goals,
+    assets,
     totalIncomeThisMonth,
     totalExpenseThisMonth,
     totalUdharGiven,
+    isDemoMode,
+    loadDemoData,
+    resetToClean,
     openQuickAdd,
   } = useFamilyStore();
 
   const recentTransactions = transactions.slice(0, 4);
-  const primaryGoal = goals[0] || {
-    title: 'Priya ki Education',
-    target_amount: 500000,
-    saved_amount: 310000,
-  };
-  const goalPercent = Math.min(
-    100,
-    Math.round((primaryGoal.saved_amount / primaryGoal.target_amount) * 100)
-  );
+  const primaryGoal = goals[0];
+  const goalPercent = primaryGoal
+    ? Math.min(100, Math.round(((primaryGoal.saved_amount || 0) / (primaryGoal.target_amount || 1)) * 100))
+    : 0;
 
   return (
-    <div className="space-y-4 pt-4">
+    <div className="space-y-4 pt-2">
+      {/* Demo Mode or Clean Workspace Notice */}
+      {isDemoMode ? (
+        <div className="mx-4 p-3 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🧪</span>
+            <div>
+              <p className="text-xs font-bold text-amber-900 dark:text-amber-200">Sample Demo Mode Active</p>
+              <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80">Ye sirf test sample data hai</p>
+            </div>
+          </div>
+          <button
+            onClick={resetToClean}
+            className="px-2.5 py-1 text-[11px] font-bold bg-navy text-paper rounded-xl hover:bg-black transition-colors"
+          >
+            🧹 Clean Dashboard
+          </button>
+        </div>
+      ) : transactions.length === 0 && assets.length === 0 && (
+        <div className="mx-4 p-4 bg-paper rounded-2xl border border-gold/30 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gold flex items-center gap-1">
+              ✨ Naya Clean Workspace
+            </span>
+            <span className="text-[10px] font-mono bg-gold/10 text-gold px-2 py-0.5 rounded-full font-bold">
+              0 Dummy Data
+            </span>
+          </div>
+          <p className="text-xs text-ink-muted">
+            Swagat hai! Yeh aapka private dashboard hai. Yahan koi purana dummy data nahi hai. Apna pehla kharch, aamadni ya asset jodein.
+          </p>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={() => openQuickAdd('income')}
+              className="px-3 py-1.5 bg-navy text-paper rounded-xl text-xs font-semibold hover:bg-black transition-all"
+            >
+              + Aamadni Jodein
+            </button>
+            <button
+              onClick={loadDemoData}
+              className="px-3 py-1.5 bg-paper-dim text-ink rounded-xl text-xs font-medium hover:bg-paper-dim/80 transition-all"
+            >
+              📥 Sample Template Load Karein
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 1. Net Wealth Card */}
       <div className="px-4">
         <NetWealthCard />
@@ -61,21 +108,21 @@ export default function HomePage() {
           <Mono className="text-[18px] font-semibold text-ink block mt-0.5">
             ₹{totalExpenseThisMonth.toLocaleString('en-IN')}
           </Mono>
-          <p className="text-ink-muted text-[11px] mt-0.5">pichle mahine se 6% kam</p>
+          <p className="text-ink-muted text-[11px] mt-0.5">is mahine ka kharch</p>
         </div>
       </div>
 
       {/* 3. Featured Goal Widget */}
-      {primaryGoal && (
-        <div className="px-4">
-          <div className="flex items-center justify-between mb-1.5">
-            <h2 className="font-serif font-semibold text-ink text-xs uppercase tracking-wider">
-              Family Goal (Lakshya)
-            </h2>
-            <Link href="/wealth/goals" className="text-xs text-gold font-bold hover:underline flex items-center gap-0.5">
-              Sabhi Lakshya Dekho <ChevronRight size={14} />
-            </Link>
-          </div>
+      <div className="px-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <h2 className="font-serif font-semibold text-ink text-xs uppercase tracking-wider">
+            Family Goal (Lakshya)
+          </h2>
+          <Link href="/wealth/goals" className="text-xs text-gold font-bold hover:underline flex items-center gap-0.5">
+            Sabhi Lakshya Dekho <ChevronRight size={14} />
+          </Link>
+        </div>
+        {primaryGoal ? (
           <Link 
             href="/wealth/goals" 
             className="rounded-xl p-4 bg-paper border border-paper-dim flex items-center gap-4 shadow-sm hover:border-gold/50 transition-all block group"
@@ -100,8 +147,22 @@ export default function HomePage() {
               </div>
             </div>
           </Link>
-        </div>
-      )}
+        ) : (
+          <Link
+            href="/wealth/goals"
+            className="rounded-xl p-4 bg-paper border border-dashed border-paper-dim hover:border-gold/50 flex items-center justify-between text-ink-muted hover:text-ink transition-colors block"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🎯</span>
+              <div>
+                <p className="text-xs font-semibold text-ink">Naya Lakshya (Goal) Set Karein</p>
+                <p className="text-[10px] text-ink-muted">Ghar, bacho ki padhai, car ya retirement save karein</p>
+              </div>
+            </div>
+            <span className="text-xs text-gold font-bold">+ Goal Jodein</span>
+          </Link>
+        )}
+      </div>
 
       {/* Quick Business Hub, Gold Loans & Rentals Strip */}
       <div className="px-4 grid grid-cols-3 gap-2">

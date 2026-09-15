@@ -6,7 +6,7 @@ import { useFamilyStore } from '@/lib/store/familyStore';
 import { Database } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { family, members } = useFamilyStore();
+  const { family, members, isDemoMode, loadDemoData, resetToClean, authUser } = useFamilyStore();
 
   return (
     <div className="space-y-4">
@@ -16,6 +16,45 @@ export default function SettingsPage() {
       />
 
       <div className="px-4 space-y-3">
+        {/* Workspace Mode & Clean Slate Controller */}
+        <div className="p-4 bg-paper rounded-2xl border border-paper-dim shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+              <span>💼</span> Workspace & Data Mode
+            </span>
+            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${isDemoMode ? 'bg-amber-500/20 text-amber-700' : 'bg-emerald-500/20 text-emerald-700'}`}>
+              {isDemoMode ? '🧪 Demo Sample Mode' : '✨ Clean SaaS Mode'}
+            </span>
+          </div>
+          <p className="text-xs text-ink-muted leading-relaxed">
+            {isDemoMode 
+              ? 'Aap sample test data dekh rahe hain. Aap kabhi bhi apna clean dashboard activate kar sakte hain.'
+              : 'Aapka private clean SaaS workspace active hai (0 Dummy Records).'}
+          </p>
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <button
+              onClick={() => {
+                if (confirm('Kya aap dashboard ko bilkul clean (0 records) karna chahte hain?')) {
+                  resetToClean();
+                  alert('Dashboard completely cleaned!');
+                }
+              }}
+              className="py-2 px-3 rounded-xl bg-paper-dim hover:bg-paper-dim/80 text-coral font-semibold text-xs border border-coral/20 flex items-center justify-center gap-1 transition-colors"
+            >
+              🧹 Clean Dashboard
+            </button>
+            <button
+              onClick={() => {
+                loadDemoData();
+                alert('Sample Demo Data Loaded!');
+              }}
+              className="py-2 px-3 rounded-xl bg-navy hover:bg-black text-paper font-semibold text-xs flex items-center justify-center gap-1 transition-colors"
+            >
+              📥 Load Sample Data
+            </button>
+          </div>
+        </div>
+
         <div className="p-4 bg-paper rounded-2xl border border-paper-dim shadow-sm space-y-3">
           <div>
             <span className="text-[10px] font-bold text-ink-muted uppercase">Family Name</span>
