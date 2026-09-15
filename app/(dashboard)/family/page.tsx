@@ -32,6 +32,29 @@ export default function FamilyPage() {
         <FamilyTreeView />
       </div>
 
+      {/* Member Aapsi Hisab Banner */}
+      <div className="px-4">
+        <Link
+          href="/family/hisab"
+          className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-gold/15 to-emerald-500/10 border-2 border-gold/40 hover:border-gold transition-all shadow-sm flex items-center justify-between group block"
+        >
+          <div className="space-y-1">
+            <span className="text-[10px] uppercase font-bold text-gold tracking-wider bg-gold/10 px-2 py-0.5 rounded-full">
+              New • Member Ledger
+            </span>
+            <h3 className="text-base font-bold font-serif text-ink group-hover:text-gold transition-colors">
+              Aapsi Hisab-Kitab Hub
+            </h3>
+            <p className="text-xs text-ink-muted">
+              Samaan lana, cash len-den, running balance & 1-click WhatsApp receipt
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center text-gold font-bold text-lg group-hover:scale-110 transition-transform">
+            ₹
+          </div>
+        </Link>
+      </div>
+
       {/* Quick Links to Medical & AI Advisor */}
       <div className="px-4 grid grid-cols-2 gap-3">
         <Link

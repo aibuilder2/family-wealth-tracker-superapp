@@ -18,6 +18,7 @@ export function BottomNav() {
   ];
 
   const moreItems = [
+    { href: '/family/hisab', label: '🤝 Member Aapsi Hisab-Kitab', icon: Users, desc: 'Samaan lana, cash len-den, running balance & WhatsApp receipt' },
     { href: '/wealth/goals', label: '🎯 Family Goals & Lakshya Hub', icon: Target, desc: 'Education, Shadi, Home & Retirement progress' },
     { href: '/stocks', label: '📈 Stocks & AI Trading Hub', icon: Sparkles, desc: 'AI Top 5 Picks, F&O Heatmap, Academy & Paper Trading' },
     { href: '/rentals', label: '🏠 Rentals, PG & Hostel Manager', icon: Building2, desc: 'Flats, Shops, PG Rooms, Bed Matrix, Sub-meter & Mess' },

@@ -567,3 +567,21 @@ export interface RentalProperty {
   notes?: string;
 }
 
+export type MemberLedgerType = 'cash_transfer' | 'samaan_shopping' | 'work_payment' | 'settlement';
+
+export interface MemberLedgerEntry {
+  id: string;
+  family_id: string;
+  from_member_id: string; // Jisne paise diye / kharch kiye
+  to_member_id: string; // Jiske liye kharch kiye / jisne paise liye
+  type: MemberLedgerType;
+  amount: number;
+  title: string; // e.g. "Ghar ka Ration & Sabji", "Bike Petrol / Service", "Cash transfer"
+  items_detail?: string; // e.g. "Atta 10kg, Mustard Oil 2L, Dawa"
+  bill_url?: string;
+  date: string;
+  is_settled?: boolean;
+  notes?: string;
+  created_at?: string;
+}
+

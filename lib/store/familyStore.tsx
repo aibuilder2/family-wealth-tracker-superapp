@@ -6,7 +6,8 @@ import {
   MedicalRecord, HouseholdStaff, CourtCase, CourtHearing, CreditCard, RecurringIncome,
   UtilityBill, CalendarEventItem, AgriculturalLand, CropCycle, AgricultureExpense,
   Vehicle, VehicleServiceLog, UdharContact, UdharSettlement, UdharSettlementMode, CommercialFleetVehicle, FleetTrip, FleetBusinessType, CommercialVehicleType, LawyerFeePayment, LawyerPaymentType, BusinessFirm, FirmDrawing, EntityType,
-  RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentalPropertyType
+  RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentalPropertyType,
+  MemberLedgerEntry, MemberLedgerType
 } from '@/types';
 
 export const INITIAL_MEMBERS: Member[] = [
@@ -276,6 +277,50 @@ export const INITIAL_REMINDERS: Reminder[] = [
   }
 ];
 
+export const INITIAL_MEMBER_LEDGERS: MemberLedgerEntry[] = [
+  {
+    id: 'mle-1',
+    family_id: 'fam-1',
+    from_member_id: 'm-rahul',
+    to_member_id: 'm-head',
+    type: 'cash_transfer',
+    amount: 5000,
+    title: 'Ghar Painting & Material ke liye Cash Diya',
+    notes: 'Papa ji ko paint material lane ke liye cash diya',
+    date: '2026-09-10',
+    is_settled: false,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'mle-2',
+    family_id: 'fam-1',
+    from_member_id: 'm-head',
+    to_member_id: 'm-rahul',
+    type: 'samaan_shopping',
+    amount: 3200,
+    title: 'Asian Paints Primer, Roller & Brushes Laye',
+    items_detail: 'Primer 10L (₹1800), Roller 2pcs (₹400), Brushes (₹1000)',
+    notes: 'Hardware dukan se bill ke sath samaan laya',
+    date: '2026-09-12',
+    is_settled: false,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'mle-3',
+    family_id: 'fam-1',
+    from_member_id: 'm-priya',
+    to_member_id: 'm-mummy',
+    type: 'samaan_shopping',
+    amount: 1450,
+    title: 'Mummy ji ke liye Ayurvedic Tonic & Dawa Laye',
+    items_detail: 'Chyawanprash 1kg, Joint pain oil, Sugar test strips',
+    notes: 'Pharmacy se UPI payment kiya',
+    date: '2026-09-14',
+    is_settled: false,
+    created_at: new Date().toISOString()
+  }
+];
+
 export const INITIAL_FIRMS: BusinessFirm[] = [];
 export const INITIAL_FLEET: CommercialFleetVehicle[] = [];
 export const INITIAL_AGRI_LANDS: AgriculturalLand[] = [];
@@ -439,12 +484,15 @@ interface FamilyContextType {
   utilityBills: UtilityBill[];
   agriculturalLands: AgriculturalLand[];
   vehicles: Vehicle[];
-
   udharContacts: UdharContact[];
   fleetVehicles: CommercialFleetVehicle[];
   businessFirms: BusinessFirm[];
-
   rentalProperties: RentalProperty[];
+  memberLedgers: MemberLedgerEntry[];
+
+  addMemberLedgerEntry: (entry: Omit<MemberLedgerEntry, 'id' | 'family_id' | 'created_at'>) => void;
+  deleteMemberLedgerEntry: (id: string) => void;
+  settleMemberLedger: (fromMemberId: string, toMemberId: string, amount: number, note?: string) => void;
   addRentalProperty: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>) => void;
   addHostelRoom: (propertyId: string, room: Omit<HostelRoom, 'id'>) => void;
   addRentalTenant: (propertyId: string, tenant: Omit<RentalTenant, 'id' | 'property_id'>) => void;
@@ -542,6 +590,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [udharContacts, setUdharContacts] = useState<UdharContact[]>(INITIAL_UDHAR_CONTACTS);
   const [fleetVehicles, setFleetVehicles] = useState<CommercialFleetVehicle[]>(INITIAL_FLEET);
   const [businessFirms, setBusinessFirms] = useState<BusinessFirm[]>(INITIAL_FIRMS);
+  const [memberLedgers, setMemberLedgers] = useState<MemberLedgerEntry[]>(INITIAL_MEMBER_LEDGERS);
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
@@ -646,12 +695,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       addTransaction({
         member_id: currentUser.id,
         type: 'expense',
-        category: 'investments',
+        category: 'Investments',
         amount: amount,
-        description: `Goal Deposit: ${targetG.title}${note ? ` (${note})` : ''}`,
-        date: new Date().toISOString().split('T')[0],
-        payment_method: 'bank_transfer',
-        is_recurring: false
+        note: `Goal Deposit: ${targetG.title}${note ? ` (${note})` : ''}`,
+        txn_date: new Date().toISOString().split('T')[0],
+        mode: 'online',
+        category_type: 'long_term',
+        scope: 'ghar'
       });
     }
 
@@ -784,6 +834,52 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       }
       return rec;
     }));
+  };
+
+  const addMemberLedgerEntry = (entry: Omit<MemberLedgerEntry, 'id' | 'family_id' | 'created_at'>) => {
+    const newEntry: MemberLedgerEntry = {
+      ...entry,
+      id: 'mle-' + Date.now(),
+      family_id: family.id,
+      created_at: new Date().toISOString()
+    };
+    const updated = [newEntry, ...memberLedgers];
+    setMemberLedgers(updated);
+    try { localStorage.setItem('fwa_member_ledgers', JSON.stringify(updated)); } catch (e) {}
+    if (supabase) {
+      supabase.from('member_ledgers').insert(newEntry).then();
+    }
+  };
+
+  const deleteMemberLedgerEntry = (id: string) => {
+    const updated = memberLedgers.filter(m => m.id !== id);
+    setMemberLedgers(updated);
+    try { localStorage.setItem('fwa_member_ledgers', JSON.stringify(updated)); } catch (e) {}
+    if (supabase) {
+      supabase.from('member_ledgers').delete().eq('id', id).then();
+    }
+  };
+
+  const settleMemberLedger = (fromMemberId: string, toMemberId: string, amount: number, note?: string) => {
+    const settlementEntry: MemberLedgerEntry = {
+      id: 'mle-' + Date.now(),
+      family_id: family.id,
+      from_member_id: fromMemberId,
+      to_member_id: toMemberId,
+      type: 'settlement',
+      amount: amount,
+      title: 'Hisab Settlement (Full / Partial)',
+      notes: note || 'Hisab barabar kiya',
+      date: new Date().toISOString().split('T')[0],
+      is_settled: true,
+      created_at: new Date().toISOString()
+    };
+    const updated = [settlementEntry, ...memberLedgers];
+    setMemberLedgers(updated);
+    try { localStorage.setItem('fwa_member_ledgers', JSON.stringify(updated)); } catch (e) {}
+    if (supabase) {
+      supabase.from('member_ledgers').insert(settlementEntry).then();
+    }
   };
 
   const triggerEmergencySOS = () => {
@@ -1387,6 +1483,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addRentalTenant,
         collectRentPayment,
         addRentalExpense,
+        memberLedgers,
+        addMemberLedgerEntry,
+        deleteMemberLedgerEntry,
+        settleMemberLedger,
         totalWealth,
         liquidWealth,
         fixedWealth,
