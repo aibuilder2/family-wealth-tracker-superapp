@@ -16,7 +16,9 @@ export const INITIAL_MEMBERS: Member[] = [
     role: 'owner',
     color: '#B98B2A',
     initials: 'H',
-    relationship: 'Head of Family',
+    relationship: 'Self / Mukhiya',
+    dob: '1982-08-15',
+    phone: '+91 98765 43210',
     permissions: {
       can_view_investments: true,
       can_view_bills: true,
@@ -26,23 +28,288 @@ export const INITIAL_MEMBERS: Member[] = [
       can_view_cases: true,
       is_admin: true,
     }
+  },
+  {
+    id: 'm-sunita',
+    family_id: 'fam-1',
+    name: 'Sunita Sharma',
+    role: 'member',
+    color: '#34D399',
+    initials: 'S',
+    relationship: 'Patni (Wife)',
+    dob: '1985-03-22',
+    phone: '+91 98765 43211',
+    permissions: {
+      can_view_investments: true,
+      can_view_bills: true,
+      can_view_vault: true,
+      can_view_medical: true,
+      can_view_staff: true,
+      can_view_cases: false,
+      is_admin: false,
+    }
+  },
+  {
+    id: 'm-priya',
+    family_id: 'fam-1',
+    name: 'Priya Sharma',
+    role: 'member',
+    color: '#60A5FA',
+    initials: 'P',
+    relationship: 'Beti (Daughter)',
+    dob: '2008-11-10',
+    permissions: {
+      can_view_investments: false,
+      can_view_bills: false,
+      can_view_vault: false,
+      can_view_medical: true,
+      can_view_staff: false,
+      can_view_cases: false,
+      is_admin: false,
+    }
+  },
+  {
+    id: 'm-amit',
+    family_id: 'fam-1',
+    name: 'Amit Sharma',
+    role: 'member',
+    color: '#F472B6',
+    initials: 'A',
+    relationship: 'Beta (Son)',
+    dob: '2012-05-18',
+    permissions: {
+      can_view_investments: false,
+      can_view_bills: false,
+      can_view_vault: false,
+      can_view_medical: true,
+      can_view_staff: false,
+      can_view_cases: false,
+      is_admin: false,
+    }
   }
 ];
 
-export const INITIAL_TRANSACTIONS: Transaction[] = [];
+export const INITIAL_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'txn-1',
+    family_id: 'fam-1',
+    member_id: 'm-head',
+    type: 'income',
+    amount: 185000,
+    category: 'Business Salary / Profit',
+    mode: 'online',
+    scope: 'ghar',
+    category_type: 'main_ghar',
+    note: 'Monthly director salary and trading profits',
+    txn_date: new Date().toISOString().split('T')[0]
+  },
+  {
+    id: 'txn-2',
+    family_id: 'fam-1',
+    member_id: 'm-head',
+    type: 'income',
+    amount: 14500,
+    category: 'Stock Dividends & Interest',
+    mode: 'online',
+    scope: 'ghar',
+    category_type: 'main_ghar',
+    note: 'TCS & ITC quarterly dividend credited to HDFC bank',
+    txn_date: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0]
+  },
+  {
+    id: 'txn-3',
+    family_id: 'fam-1',
+    member_id: 'm-sunita',
+    type: 'expense',
+    amount: 18500,
+    category: 'Groceries & Kirana',
+    mode: 'online',
+    scope: 'ghar',
+    category_type: 'main_ghar',
+    note: 'Monthly ration & organic veggies from Nature Basket',
+    txn_date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0]
+  },
+  {
+    id: 'txn-4',
+    family_id: 'fam-1',
+    member_id: 'm-head',
+    type: 'expense',
+    amount: 24000,
+    category: 'Children Education & Coaching',
+    mode: 'online',
+    scope: 'ghar',
+    category_type: 'child',
+    note: 'Priya physics tuition & school quarter fee',
+    txn_date: new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0]
+  },
+  {
+    id: 'txn-5',
+    family_id: 'fam-1',
+    member_id: 'm-head',
+    type: 'expense',
+    amount: 7800,
+    category: 'Electricity & Utility Bills',
+    mode: 'online',
+    scope: 'ghar',
+    category_type: 'main_ghar',
+    note: 'BSES Electricity Bill paid via UPI',
+    txn_date: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+  }
+];
+
+export const INITIAL_ASSETS: Asset[] = [
+  {
+    id: 'ast-1',
+    family_id: 'fam-1',
+    label: 'HDFC Family Savings Account',
+    category: 'liquid',
+    type: 'bank_deposit',
+    institution: 'HDFC Bank',
+    value: 450000,
+    member_id: 'm-head',
+    notes: 'Primary liquid operational account'
+  },
+  {
+    id: 'ast-2',
+    family_id: 'fam-1',
+    label: 'SBI 3-Year Fixed Deposit',
+    category: 'liquid',
+    type: 'bank_deposit',
+    institution: 'SBI',
+    value: 1000000,
+    member_id: 'm-head',
+    notes: '7.1% interest rate emergency safety deposit'
+  },
+  {
+    id: 'ast-3',
+    family_id: 'fam-1',
+    label: '3BHK Residential Apartment (Civil Lines)',
+    category: 'fixed',
+    type: 'property',
+    institution: 'Registry',
+    value: 8500000,
+    member_id: 'm-head',
+    notes: 'Self-occupied family home, zero mortgage'
+  },
+  {
+    id: 'ast-4',
+    family_id: 'fam-1',
+    label: 'Physical Gold Jewelry & Sovereign Gold Bonds (SGB)',
+    category: 'liquid',
+    type: 'gold',
+    institution: 'Tanishq & RBI',
+    value: 1250000,
+    member_id: 'm-sunita',
+    notes: '22K Hallmarked + RBI Sovereign Gold Tranches'
+  },
+  {
+    id: 'ast-5',
+    family_id: 'fam-1',
+    label: 'Nifty 50 & Bluechip Growth Mutual Funds',
+    category: 'liquid',
+    type: 'mutual_funds',
+    institution: 'Groww / Zerodha',
+    value: 820000,
+    member_id: 'm-head',
+    notes: 'Active SIP in Parag Parikh & UTI Nifty 50 Index Fund'
+  }
+];
+
+export const INITIAL_GOALS: Goal[] = [
+  {
+    id: 'g-1',
+    family_id: 'fam-1',
+    title: 'Priya ki Higher Education',
+    target_amount: 1500000,
+    saved_amount: 920000,
+    target_date: '2027-06-30',
+    category: 'education'
+  },
+  {
+    id: 'g-2',
+    family_id: 'fam-1',
+    title: 'Diwali Gold & SGB Accumulation',
+    target_amount: 300000,
+    saved_amount: 210000,
+    target_date: '2026-11-10',
+    category: 'gold'
+  },
+  {
+    id: 'g-3',
+    family_id: 'fam-1',
+    title: 'Family Emergency Contingency Fund',
+    target_amount: 1000000,
+    saved_amount: 750000,
+    target_date: '2026-12-31',
+    category: 'safety'
+  }
+];
+
+export const INITIAL_REMINDERS: Reminder[] = [
+  {
+    id: 'rem-1',
+    family_id: 'fam-1',
+    title: 'Car Comprehensive Insurance Renewal',
+    due_date: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
+    amount: 14200,
+    category: 'insurance',
+    color: '#C1502E'
+  },
+  {
+    id: 'rem-2',
+    family_id: 'fam-1',
+    title: 'Family Health Insurance (Floater ₹25L)',
+    due_date: new Date(Date.now() + 25 * 86400000).toISOString().split('T')[0],
+    amount: 28500,
+    category: 'insurance',
+    color: '#B98B2A'
+  },
+  {
+    id: 'rem-3',
+    family_id: 'fam-1',
+    title: 'Municipal Property Tax Assessment',
+    due_date: new Date(Date.now() + 45 * 86400000).toISOString().split('T')[0],
+    amount: 6200,
+    category: 'bill',
+    color: '#4C7A5E'
+  }
+];
+
 export const INITIAL_FIRMS: BusinessFirm[] = [];
 export const INITIAL_FLEET: CommercialFleetVehicle[] = [];
 export const INITIAL_AGRI_LANDS: AgriculturalLand[] = [];
-export const INITIAL_VEHICLES: Vehicle[] = [];
+export const INITIAL_VEHICLES: Vehicle[] = [
+  {
+    id: 'veh-1',
+    family_id: 'fam-1',
+    vehicle_type: 'car',
+    brand_model: 'Hyundai Creta SX (O)',
+    reg_number: 'DL 08 CA 4210',
+    member_id: 'm-head',
+    purchase_date: '2023-04-15',
+    purchase_price: 1850000,
+    fuel_type: 'Petrol',
+    insurance_expiry: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
+    service_logs: []
+  }
+];
 export const INITIAL_UDHAR_CONTACTS: UdharContact[] = [];
 export const INITIAL_CASES: CourtCase[] = [];
 export const INITIAL_RECURRING_INCOME: RecurringIncome[] = [];
 export const INITIAL_CREDIT_CARDS: CreditCard[] = [];
 export const INITIAL_UTILITY_BILLS: UtilityBill[] = [];
-export const INITIAL_ASSETS: Asset[] = [];
-export const INITIAL_GOALS: Goal[] = [];
-export const INITIAL_REMINDERS: Reminder[] = [];
-export const INITIAL_STAFF: HouseholdStaff[] = [];
+export const INITIAL_STAFF: HouseholdStaff[] = [
+  {
+    id: 'st-1',
+    family_id: 'fam-1',
+    name: 'Ramesh Kumar',
+    role: 'driver',
+    monthly_salary: 18000,
+    advance_balance: 2000,
+    phone: '+91 98111 22334',
+    attendance_this_month: {}
+  }
+];
 export const INITIAL_DOCUMENTS: DocumentItem[] = [];
 export const INITIAL_MEDICAL: MedicalRecord[] = [];
 
