@@ -219,6 +219,60 @@ export function TransactionForm({
         </div>
       )}
 
+      {/* Note / Bill Description Field */}
+      <div>
+        <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
+          📝 Bill Details / Note (Kiska Bill Hai ya Details)
+        </label>
+        <input
+          type="text"
+          placeholder="e.g. Bijli Bill, Doodh, Ration, Medical Parchi, Amazon Order..."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="w-full px-3.5 py-2.5 text-xs bg-paper border border-paper-dim rounded-xl focus:outline-none focus:border-gold font-medium text-ink placeholder:text-ink-muted/50 shadow-sm"
+        />
+      </div>
+
+      {/* Udhar Person Name if type is Udhar */}
+      {type.startsWith('udhar') && (
+        <div>
+          <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
+            👤 Kisko Diya / Kisse Liya? (Person Name)
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. Ramesh Kumar, Chacha Ji, Dukaan Wala..."
+            value={udharPerson}
+            onChange={(e) => setUdharPerson(e.target.value)}
+            className="w-full px-3.5 py-2.5 text-xs bg-paper border border-paper-dim rounded-xl focus:outline-none focus:border-gold font-medium text-ink shadow-sm"
+            required
+          />
+        </div>
+      )}
+
+      {/* Payment Mode (Online vs Offline Cash) */}
+      <div>
+        <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
+          Payment Mode (Bhugtan Ka Tarika)
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setMode('online')}
+            className={'py-2 text-xs rounded-xl border font-medium flex items-center justify-center gap-1.5 transition-all ' + (mode === 'online' ? 'bg-navy text-paper border-navy shadow-sm' : 'bg-paper text-ink-muted border-paper-dim hover:bg-paper-dim')}
+          >
+            💳 Online (UPI / Card / Netbanking)
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('offline')}
+            className={'py-2 text-xs rounded-xl border font-medium flex items-center justify-center gap-1.5 transition-all ' + (mode === 'offline' ? 'bg-navy text-paper border-navy shadow-sm' : 'bg-paper text-ink-muted border-paper-dim hover:bg-paper-dim')}
+          >
+            💵 Cash (Nagad / Offline)
+          </button>
+        </div>
+      </div>
+
       {/* Category Selection */}
       {!type.startsWith('udhar') && (
         <div>
