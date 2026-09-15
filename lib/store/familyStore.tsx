@@ -5,7 +5,8 @@ import {
   Family, Member, Transaction, Asset, Goal, Reminder, DocumentItem,
   MedicalRecord, HouseholdStaff, CourtCase, CourtHearing, CreditCard, RecurringIncome,
   UtilityBill, CalendarEventItem, AgriculturalLand, CropCycle, AgricultureExpense,
-  Vehicle, VehicleServiceLog, UdharContact, UdharSettlement, UdharSettlementMode, CommercialFleetVehicle, FleetTrip, FleetBusinessType, CommercialVehicleType, LawyerFeePayment, LawyerPaymentType, BusinessFirm, FirmDrawing, EntityType
+  Vehicle, VehicleServiceLog, UdharContact, UdharSettlement, UdharSettlementMode, CommercialFleetVehicle, FleetTrip, FleetBusinessType, CommercialVehicleType, LawyerFeePayment, LawyerPaymentType, BusinessFirm, FirmDrawing, EntityType,
+  RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentalPropertyType
 } from '@/types';
 
 export const INITIAL_MEMBERS: Member[] = [
@@ -313,6 +314,115 @@ export const INITIAL_STAFF: HouseholdStaff[] = [
 export const INITIAL_DOCUMENTS: DocumentItem[] = [];
 export const INITIAL_MEDICAL: MedicalRecord[] = [];
 
+export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
+  {
+    id: 'rent-1',
+    family_id: 'fam-1',
+    member_id: 'm-head',
+    title: 'Shri Ram Boys PG & Hostel (Civil Lines)',
+    property_type: 'pg_hostel',
+    address: 'Plot 42, Civil Lines near Coaching Hub',
+    city: 'Delhi NCR',
+    total_units_or_rooms: 4,
+    total_capacity_beds: 10,
+    has_hostel_model: true,
+    monthly_target_revenue: 85000,
+    security_deposit_holding: 85000,
+    notes: 'Full AC Rooms with 3-times North Indian Mess & 300 Mbps Wi-Fi',
+    rooms: [
+      {
+        id: 'rm-101',
+        room_number: 'Room 101',
+        floor: 'Ground Floor',
+        sharing_type: 'double',
+        total_beds: 2,
+        sub_meter_last_reading: 1420,
+        sub_meter_current_reading: 1510,
+        electricity_rate_per_unit: 9,
+        beds: [
+          { id: 'b-101a', room_number: '101', bed_number: 'Bed A (Window)', monthly_rent: 8500, status: 'occupied', current_tenant_name: 'Rahul Verma (UPSC Aspirant)', food_included: true },
+          { id: 'b-101b', room_number: '101', bed_number: 'Bed B', monthly_rent: 8500, status: 'occupied', current_tenant_name: 'Amit Saini (Software Engineer)', food_included: true }
+        ]
+      },
+      {
+        id: 'rm-102',
+        room_number: 'Room 102',
+        floor: 'Ground Floor',
+        sharing_type: 'triple',
+        total_beds: 3,
+        sub_meter_last_reading: 2100,
+        sub_meter_current_reading: 2210,
+        electricity_rate_per_unit: 9,
+        beds: [
+          { id: 'b-102a', room_number: '102', bed_number: 'Bed A', monthly_rent: 7500, status: 'occupied', current_tenant_name: 'Vikas Gupta (IIT JEE)', food_included: true },
+          { id: 'b-102b', room_number: '102', bed_number: 'Bed B', monthly_rent: 7500, status: 'vacant', food_included: true },
+          { id: 'b-102c', room_number: '102', bed_number: 'Bed C', monthly_rent: 7500, status: 'vacant', food_included: true }
+        ]
+      },
+      {
+        id: 'rm-201',
+        room_number: 'Room 201',
+        floor: 'First Floor',
+        sharing_type: 'single',
+        total_beds: 1,
+        sub_meter_last_reading: 850,
+        sub_meter_current_reading: 920,
+        electricity_rate_per_unit: 9,
+        beds: [
+          { id: 'b-201a', room_number: '201', bed_number: 'Single Executive Bed', monthly_rent: 14000, status: 'occupied', current_tenant_name: 'Dr. Neeraj Sharma (Resident Doctor)', food_included: true }
+        ]
+      },
+      {
+        id: 'rm-202',
+        room_number: 'Room 202',
+        floor: 'First Floor',
+        sharing_type: 'four_sharing',
+        total_beds: 4,
+        sub_meter_last_reading: 3100,
+        sub_meter_current_reading: 3260,
+        electricity_rate_per_unit: 9,
+        beds: [
+          { id: 'b-202a', room_number: '202', bed_number: 'Bed A', monthly_rent: 6500, status: 'occupied', current_tenant_name: 'Manish Kumar', food_included: true },
+          { id: 'b-202b', room_number: '202', bed_number: 'Bed B', monthly_rent: 6500, status: 'occupied', current_tenant_name: 'Rohan Mehra', food_included: true },
+          { id: 'b-202c', room_number: '202', bed_number: 'Bed C', monthly_rent: 6500, status: 'occupied', current_tenant_name: 'Deepak Yadav', food_included: true },
+          { id: 'b-202d', room_number: '202', bed_number: 'Bed D', monthly_rent: 6500, status: 'vacant', food_included: true }
+        ]
+      }
+    ],
+    tenants: [
+      { id: 't-1', property_id: 'rent-1', room_number: 'Room 101', bed_number: 'Bed A', name: 'Rahul Verma', phone: '+91 98110 44221', aadhaar_no: '4589 1234 9012', joining_date: '2025-08-01', monthly_rent: 8500, security_deposit: 10000, rent_due_day: 5, rent_status: 'paid', food_included: true, electricity_due: 450, last_paid_date: '2026-09-05' },
+      { id: 't-2', property_id: 'rent-1', room_number: 'Room 101', bed_number: 'Bed B', name: 'Amit Saini', phone: '+91 98220 55332', aadhaar_no: '6712 9012 3456', joining_date: '2025-10-15', monthly_rent: 8500, security_deposit: 10000, rent_due_day: 5, rent_status: 'paid', food_included: true, electricity_due: 450, last_paid_date: '2026-09-04' },
+      { id: 't-3', property_id: 'rent-1', room_number: 'Room 102', bed_number: 'Bed A', name: 'Vikas Gupta', phone: '+91 97330 66443', aadhaar_no: '8923 4567 1234', joining_date: '2026-01-10', monthly_rent: 7500, security_deposit: 10000, rent_due_day: 5, rent_status: 'pending', food_included: true, electricity_due: 330 },
+      { id: 't-4', property_id: 'rent-1', room_number: 'Room 201', bed_number: 'Single Bed', name: 'Dr. Neeraj Sharma', phone: '+91 98440 77554', aadhaar_no: '2345 6789 0123', joining_date: '2025-06-01', monthly_rent: 14000, security_deposit: 20000, rent_due_day: 1, rent_status: 'paid', food_included: true, electricity_due: 630, last_paid_date: '2026-09-01' }
+    ],
+    expenses: [
+      { id: 'exp-1', property_id: 'rent-1', category: 'cook_salary', amount: 15000, date: '2026-09-05', note: 'Monthly Cook Maharaj Maharaj Salary' },
+      { id: 'exp-2', property_id: 'rent-1', category: 'maid_cleaning', amount: 5000, date: '2026-09-05', note: 'Daily Housekeeping & Floor Cleaning' },
+      { id: 'exp-3', property_id: 'rent-1', category: 'wifi_internet', amount: 1800, date: '2026-09-02', note: 'Airtel Fiber Commercial Plan 300 Mbps' }
+    ]
+  },
+  {
+    id: 'rent-2',
+    family_id: 'fam-1',
+    member_id: 'm-head',
+    title: '2BHK Family Apartment (Sector 14)',
+    property_type: 'residential_flat',
+    address: 'Flat 402, Royal Palms Society, Sector 14',
+    city: 'Gurugram',
+    total_units_or_rooms: 1,
+    has_hostel_model: false,
+    monthly_target_revenue: 26000,
+    security_deposit_holding: 52000,
+    notes: 'Rented to Bank Officer Family. 11-Month Registered Agreement.',
+    tenants: [
+      { id: 't-5', property_id: 'rent-2', name: 'Sanjay Malhotra & Family', phone: '+91 98990 11223', aadhaar_no: '9012 3456 7890', joining_date: '2024-11-01', monthly_rent: 26000, security_deposit: 52000, rent_due_day: 1, rent_status: 'paid', last_paid_date: '2026-09-01', notes: 'Rent directly transferred via NEFT to HDFC Bank' }
+    ],
+    expenses: [
+      { id: 'exp-4', property_id: 'rent-2', category: 'maintenance', amount: 3200, date: '2026-09-01', note: 'Society Maintenance Charges' }
+    ]
+  }
+];
+
 interface FamilyContextType {
   family: Family;
   members: Member[];
@@ -331,10 +441,15 @@ interface FamilyContextType {
   vehicles: Vehicle[];
 
   udharContacts: UdharContact[];
-
   fleetVehicles: CommercialFleetVehicle[];
-
   businessFirms: BusinessFirm[];
+
+  rentalProperties: RentalProperty[];
+  addRentalProperty: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>) => void;
+  addHostelRoom: (propertyId: string, room: Omit<HostelRoom, 'id'>) => void;
+  addRentalTenant: (propertyId: string, tenant: Omit<RentalTenant, 'id' | 'property_id'>) => void;
+  collectRentPayment: (propertyId: string, tenantId: string, amount: number, isPaid: boolean) => void;
+  addRentalExpense: (propertyId: string, expense: Omit<RentalExpense, 'id' | 'property_id'>) => void;
   addBusinessFirm: (firm: Omit<BusinessFirm, 'id' | 'family_id' | 'total_revenue' | 'total_expenses' | 'total_gst_collected' | 'total_tds_deducted' | 'current_firm_balance' | 'total_drawings_paid' | 'drawings'>) => void;
   recordFirmDrawingToFamily: (firmId: string, drawing: { amount: number; drawing_type: 'partner_salary' | 'profit_dividend' | 'director_remuneration'; credited_to_member_id: string; note: string }) => void;
 
@@ -950,6 +1065,119 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const [rentalProperties, setRentalProperties] = useState<RentalProperty[]>(INITIAL_RENTAL_PROPERTIES);
+
+  const addRentalProperty = (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>) => {
+    const newProp: RentalProperty = {
+      ...prop,
+      id: `rent-${Date.now()}`,
+      family_id: family.id,
+      tenants: [],
+      expenses: []
+    };
+    setRentalProperties(prev => [newProp, ...prev]);
+  };
+
+  const addHostelRoom = (propertyId: string, room: Omit<HostelRoom, 'id'>) => {
+    setRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      const newRoom: HostelRoom = {
+        ...room,
+        id: `rm-${Date.now()}`
+      };
+      const updatedRooms = [...(p.rooms || []), newRoom];
+      const totalBeds = updatedRooms.reduce((acc, r) => acc + (r.total_beds || 0), 0);
+      return {
+        ...p,
+        rooms: updatedRooms,
+        total_capacity_beds: totalBeds,
+        total_units_or_rooms: updatedRooms.length
+      };
+    }));
+  };
+
+  const addRentalTenant = (propertyId: string, tenant: Omit<RentalTenant, 'id' | 'property_id'>) => {
+    const newTenant: RentalTenant = {
+      ...tenant,
+      id: `t-${Date.now()}`,
+      property_id: propertyId
+    };
+    setRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      let updatedRooms = p.rooms;
+      if (p.rooms && tenant.bed_id) {
+        updatedRooms = p.rooms.map(rm => ({
+          ...rm,
+          beds: rm.beds.map(b => b.id === tenant.bed_id ? { ...b, status: 'occupied', current_tenant_id: newTenant.id, current_tenant_name: newTenant.name } : b)
+        }));
+      }
+      return {
+        ...p,
+        rooms: updatedRooms,
+        tenants: [...p.tenants, newTenant],
+        security_deposit_holding: (p.security_deposit_holding || 0) + (tenant.security_deposit || 0)
+      };
+    }));
+  };
+
+  const collectRentPayment = (propertyId: string, tenantId: string, amount: number, isPaid: boolean) => {
+    setRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        tenants: p.tenants.map(t => {
+          if (t.id !== tenantId) return t;
+          return {
+            ...t,
+            rent_status: isPaid ? 'paid' : 'pending',
+            last_paid_date: isPaid ? new Date().toISOString().split('T')[0] : t.last_paid_date
+          };
+        })
+      };
+    }));
+
+    if (isPaid && amount > 0) {
+      addTransaction({
+        member_id: currentUserId,
+        type: 'income',
+        amount: amount,
+        category: 'Rental Property Income',
+        category_type: 'main_ghar',
+        mode: 'online',
+        scope: 'ghar',
+        note: `Rent collected for property #${propertyId}`,
+        txn_date: new Date().toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const addRentalExpense = (propertyId: string, expense: Omit<RentalExpense, 'id' | 'property_id'>) => {
+    const newExp: RentalExpense = {
+      ...expense,
+      id: `exp-${Date.now()}`,
+      property_id: propertyId
+    };
+    setRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        expenses: [...p.expenses, newExp]
+      };
+    }));
+
+    addTransaction({
+      member_id: currentUserId,
+      type: 'expense',
+      amount: expense.amount,
+      category: 'Property Maintenance & Staff',
+      category_type: 'main_ghar',
+      mode: 'online',
+      scope: 'ghar',
+      note: `Rental expense: ${expense.note}`,
+      txn_date: expense.date || new Date().toISOString().split('T')[0]
+    });
+  };
+
   const openQuickAdd = (type: 'expense' | 'income' | 'udhar' = 'expense') => {
     setQuickAddType(type);
     setIsQuickAddOpen(true);
@@ -1096,6 +1324,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addBusinessFirm,
         recordFirmDrawingToFamily,
         recordLawyerFeePayment,
+        rentalProperties,
+        addRentalProperty,
+        addHostelRoom,
+        addRentalTenant,
+        collectRentPayment,
+        addRentalExpense,
         totalWealth,
         liquidWealth,
         fixedWealth,

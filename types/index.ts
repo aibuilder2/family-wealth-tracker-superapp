@@ -487,3 +487,83 @@ export interface BusinessFirm {
   total_drawings_paid: number;
   drawings: FirmDrawing[];
 }
+
+// ==========================================
+// RENTAL PROPERTY, PG & HOSTEL TYPES
+// ==========================================
+export type RentalPropertyType = 'residential_flat' | 'commercial_shop' | 'independent_house' | 'pg_hostel' | 'warehouse_godown';
+export type HostelBedStatus = 'vacant' | 'occupied' | 'under_maintenance';
+
+export interface HostelBed {
+  id: string;
+  bed_number: string;
+  room_number: string;
+  monthly_rent: number;
+  status: HostelBedStatus;
+  current_tenant_id?: string;
+  current_tenant_name?: string;
+  food_included: boolean;
+}
+
+export interface HostelRoom {
+  id: string;
+  room_number: string;
+  floor: string;
+  sharing_type: 'single' | 'double' | 'triple' | 'four_sharing';
+  total_beds: number;
+  sub_meter_last_reading?: number;
+  sub_meter_current_reading?: number;
+  electricity_rate_per_unit?: number;
+  beds: HostelBed[];
+}
+
+export interface RentalTenant {
+  id: string;
+  property_id: string;
+  room_id?: string;
+  room_number?: string;
+  bed_id?: string;
+  bed_number?: string;
+  name: string;
+  phone: string;
+  aadhaar_no?: string;
+  permanent_address?: string;
+  joining_date: string;
+  monthly_rent: number;
+  security_deposit: number;
+  rent_due_day: number;
+  food_included?: boolean;
+  electricity_due?: number;
+  rent_status: 'paid' | 'pending' | 'overdue';
+  last_paid_date?: string;
+  notes?: string;
+}
+
+export interface RentalExpense {
+  id: string;
+  property_id: string;
+  category: 'warden_salary' | 'cook_salary' | 'maid_cleaning' | 'wifi_internet' | 'electricity_main' | 'water_supply' | 'maintenance' | 'property_tax' | 'other';
+  amount: number;
+  date: string;
+  note: string;
+}
+
+export interface RentalProperty {
+  id: string;
+  family_id: string;
+  member_id?: string;
+  title: string; // e.g. "Shri Ram PG & Hostel (Civil Lines)", "Sector 14 2BHK Flat"
+  property_type: RentalPropertyType;
+  address: string;
+  city: string;
+  total_units_or_rooms: number;
+  total_capacity_beds?: number;
+  has_hostel_model: boolean;
+  rooms?: HostelRoom[];
+  tenants: RentalTenant[];
+  expenses: RentalExpense[];
+  monthly_target_revenue: number;
+  security_deposit_holding: number;
+  notes?: string;
+}
+

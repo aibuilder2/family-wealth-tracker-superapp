@@ -19,6 +19,7 @@ export function BottomNav() {
 
   const moreItems = [
     { href: '/stocks', label: '📈 Stocks & AI Trading Hub', icon: Sparkles, desc: 'AI Top 5 Picks, F&O Heatmap, Academy & Paper Trading' },
+    { href: '/rentals', label: '🏠 Rentals, PG & Hostel Manager', icon: Building2, desc: 'Flats, Shops, PG Rooms, Bed Matrix, Sub-meter & Mess' },
     { href: '/firms', label: '🏢 Business Firms & GST', icon: Building2, desc: 'Registered firms, GST, TDS & Family Drawings' },
     { href: '/fleet', label: '🚛 Fleet & Transport Business', icon: Truck, desc: 'Trucks, School Bus, Cabs, Toll/Diesel & ROI' },
     { href: '/agriculture', label: '🌾 Krishi & Agri Land', icon: Sprout, desc: 'Kheti, Theka/Adhiya & Mandi Fasal' },

@@ -52,6 +52,7 @@ export default function Sidebar() {
         </div>
         
         <NavItem path="/portfolio" label="My Portfolio" Icon={PieChart} activeColor="text-purple-400" />
+        <NavItem path="/rentals" label="Rentals & PG Hostel" Icon={Landmark} activeColor="text-amber-400" />
         <NavItem path="/watchlist" label="My Watchlist" Icon={Eye} activeColor="text-yellow-400" />
         <NavItem path="/mutual-funds" label="Mutual Funds" Icon={Landmark} activeColor="text-emerald-400" />
         <NavItem path="/news" label="News & Events" Icon={Newspaper} activeColor="text-sky-400" />

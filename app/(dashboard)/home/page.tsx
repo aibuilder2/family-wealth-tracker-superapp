@@ -85,25 +85,34 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Stock & AI Trading Spotlight */}
-      <div className="px-4">
+      {/* Quick Business Hub & Rentals Strip */}
+      <div className="px-4 grid grid-cols-2 gap-2.5">
+        <Link 
+          href="/rentals"
+          className="rounded-xl p-3 bg-gradient-to-br from-[#1c2a38] to-navy border border-amber-500/30 flex flex-col justify-between shadow-sm group hover:border-amber-400 transition-all block"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-base">🏠</span>
+            <span className="px-1.5 py-0.2 text-[9px] font-bold bg-amber-500/20 text-amber-300 rounded">NEW</span>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors">Rentals & PG Hostel</p>
+            <p className="text-[10px] text-slate-300">Rooms, Bed Matrix & Rent</p>
+          </div>
+        </Link>
+
         <Link 
           href="/stocks"
-          className="rounded-xl p-4 bg-gradient-to-r from-navy via-[#1b3b5a] to-navy border border-gold/30 flex items-center justify-between shadow-md group hover:border-gold transition-all block"
+          className="rounded-xl p-3 bg-gradient-to-br from-navy via-[#1b3b5a] to-navy border border-gold/30 flex flex-col justify-between shadow-sm group hover:border-gold transition-all block"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gold/15 border border-gold/30 flex items-center justify-center text-gold-soft shrink-0">
-              <span className="text-lg">📈</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-white group-hover:text-gold-soft">Stock & AI Trading Hub</span>
-                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-gold/20 text-gold-soft rounded">LIVE</span>
-              </div>
-              <p className="text-[11px] text-slate-300">AI Top 5 EOD Picks, F&O Heatmap & 11-Lesson Academy</p>
-            </div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-base">📈</span>
+            <span className="px-1.5 py-0.2 text-[9px] font-bold bg-gold/20 text-gold-soft rounded">LIVE</span>
           </div>
-          <ChevronRight size={16} className="text-gold-soft group-hover:translate-x-1 transition-transform" />
+          <div>
+            <p className="text-xs font-bold text-white group-hover:text-gold-soft transition-colors">Stocks & AI Hub</p>
+            <p className="text-[10px] text-slate-300">AI Picks, F&O & Academy</p>
+          </div>
         </Link>
       </div>
 
