@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, TrendingUp, Cpu, Briefcase, Bitcoin, BookOpen, Newspaper, PieChart, Landmark, Layers, Flame, Filter, Bell, Menu, X, Lightbulb, Eye } from "lucide-react";
+import { Home, TrendingUp, Cpu, Briefcase, Bitcoin, BookOpen, Newspaper, PieChart, Landmark, Layers, Flame, Filter, Bell, Menu, X, Lightbulb, Eye, Award } from "lucide-react";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -59,8 +59,9 @@ export default function Sidebar() {
         <NavItem path="/trending" label="Trending" Icon={Flame} activeColor="text-orange-500" />
         <NavItem path="/alerts" label="Alerts" Icon={Bell} activeColor="text-red-400" />
 
-        <div className="mt-6 border-t border-slate-800/80 pt-6">
+        <div className="mt-6 border-t border-slate-800/80 pt-6 space-y-1.5">
           <NavItem path="/learn" label="Learn & Education" Icon={BookOpen} activeColor="text-green-400" />
+          <NavItem path="/sebi-exams" label="SEBI & NISM Exams" Icon={Award} activeColor="text-amber-400" />
         </div>
       </nav>
     </>
