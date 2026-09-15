@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { ShieldCheck, Smartphone, Mail, MessageSquare, KeyRound, HelpCircle, ArrowRight, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useFamilyStore } from '@/lib/store/familyStore';
 
 export default function LoginPage() {
+  const { isLoggedIn, authUser } = useFamilyStore();
   const [authMethod, setAuthMethod] = useState<'otp' | 'google'>('otp');
   const [phone, setPhone] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -17,6 +19,13 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  // If already logged in, redirect immediately to /home
+  React.useEffect(() => {
+    if (isLoggedIn) {
+      router.replace('/home');
+    }
+  }, [isLoggedIn, router]);
 
   const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,21 +53,26 @@ export default function LoginPage() {
     setIsLoading(true);
     if (supabase) {
       try {
-        await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: `${window.location.origin}/auth/callback`
           }
         });
+        if (error) {
+          console.error('Google auth error:', error);
+          alert('Google Login Error: ' + error.message);
+          setIsLoading(false);
+        }
         return;
-      } catch (err) {
+      } catch (err: any) {
         console.error('Google auth error:', err);
+        setIsLoading(false);
       }
-    }
-    // Fallback demo redirect
-    setTimeout(() => {
+    } else {
+      // Fallback demo redirect
       router.push('/home');
-    }, 500);
+    }
   };
 
   return (

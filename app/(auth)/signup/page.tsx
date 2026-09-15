@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Users, Smartphone, MessageSquare, ArrowRight, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useFamilyStore } from '@/lib/store/familyStore';
 
 export default function SignupPage() {
+  const { isLoggedIn, authUser } = useFamilyStore();
   const [familyName, setFamilyName] = useState('');
   const [adminName, setAdminName] = useState('');
   const [phone, setPhone] = useState('');
@@ -15,6 +17,12 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  React.useEffect(() => {
+    if (isLoggedIn) {
+      router.replace('/home');
+    }
+  }, [isLoggedIn, router]);
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,20 +37,25 @@ export default function SignupPage() {
     setIsLoading(true);
     if (supabase) {
       try {
-        await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: `${window.location.origin}/auth/callback`
           }
         });
+        if (error) {
+          console.error('Google auth error:', error);
+          alert('Google Signup Error: ' + error.message);
+          setIsLoading(false);
+        }
         return;
-      } catch (err) {
+      } catch (err: any) {
         console.error('Google auth error:', err);
+        setIsLoading(false);
       }
-    }
-    setTimeout(() => {
+    } else {
       router.push('/home');
-    }, 500);
+    }
   };
 
   return (

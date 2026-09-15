@@ -1,37 +1,37 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/home';
+export async function GET(request: NextRequest) {
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get('code');
+  const next = requestUrl.searchParams.get('next') ?? '/home';
+  const origin = requestUrl.origin;
 
   if (code) {
-    const cookieStore = cookies();
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (supabaseUrl && supabaseAnonKey) {
+      // Create redirect response first so we can attach cookies directly to it
+      const response = NextResponse.redirect(new URL(next, origin));
+
       const supabase = createServerClient(
         supabaseUrl,
         supabaseAnonKey,
         {
           cookies: {
             get(name: string) {
-              return cookieStore.get(name)?.value;
+              return request.cookies.get(name)?.value;
             },
             set(name: string, value: string, options: CookieOptions) {
-              try {
-                cookieStore.set({ name, value, ...options });
-              } catch (error) {}
+              request.cookies.set({ name, value, ...options });
+              response.cookies.set({ name, value, ...options });
             },
             remove(name: string, options: CookieOptions) {
-              try {
-                cookieStore.delete({ name, ...options });
-              } catch (error) {}
+              request.cookies.delete({ name, ...options });
+              response.cookies.delete({ name, ...options });
             },
           },
         }
@@ -39,10 +39,12 @@ export async function GET(request: Request) {
 
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (!error) {
-        return NextResponse.redirect(`${origin}${next}`);
+        return response;
       }
+      console.error('Exchange code error:', error);
     }
   }
 
-  return NextResponse.redirect(`${origin}/home`);
+  // Fallback redirect to /home
+  return NextResponse.redirect(new URL('/home', origin));
 }
