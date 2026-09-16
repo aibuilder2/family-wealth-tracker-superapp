@@ -92,15 +92,15 @@ export default function RentalsPage() {
   const [propAddress, setPropAddress] = useState("");
   const [propCity, setPropCity] = useState("Delhi NCR");
   const [propOwnerMemberId, setPropOwnerMemberId] = useState<string>(currentUserId || members[0]?.id || "m-head");
-  const [propSize, setPropSize] = useState<number>(450);
+  const [propSize, setPropSize] = useState<number>(0);
   const [propSizeUnit, setPropSizeUnit] = useState<"sqft" | "sqyards" | "sqmeters" | "bigha" | "dhur">("sqft");
-  const [propMarketValue, setPropMarketValue] = useState<number>(3500000);
-  const [propPurchasePrice, setPropPurchasePrice] = useState<number>(2200000);
-  const [propPurchaseDate, setPropPurchaseDate] = useState("2021-04-10");
+  const [propMarketValue, setPropMarketValue] = useState<number>(0);
+  const [propPurchasePrice, setPropPurchasePrice] = useState<number>(0);
+  const [propPurchaseDate, setPropPurchaseDate] = useState(new Date().toISOString().split("T")[0]);
   const [propRegistryNo, setPropRegistryNo] = useState("");
-  const [propTargetRent, setPropTargetRent] = useState<number>(15000);
-  const [propOwnerName, setPropOwnerName] = useState("Makan Malik (Self)");
-  const [propOwnerPhone, setPropOwnerPhone] = useState("9876543210");
+  const [propTargetRent, setPropTargetRent] = useState<number>(0);
+  const [propOwnerName, setPropOwnerName] = useState("");
+  const [propOwnerPhone, setPropOwnerPhone] = useState("");
   const [propOwnerPan, setPropOwnerPan] = useState("");
   const [propOwnerUpi, setPropOwnerUpi] = useState("");
   const [propDefaultRules, setPropDefaultRules] = useState(
@@ -126,19 +126,20 @@ export default function RentalsPage() {
   const [tenantPanUrl, setTenantPanUrl] = useState("");
   const [tenantPhotoUrl, setTenantPhotoUrl] = useState("");
 
-  // Rent & Advance Fields (Fixed sticky 0)
-  const [tenantRent, setTenantRent] = useState<number>(15000);
-  const [tenantDeposit, setTenantDeposit] = useState<number>(30000);
+  // Rent & Advance Fields (0 defaults, no sticky values)
+  const [tenantRent, setTenantRent] = useState<number>(0);
+  const [tenantDeposit, setTenantDeposit] = useState<number>(0);
   const [tenantDepositMode, setTenantDepositMode] = useState<"cash" | "upi" | "bank_transfer" | "cheque">("upi");
   const [tenantJoiningDate, setTenantJoiningDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Billing cycle
-  const [tenantCycleStartDay, setTenantCycleStartDay] = useState<number>(5);
-  const [tenantCycleEndDay, setTenantCycleEndDay] = useState<number>(4);
+  const [tenantCycleStartDay, setTenantCycleStartDay] = useState<number>(1);
+  const [tenantCycleEndDay, setTenantCycleEndDay] = useState<number>(30);
   const [tenantDueDay, setTenantDueDay] = useState<number>(5);
 
-  // Move-in Electricity Sub-Meter Reading
-  const [tenantMoveInMeter, setTenantMoveInMeter] = useState<number>(1250);
+  // Move-in Electricity Sub-Meter Reading (Optional / Skippable)
+  const [hasSubmeter, setHasSubmeter] = useState<boolean>(true);
+  const [tenantMoveInMeter, setTenantMoveInMeter] = useState<number>(0);
 
   // Agreement & Exit Terms
   const [tenantAgreementMonths, setTenantAgreementMonths] = useState<number>(11);
@@ -157,8 +158,8 @@ export default function RentalsPage() {
   const [newRoomNo, setNewRoomNo] = useState("");
   const [newRoomFloor, setNewRoomFloor] = useState("First Floor");
   const [newRoomSharing, setNewRoomSharing] = useState<"single" | "double" | "triple" | "four_sharing">("double");
-  const [newRoomRentPerBed, setNewRoomRentPerBed] = useState<number>(8000);
-  const [newRoomSubMeterReading, setNewRoomSubMeterReading] = useState<number>(100);
+  const [newRoomRentPerBed, setNewRoomRentPerBed] = useState<number>(0);
+  const [newRoomSubMeterReading, setNewRoomSubMeterReading] = useState<number>(0);
 
   // Damage / Deduction Form State
   const [damageAmount, setDamageAmount] = useState<number>(0);
@@ -166,7 +167,7 @@ export default function RentalsPage() {
 
   // Expense / Maintenance Form State
   const [newExpCat, setNewExpCat] = useState<RentalExpense["category"]>("maintenance");
-  const [newExpAmount, setNewExpAmount] = useState<number>(1500);
+  const [newExpAmount, setNewExpAmount] = useState<number>(0);
   const [newExpPaidBy, setNewExpPaidBy] = useState<"owner" | "tenant">("owner");
   const [newExpAdjustInRent, setNewExpAdjustInRent] = useState(false);
   const [newExpTenantId, setNewExpTenantId] = useState("");
@@ -174,15 +175,30 @@ export default function RentalsPage() {
   const [newExpDate, setNewExpDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Submeter Calculator
-  const [meterPrevUnit, setMeterPrevUnit] = useState<number>(1420);
-  const [meterCurrUnit, setMeterCurrUnit] = useState<number>(1530);
+  const [meterPrevUnit, setMeterPrevUnit] = useState<number>(0);
+  const [meterCurrUnit, setMeterCurrUnit] = useState<number>(0);
   const [meterRate, setMeterRate] = useState<number>(9);
 
   const activeProperty = rentalProperties.find((p) => p.id === selectedPropId) || rentalProperties[0];
 
-  // Overall Portfolio Calculations
-  const totalMonthlyTarget = rentalProperties.reduce((sum, p) => sum + (p.monthly_target_revenue || 0), 0);
-  const totalDeposits = rentalProperties.reduce((sum, p) => sum + (p.security_deposit_holding || 0), 0);
+  // Overall Portfolio Calculations across ALL properties & tenants
+  const allTenants = rentalProperties.flatMap((p) => p.tenants || []);
+  const totalActiveTenantsCount = allTenants.length;
+
+  const totalMonthlyTarget = rentalProperties.reduce((sum, p) => {
+    const propTenantsSum = (p.tenants || []).reduce((tSum, t) => tSum + Number(t.monthly_rent || 0), 0);
+    return sum + (p.monthly_target_revenue && p.monthly_target_revenue > 0 ? p.monthly_target_revenue : propTenantsSum);
+  }, 0);
+
+  const totalCollectedThisMonth = allTenants
+    .filter((t) => t.rent_status === "paid")
+    .reduce((sum, t) => sum + Number(t.monthly_rent || 0), 0);
+
+  const totalPendingRent = allTenants
+    .filter((t) => t.rent_status !== "paid")
+    .reduce((sum, t) => sum + Number(t.monthly_rent || 0), 0);
+
+  const totalDeposits = allTenants.reduce((sum, t) => sum + Number(t.security_deposit || 0), 0);
   const totalPortfolioValuation = rentalProperties.reduce((sum, p) => sum + (p.estimated_market_value || 0), 0);
 
   let totalBedsCount = 0;
@@ -204,15 +220,13 @@ export default function RentalsPage() {
   const activeExpenses = activeProperty?.expenses || [];
   const activeRooms = activeProperty?.rooms || [];
 
-  const totalCollectedThisMonth = activeTenants
+  const activePropCollectedRent = activeTenants
     .filter((t) => t.rent_status === "paid")
     .reduce((sum, t) => sum + Number(t.monthly_rent || 0), 0);
 
-  const totalPendingRent = activeTenants
+  const activePropPendingRent = activeTenants
     .filter((t) => t.rent_status !== "paid")
     .reduce((sum, t) => sum + Number(t.monthly_rent || 0), 0);
-
-  const totalExpensesAmount = activeExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   // File Upload Helper (FileReader to base64 for instant preview)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
@@ -231,14 +245,14 @@ export default function RentalsPage() {
     setPropTitle("");
     setPropType("commercial_shop");
     setPropAddress("");
-    setPropSize(450);
+    setPropSize(0);
     setPropSizeUnit("sqft");
-    setPropMarketValue(3500000);
-    setPropPurchasePrice(2200000);
-    setPropPurchaseDate("2021-04-10");
+    setPropMarketValue(0);
+    setPropPurchasePrice(0);
+    setPropPurchaseDate(new Date().toISOString().split("T")[0]);
     setPropRegistryNo("");
     setPropOwnerMemberId(currentUserId || members[0]?.id || "m-head");
-    setPropTargetRent(15000);
+    setPropTargetRent(0);
     setTenantName("");
     setTenantFatherSpouse("");
     setTenantPhone("");
@@ -251,14 +265,15 @@ export default function RentalsPage() {
     setTenantAadhaarUrl("");
     setTenantPanUrl("");
     setTenantPhotoUrl("");
-    setTenantRent(15000);
-    setTenantDeposit(30000);
+    setTenantRent(0);
+    setTenantDeposit(0);
     setTenantDepositMode("upi");
     setTenantJoiningDate(new Date().toISOString().split("T")[0]);
-    setTenantCycleStartDay(5);
-    setTenantCycleEndDay(4);
+    setTenantCycleStartDay(1);
+    setTenantCycleEndDay(30);
     setTenantDueDay(5);
-    setTenantMoveInMeter(1250);
+    setHasSubmeter(true);
+    setTenantMoveInMeter(0);
     setTenantAgreementMonths(11);
     setTenantLockInMonths(6);
     setTenantNoticeDays(30);
@@ -274,8 +289,12 @@ export default function RentalsPage() {
     resetMasterForm();
     setUnifiedMode(mode);
     setTargetPropertyId(activeProperty?.id || rentalProperties[0]?.id || "");
-    if (prefillMoveInMeter !== undefined) {
+    if (prefillMoveInMeter !== undefined && prefillMoveInMeter > 0) {
+      setHasSubmeter(true);
       setTenantMoveInMeter(prefillMoveInMeter);
+    } else if (prefillMoveInMeter === 0) {
+      setHasSubmeter(false);
+      setTenantMoveInMeter(0);
     }
     if (prefillUnit) {
       setTenantRoomNo(prefillUnit);
@@ -462,15 +481,15 @@ export default function RentalsPage() {
     setPropType(p.property_type || "commercial_shop");
     setPropAddress(p.address || "");
     setPropCity(p.city || "Delhi NCR");
-    setPropOwnerMemberId(p.owner_member_id || currentUserId || "m-head");
-    setPropSize(p.property_size || 450);
+    setPropOwnerMemberId(p.owner_member_id || currentUserId || members[0]?.id || "m-head");
+    setPropSize(p.property_size || 0);
     setPropSizeUnit(p.size_unit || "sqft");
-    setPropMarketValue(p.estimated_market_value || 3500000);
-    setPropPurchasePrice(p.purchase_price || 2200000);
-    setPropPurchaseDate(p.purchase_date || "2021-04-10");
+    setPropMarketValue(p.estimated_market_value || 0);
+    setPropPurchasePrice(p.purchase_price || 0);
+    setPropPurchaseDate(p.purchase_date || new Date().toISOString().split("T")[0]);
     setPropRegistryNo(p.registration_deed_no || "");
-    setPropTargetRent(p.monthly_target_revenue || 15000);
-    setPropOwnerName(p.landlord_name || "Makan Malik");
+    setPropTargetRent(p.monthly_target_revenue || 0);
+    setPropOwnerName(p.landlord_name || "");
     setPropOwnerPhone((p.landlord_phone || "").replace("+91", "").trim());
     setPropOwnerPan(p.landlord_pan || "");
     setPropDefaultRules(p.default_rules || propDefaultRules);
@@ -511,7 +530,7 @@ export default function RentalsPage() {
   const openVacateModal = (tenant: RentalTenant, property: RentalProperty) => {
     setShowVacateModal({ tenant, property });
     const checkInReading = tenant.move_in_meter_reading || 0;
-    setVacateFinalMeter(checkInReading + 110);
+    setVacateFinalMeter(checkInReading > 0 ? checkInReading : 0);
     setVacateMeterRate(9);
     setVacateDamageDeduction(0);
     setVacateDate(new Date().toISOString().split("T")[0]);
@@ -526,8 +545,9 @@ export default function RentalsPage() {
 
     const { tenant, property } = showVacateModal;
     const checkInReading = tenant.move_in_meter_reading || 0;
-    const consumedUnits = Math.max(0, vacateFinalMeter - checkInReading);
-    const elecBill = consumedUnits * vacateMeterRate;
+    const hasMeter = checkInReading > 0 && vacateFinalMeter > 0;
+    const consumedUnits = hasMeter ? Math.max(0, vacateFinalMeter - checkInReading) : 0;
+    const elecBill = hasMeter ? consumedUnits * vacateMeterRate : 0;
     const totalAdvance = tenant.security_deposit || 0;
     const netRefund = Math.max(0, totalAdvance - elecBill - vacateDamageDeduction);
 
@@ -538,7 +558,9 @@ export default function RentalsPage() {
       final_advance_refunded: netRefund,
       vacate_date: vacateDate,
       reason: vacateReason,
-      notes: `${vacateReason}. Consumed: ${consumedUnits} units @ ₹${vacateMeterRate} = ₹${elecBill}. Damage: ₹${vacateDamageDeduction}. Refund: ₹${netRefund}. ${vacateNotes}`
+      notes: hasMeter 
+        ? `${vacateReason}. Consumed: ${consumedUnits} units @ ₹${vacateMeterRate} = ₹${elecBill}. Damage: ₹${vacateDamageDeduction}. Refund: ₹${netRefund}. ${vacateNotes}`
+        : `${vacateReason}. (No Sub-meter / Plot). Damage: ₹${vacateDamageDeduction}. Refund: ₹${netRefund}. ${vacateNotes}`
     });
 
     setShowVacateModal(null);
@@ -2027,27 +2049,47 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                       </div>
                     </div>
 
-                    {/* Move-in Electricity Sub-Meter Reading */}
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                        <div>
-                          <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                            <Zap className="w-4 h-4 text-amber-400" /> Move-in Electricity Sub-meter Reading (प्रारंभिक मीटर यूनिट)
-                          </label>
-                          <p className="text-[11px] text-slate-400">
-                            Kirayedaar ke aate samay meter me jo reading chal rahi hai, use yahan note karein taaki exit ke samay clear hisab rahe.
-                          </p>
-                        </div>
-                        <div className="w-full md:w-44">
+                    {/* Move-in Electricity Sub-Meter Reading (Optional / Skippable) */}
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                          <Zap className="w-4 h-4 text-amber-400" /> Move-in Electricity Sub-meter Reading (मीटर यूनिट)
+                        </label>
+                        <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-700 hover:border-slate-500 transition">
                           <input
-                            type="number"
-                            placeholder="e.g. 1420"
-                            value={tenantMoveInMeter === 0 ? "" : tenantMoveInMeter}
-                            onChange={(e) => setTenantMoveInMeter(e.target.value === "" ? 0 : Number(e.target.value))}
-                            className="w-full p-2 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-300 font-black font-mono text-center text-sm"
+                            type="checkbox"
+                            checked={!hasSubmeter}
+                            onChange={(e) => {
+                              const skip = e.target.checked;
+                              setHasSubmeter(!skip);
+                              if (skip) setTenantMoveInMeter(0);
+                            }}
+                            className="rounded accent-amber-500 cursor-pointer"
                           />
-                        </div>
+                          <span>Sub-meter nahi hai / Plot hai (Skip)</span>
+                        </label>
                       </div>
+
+                      {hasSubmeter ? (
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pt-1">
+                          <p className="text-[11px] text-slate-400">
+                            Kirayedaar ke aate samay meter me jo reading chal rahi hai, use yahan note karein taaki exit ke samay clear hisab rahe:
+                          </p>
+                          <div className="w-full md:w-44">
+                            <input
+                              type="number"
+                              placeholder="0"
+                              value={tenantMoveInMeter === 0 ? "" : tenantMoveInMeter}
+                              onChange={(e) => setTenantMoveInMeter(e.target.value === "" ? 0 : Number(e.target.value))}
+                              className="w-full p-2 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-300 font-black font-mono text-center text-sm"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-amber-300/80 italic pt-1">
+                          ℹ️ Sub-meter reading skip kar di gayi hai (Plot / Direct electricity board connection / Fixed rent).
+                        </p>
+                      )}
                     </div>
 
                     {/* Billing Cycle Dates */}
@@ -2362,45 +2404,51 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
             </div>
 
             <form onSubmit={handleConfirmVacateAndSettle} className="space-y-4 text-xs">
-              {/* Meter Settlement */}
-              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-3">
-                <span className="font-bold text-amber-300 uppercase flex items-center gap-1.5 text-[11px]">
-                  <Zap className="w-4 h-4 text-amber-400" /> 1. Electricity Sub-Meter Final Reading & Bill
-                </span>
+              {/* Meter Settlement - Only if tenant had recorded sub-meter reading */}
+              {(showVacateModal.tenant.move_in_meter_reading || 0) > 0 ? (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-3">
+                  <span className="font-bold text-amber-300 uppercase flex items-center gap-1.5 text-[11px]">
+                    <Zap className="w-4 h-4 text-amber-400" /> 1. Electricity Sub-Meter Final Reading & Bill
+                  </span>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400">Final Meter Reading (वर्तमान यूनिट) *</label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="e.g. 1380"
-                      value={vacateFinalMeter === 0 ? "" : vacateFinalMeter}
-                      onChange={(e) => setVacateFinalMeter(e.target.value === "" ? 0 : Number(e.target.value))}
-                      className="w-full mt-1 p-2 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-300 font-mono font-bold text-xs"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400">Final Meter Reading (वर्तमान यूनिट)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 1380"
+                        value={vacateFinalMeter === 0 ? "" : vacateFinalMeter}
+                        onChange={(e) => setVacateFinalMeter(e.target.value === "" ? 0 : Number(e.target.value))}
+                        className="w-full mt-1 p-2 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-300 font-mono font-bold text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400">Rate per Unit (₹)</label>
+                      <input
+                        type="number"
+                        value={vacateMeterRate === 0 ? "" : vacateMeterRate}
+                        onChange={(e) => setVacateMeterRate(e.target.value === "" ? 0 : Number(e.target.value))}
+                        className="w-full mt-1 p-2 bg-[#111827] border border-slate-800 rounded-xl text-white font-mono font-bold text-xs"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400">Rate per Unit (₹)</label>
-                    <input
-                      type="number"
-                      value={vacateMeterRate === 0 ? "" : vacateMeterRate}
-                      onChange={(e) => setVacateMeterRate(e.target.value === "" ? 0 : Number(e.target.value))}
-                      className="w-full mt-1 p-2 bg-[#111827] border border-slate-800 rounded-xl text-white font-mono font-bold text-xs"
-                    />
+                  <div className="text-[11px] text-slate-300 flex justify-between pt-1">
+                    <span>
+                      Consumed: {Math.max(0, vacateFinalMeter - (showVacateModal.tenant.move_in_meter_reading || 0))} Units
+                    </span>
+                    <span className="font-bold text-amber-400">
+                      Electricity Due: ₹{Math.max(0, vacateFinalMeter - (showVacateModal.tenant.move_in_meter_reading || 0)) * vacateMeterRate}
+                    </span>
                   </div>
                 </div>
-
-                <div className="text-[11px] text-slate-300 flex justify-between pt-1">
-                  <span>
-                    Consumed: {Math.max(0, vacateFinalMeter - (showVacateModal.tenant.move_in_meter_reading || 0))} Units
-                  </span>
-                  <span className="font-bold text-amber-400">
-                    Electricity Due: ₹{Math.max(0, vacateFinalMeter - (showVacateModal.tenant.move_in_meter_reading || 0)) * vacateMeterRate}
-                  </span>
+              ) : (
+                <div className="p-3 bg-slate-800/40 border border-slate-700/50 rounded-xl text-[11px] text-slate-400 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-slate-500 shrink-0" />
+                  <span>Sub-meter reading record nahi hai (Plot / Direct meter) — Bijli bill deduction skip ki gayi hai.</span>
                 </div>
-              </div>
+              )}
 
               {/* Damage Deduction & Date */}
               <div className="grid grid-cols-2 gap-3">
