@@ -985,6 +985,7 @@ interface FamilyContextType {
   addRentalTenant: (propertyId: string, tenant: Omit<RentalTenant, 'id' | 'property_id'>) => void;
   updateRentalTenant: (propertyId: string, tenantId: string, updates: Partial<RentalTenant>) => void;
   deleteRentalTenant: (propertyId: string, tenantId: string) => void;
+  vacateAndSettleTenant: (propertyId: string, tenantId: string, settlement: { final_meter_reading: number; final_electricity_charge: number; final_damage_deduction: number; final_advance_refunded: number; vacate_date: string; reason?: string; notes?: string }) => void;
   collectRentPayment: (propertyId: string, tenantId: string, amount: number, isPaid: boolean, details?: { payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque'; transaction_id?: string; maintenance_deduction?: number; damage_deduction?: number; notes?: string }) => void;
   addRentalExpense: (propertyId: string, expense: Omit<RentalExpense, 'id' | 'property_id'>) => void;
   deleteRentalExpense: (propertyId: string, expenseId: string) => void;
@@ -2023,9 +2024,23 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       id: `rent-${Date.now()}`,
       family_id: family.id,
       tenants: [],
+      past_tenants: [],
       expenses: []
     };
     setRentalProperties(prev => [newProp, ...prev]);
+
+    // Auto-sync property market valuation to Family Wealth Assets
+    if (prop.estimated_market_value && prop.estimated_market_value > 0) {
+      addAsset({
+        member_id: prop.owner_member_id || currentUserId,
+        label: `${prop.title} (${prop.property_type.replace('_', ' ')})`,
+        type: 'property',
+        category: 'fixed',
+        value: Number(prop.estimated_market_value),
+        notes: `Rental Property Size: ${prop.property_size || ''} ${prop.size_unit || 'sqft'}, Location: ${prop.address || ''}, ${prop.city || ''}`
+      });
+    }
+
     return newProp;
   };
 
@@ -2111,6 +2126,55 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         rooms: updatedRooms,
         tenants: p.tenants.filter(t => t.id !== tenantId),
         security_deposit_holding: Math.max(0, (p.security_deposit_holding || 0) - (target?.security_deposit || 0))
+      };
+    }));
+  };
+
+  const vacateAndSettleTenant = (
+    propertyId: string,
+    tenantId: string,
+    settlement: {
+      final_meter_reading: number;
+      final_electricity_charge: number;
+      final_damage_deduction: number;
+      final_advance_refunded: number;
+      vacate_date: string;
+      reason?: string;
+      notes?: string;
+    }
+  ) => {
+    setRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      const target = p.tenants.find(t => t.id === tenantId);
+      if (!target) return p;
+
+      const vacatedTenant: RentalTenant = {
+        ...target,
+        tenant_status: 'vacated',
+        vacate_date: settlement.vacate_date,
+        final_meter_reading: settlement.final_meter_reading,
+        final_electricity_charge: settlement.final_electricity_charge,
+        final_damage_deduction: settlement.final_damage_deduction,
+        final_advance_refunded: settlement.final_advance_refunded,
+        settlement_summary: settlement.notes || `Vacated on ${settlement.vacate_date}. Meter: ${settlement.final_meter_reading}, Damage: ₹${settlement.final_damage_deduction}, Refund: ₹${settlement.final_advance_refunded}`
+      };
+
+      // Free up hostel bed if any
+      let updatedRooms = p.rooms;
+      if (p.rooms && target.bed_id) {
+        updatedRooms = p.rooms.map(rm => ({
+          ...rm,
+          sub_meter_last_reading: settlement.final_meter_reading || rm.sub_meter_last_reading,
+          beds: rm.beds.map(b => b.id === target.bed_id ? { ...b, status: 'vacant', current_tenant_id: undefined, current_tenant_name: undefined } : b)
+        }));
+      }
+
+      return {
+        ...p,
+        rooms: updatedRooms,
+        tenants: p.tenants.filter(t => t.id !== tenantId),
+        past_tenants: [vacatedTenant, ...(p.past_tenants || [])],
+        security_deposit_holding: Math.max(0, (p.security_deposit_holding || 0) - (target.security_deposit || 0))
       };
     }));
   };
@@ -2904,6 +2968,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addRentalTenant,
         updateRentalTenant,
         deleteRentalTenant,
+        vacateAndSettleTenant,
         collectRentPayment,
         addRentalExpense,
         deleteRentalExpense,

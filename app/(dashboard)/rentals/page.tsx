@@ -34,12 +34,21 @@ import {
   Image as ImageIcon,
   Eye,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  LogOut,
+  History,
+  TrendingUp,
+  UserPlus,
+  MapPin,
+  Maximize2
 } from "lucide-react";
 import { RentalProperty, RentalPropertyType, HostelRoom, RentalTenant, RentalExpense } from "@/types";
+import Link from "next/link";
 
 export default function RentalsPage() {
   const {
+    members,
+    currentUserId,
     rentalProperties,
     addRentalProperty,
     updateRentalProperty,
@@ -48,29 +57,47 @@ export default function RentalsPage() {
     addRentalTenant,
     updateRentalTenant,
     deleteRentalTenant,
+    vacateAndSettleTenant,
     collectRentPayment,
     addRentalExpense,
     deleteRentalExpense
   } = useFamilyStore();
 
   const [selectedPropId, setSelectedPropId] = useState<string>(rentalProperties[0]?.id || "");
-  const [activeTab, setActiveTab] = useState<"rooms_beds" | "tenants" | "maintenance_expenses" | "agreement_rules" | "submeter">("tenants");
+  const [activeTab, setActiveTab] = useState<"tenants" | "past_tenants" | "rooms_beds" | "maintenance_expenses" | "agreement_rules" | "wealth_details" | "submeter">("tenants");
 
   // Single Unified Modal State
   const [showUnifiedModal, setShowUnifiedModal] = useState(false);
   const [unifiedMode, setUnifiedMode] = useState<"both" | "tenant_only" | "property_only">("both");
   const [showEditTenantModal, setShowEditTenantModal] = useState<RentalTenant | null>(null);
+  const [showEditPropModal, setShowEditPropModal] = useState<RentalProperty | null>(null);
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [showRentSlipModal, setShowRentSlipModal] = useState<{ tenant: RentalTenant; property: RentalProperty } | null>(null);
   const [showDamageModal, setShowDamageModal] = useState<RentalTenant | null>(null);
   const [showDocPreview, setShowDocPreview] = useState<{ title: string; url: string } | null>(null);
 
+  // Tenant Checkout / Settle & Vacate Modal State
+  const [showVacateModal, setShowVacateModal] = useState<{ tenant: RentalTenant; property: RentalProperty } | null>(null);
+  const [vacateFinalMeter, setVacateFinalMeter] = useState<number>(0);
+  const [vacateMeterRate, setVacateMeterRate] = useState<number>(9);
+  const [vacateDamageDeduction, setVacateDamageDeduction] = useState<number>(0);
+  const [vacateDate, setVacateDate] = useState(new Date().toISOString().split("T")[0]);
+  const [vacateReason, setVacateReason] = useState("");
+  const [vacateNotes, setVacateNotes] = useState("");
+
   // Property Fields
   const [propTitle, setPropTitle] = useState("");
   const [propType, setPropType] = useState<RentalPropertyType>("commercial_shop");
   const [propAddress, setPropAddress] = useState("");
   const [propCity, setPropCity] = useState("Delhi NCR");
+  const [propOwnerMemberId, setPropOwnerMemberId] = useState<string>(currentUserId || members[0]?.id || "m-head");
+  const [propSize, setPropSize] = useState<number>(450);
+  const [propSizeUnit, setPropSizeUnit] = useState<"sqft" | "sqyards" | "sqmeters" | "bigha" | "dhur">("sqft");
+  const [propMarketValue, setPropMarketValue] = useState<number>(3500000);
+  const [propPurchasePrice, setPropPurchasePrice] = useState<number>(2200000);
+  const [propPurchaseDate, setPropPurchaseDate] = useState("2021-04-10");
+  const [propRegistryNo, setPropRegistryNo] = useState("");
   const [propTargetRent, setPropTargetRent] = useState<number>(15000);
   const [propOwnerName, setPropOwnerName] = useState("Makan Malik (Self)");
   const [propOwnerPhone, setPropOwnerPhone] = useState("9876543210");
@@ -156,6 +183,7 @@ export default function RentalsPage() {
   // Overall Portfolio Calculations
   const totalMonthlyTarget = rentalProperties.reduce((sum, p) => sum + (p.monthly_target_revenue || 0), 0);
   const totalDeposits = rentalProperties.reduce((sum, p) => sum + (p.security_deposit_holding || 0), 0);
+  const totalPortfolioValuation = rentalProperties.reduce((sum, p) => sum + (p.estimated_market_value || 0), 0);
 
   let totalBedsCount = 0;
   let occupiedBedsCount = 0;
@@ -172,6 +200,7 @@ export default function RentalsPage() {
 
   // Active Property Calculations
   const activeTenants = activeProperty?.tenants || [];
+  const pastTenants = activeProperty?.past_tenants || [];
   const activeExpenses = activeProperty?.expenses || [];
   const activeRooms = activeProperty?.rooms || [];
 
@@ -202,6 +231,13 @@ export default function RentalsPage() {
     setPropTitle("");
     setPropType("commercial_shop");
     setPropAddress("");
+    setPropSize(450);
+    setPropSizeUnit("sqft");
+    setPropMarketValue(3500000);
+    setPropPurchasePrice(2200000);
+    setPropPurchaseDate("2021-04-10");
+    setPropRegistryNo("");
+    setPropOwnerMemberId(currentUserId || members[0]?.id || "m-head");
     setPropTargetRent(15000);
     setTenantName("");
     setTenantFatherSpouse("");
@@ -234,10 +270,16 @@ export default function RentalsPage() {
   };
 
   // Open Unified Modal
-  const handleOpenUnifiedModal = (mode: "both" | "tenant_only" | "property_only" = "both") => {
+  const handleOpenUnifiedModal = (mode: "both" | "tenant_only" | "property_only" = "both", prefillMoveInMeter?: number, prefillUnit?: string) => {
     resetMasterForm();
     setUnifiedMode(mode);
     setTargetPropertyId(activeProperty?.id || rentalProperties[0]?.id || "");
+    if (prefillMoveInMeter !== undefined) {
+      setTenantMoveInMeter(prefillMoveInMeter);
+    }
+    if (prefillUnit) {
+      setTenantRoomNo(prefillUnit);
+    }
     setShowUnifiedModal(true);
   };
 
@@ -246,6 +288,7 @@ export default function RentalsPage() {
     e.preventDefault();
 
     let createdPropId = targetPropertyId;
+    const selectedOwner = members.find((m) => m.id === propOwnerMemberId);
 
     // 1. Create Property if mode is 'both' or 'property_only'
     if (unifiedMode === "both" || unifiedMode === "property_only") {
@@ -261,7 +304,15 @@ export default function RentalsPage() {
         property_type: propType,
         address: propAddress,
         city: propCity,
-        landlord_name: propOwnerName || "Makan Malik",
+        owner_member_id: propOwnerMemberId,
+        owner_member_name: selectedOwner?.name || propOwnerName || "Makan Malik",
+        property_size: Number(propSize || 0),
+        size_unit: propSizeUnit,
+        estimated_market_value: Number(propMarketValue || 0),
+        purchase_price: Number(propPurchasePrice || 0),
+        purchase_date: propPurchaseDate,
+        registration_deed_no: propRegistryNo,
+        landlord_name: selectedOwner?.name || propOwnerName || "Makan Malik",
         landlord_phone: formattedOwnerPhone,
         landlord_pan: propOwnerPan,
         landlord_upi: propOwnerUpi,
@@ -303,6 +354,7 @@ export default function RentalsPage() {
         native_or_permanent_address: tenantPermAddress,
         occupation: tenantOccupation,
         is_commercial: propType === "commercial_shop" || propType === "warehouse_godown",
+        tenant_status: "active",
         move_in_meter_reading: Number(tenantMoveInMeter || 0),
         joining_date: tenantJoiningDate,
         cycle_start_day: Number(tenantCycleStartDay || 1),
@@ -337,7 +389,6 @@ export default function RentalsPage() {
     setShowEditTenantModal(t);
     setTenantName(t.name || "");
     setTenantFatherSpouse(t.father_or_spouse_name || "");
-    // strip +91 for clean input
     setTenantPhone((t.phone || "").replace("+91", "").trim());
     setTenantAltPhone((t.alternate_phone || "").replace("+91", "").trim());
     setTenantAadhaar(t.aadhaar_no || "");
@@ -402,6 +453,95 @@ export default function RentalsPage() {
 
     setShowEditTenantModal(null);
     resetMasterForm();
+  };
+
+  // Open Edit Property Modal
+  const openEditPropertyModal = (p: RentalProperty) => {
+    setShowEditPropModal(p);
+    setPropTitle(p.title || "");
+    setPropType(p.property_type || "commercial_shop");
+    setPropAddress(p.address || "");
+    setPropCity(p.city || "Delhi NCR");
+    setPropOwnerMemberId(p.owner_member_id || currentUserId || "m-head");
+    setPropSize(p.property_size || 450);
+    setPropSizeUnit(p.size_unit || "sqft");
+    setPropMarketValue(p.estimated_market_value || 3500000);
+    setPropPurchasePrice(p.purchase_price || 2200000);
+    setPropPurchaseDate(p.purchase_date || "2021-04-10");
+    setPropRegistryNo(p.registration_deed_no || "");
+    setPropTargetRent(p.monthly_target_revenue || 15000);
+    setPropOwnerName(p.landlord_name || "Makan Malik");
+    setPropOwnerPhone((p.landlord_phone || "").replace("+91", "").trim());
+    setPropOwnerPan(p.landlord_pan || "");
+    setPropDefaultRules(p.default_rules || propDefaultRules);
+  };
+
+  // Save Edited Property
+  const handleSaveEditedProperty = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showEditPropModal) return;
+
+    const selectedOwner = members.find((m) => m.id === propOwnerMemberId);
+    const formattedOwnerPhone = propOwnerPhone ? (propOwnerPhone.startsWith("+91") ? propOwnerPhone : `+91 ${propOwnerPhone}`) : "";
+
+    updateRentalProperty(showEditPropModal.id, {
+      title: propTitle,
+      property_type: propType,
+      address: propAddress,
+      city: propCity,
+      owner_member_id: propOwnerMemberId,
+      owner_member_name: selectedOwner?.name || propOwnerName || "Makan Malik",
+      property_size: Number(propSize || 0),
+      size_unit: propSizeUnit,
+      estimated_market_value: Number(propMarketValue || 0),
+      purchase_price: Number(propPurchasePrice || 0),
+      purchase_date: propPurchaseDate,
+      registration_deed_no: propRegistryNo,
+      landlord_name: selectedOwner?.name || propOwnerName || "Makan Malik",
+      landlord_phone: formattedOwnerPhone,
+      landlord_pan: propOwnerPan,
+      monthly_target_revenue: Number(propTargetRent || 0),
+      default_rules: propDefaultRules
+    });
+
+    setShowEditPropModal(null);
+  };
+
+  // Open Vacate & Settle Modal
+  const openVacateModal = (tenant: RentalTenant, property: RentalProperty) => {
+    setShowVacateModal({ tenant, property });
+    const checkInReading = tenant.move_in_meter_reading || 0;
+    setVacateFinalMeter(checkInReading + 110);
+    setVacateMeterRate(9);
+    setVacateDamageDeduction(0);
+    setVacateDate(new Date().toISOString().split("T")[0]);
+    setVacateReason("Contract Completed / Kirayedaar Shifting");
+    setVacateNotes("Full final settlement done. Keys received.");
+  };
+
+  // Submit Vacate & Settle
+  const handleConfirmVacateAndSettle = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showVacateModal) return;
+
+    const { tenant, property } = showVacateModal;
+    const checkInReading = tenant.move_in_meter_reading || 0;
+    const consumedUnits = Math.max(0, vacateFinalMeter - checkInReading);
+    const elecBill = consumedUnits * vacateMeterRate;
+    const totalAdvance = tenant.security_deposit || 0;
+    const netRefund = Math.max(0, totalAdvance - elecBill - vacateDamageDeduction);
+
+    vacateAndSettleTenant(property.id, tenant.id, {
+      final_meter_reading: Number(vacateFinalMeter),
+      final_electricity_charge: elecBill,
+      final_damage_deduction: Number(vacateDamageDeduction),
+      final_advance_refunded: netRefund,
+      vacate_date: vacateDate,
+      reason: vacateReason,
+      notes: `${vacateReason}. Consumed: ${consumedUnits} units @ ₹${vacateMeterRate} = ₹${elecBill}. Damage: ₹${vacateDamageDeduction}. Refund: ₹${netRefund}. ${vacateNotes}`
+    });
+
+    setShowVacateModal(null);
   };
 
   // Create Room Handler (PG)
@@ -530,13 +670,13 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6 mb-8">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
-            <Building className="w-4 h-4" /> Real Estate, PG, Shops & Tenant Hub
+            <Building className="w-4 h-4" /> Real Estate, PG, Shops, Tenants & Family Wealth Hub
           </div>
           <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
             Rental Properties, Shops & Tenants Manager
           </h1>
           <p className="text-xs md:text-sm text-slate-400 mt-1">
-            Dukan, Flat, Makan ya PG banayein aur sath me hi Kirayedaar ki poori details (Rent, Advance, Aadhaar/PAN photo, Sub-meter unit aur Agreement) 1-Click me jodein.
+            Dukan, Flat, Makan ya PG ka kiraya, kirayedaar badalna (Vacate & Replacement), meter hisab, aur property ki market value ko Family Wealth me jodna.
           </p>
         </div>
 
@@ -552,8 +692,8 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
         </div>
       </div>
 
-      {/* Top 4 KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* Top 4 KPI Cards + Wealth Value Banner */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <div className="bg-[#111827] border border-slate-800 p-4 md:p-5 rounded-2xl">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">कुल मासिक किराया टारगेट</span>
           <div className="text-xl md:text-2xl font-black text-white mt-1">
@@ -585,6 +725,32 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
           </div>
           <p className="text-[11px] text-slate-500 mt-1">दुकानें, फ्लैट्स व पीजी</p>
         </div>
+      </div>
+
+      {/* Real Estate Portfolio Valuation Bar (Sync to Family Wealth) */}
+      <div className="mb-8 p-4 bg-gradient-to-r from-amber-500/10 via-[#111827] to-emerald-500/10 border border-amber-500/30 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl">
+            <TrendingUp className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-amber-300">
+              💎 Kul Real Estate / Property Asset Market Valuation:{" "}
+              <strong className="text-white text-sm font-black">₹{totalPortfolioValuation.toLocaleString("en-IN")}</strong>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Yeh amount aapki Parivar ki Total Wealth / Net Worth me Property assets ke roop me shamil hai.
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href="/wealth"
+          className="px-3.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+        >
+          <span>View in Family Wealth</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
       {/* Property Selector Pills */}
@@ -625,35 +791,52 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
 
       {activeProperty ? (
         <div className="space-y-6">
-          {/* Active Property Banner */}
+          {/* Active Property Banner with Member Owner & Size & Valuation */}
           <div className="bg-gradient-to-r from-blue-950/40 via-[#111827] to-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
+            <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-full font-bold text-[10px] uppercase">
                   {activeProperty.property_type.replace("_", " ")}
                 </span>
-                {activeProperty.has_hostel_model && (
-                  <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full font-bold text-[10px] uppercase">
-                    Hostel & PG Matrix
+                {activeProperty.property_size && (
+                  <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 rounded-full font-bold text-[10px]">
+                    📏 {activeProperty.property_size} {activeProperty.size_unit || "sqft"}
                   </span>
                 )}
-                {activeProperty.landlord_name && (
-                  <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 rounded-full font-bold text-[10px]">
-                    👤 Owner: {activeProperty.landlord_name}
+                <span className="px-2.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-full font-bold text-[10px]">
+                  👤 Owner: {activeProperty.owner_member_name || activeProperty.landlord_name || "Makan Malik"}
+                </span>
+                {activeProperty.estimated_market_value && (
+                  <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full font-bold text-[10px]">
+                    💎 Market Value: ₹{activeProperty.estimated_market_value.toLocaleString("en-IN")}
                   </span>
                 )}
               </div>
-              <h2 className="text-xl md:text-2xl font-black text-white mt-1">{activeProperty.title}</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{activeProperty.address}, {activeProperty.city}</p>
+
+              <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2">
+                {activeProperty.title}
+              </h2>
+              <p className="text-xs text-slate-400">
+                📍 {activeProperty.address}, {activeProperty.city}
+                {activeProperty.registration_deed_no ? ` | Deed No: ${activeProperty.registration_deed_no}` : ""}
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => openEditPropertyModal(activeProperty)}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-700 transition shadow"
+              >
+                <Edit3 className="w-4 h-4" /> Edit Property & Valuation
+              </button>
+
               <button
                 onClick={() => handleOpenUnifiedModal("tenant_only")}
                 className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow"
               >
                 <Users className="w-4 h-4" /> + Add Kirayedaar (Tenant)
               </button>
+
               {activeProperty.has_hostel_model && (
                 <button
                   onClick={() => setShowAddRoomModal(true)}
@@ -662,6 +845,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   <Plus className="w-4 h-4" /> Add Room
                 </button>
               )}
+
               <button
                 onClick={() => setShowAddExpenseModal(true)}
                 className="px-3.5 py-2 bg-rose-600/80 hover:bg-rose-600 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow"
@@ -681,7 +865,18 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   : "border-transparent text-slate-400 hover:text-slate-200"
               }`}
             >
-              <Users className="w-4 h-4" /> Tenants & Rent Slips ({activeTenants.length})
+              <Users className="w-4 h-4" /> Active Tenants & Slips ({activeTenants.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab("past_tenants")}
+              className={`px-5 py-3 text-xs font-bold flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
+                activeTab === "past_tenants"
+                  ? "border-amber-500 text-amber-400 bg-amber-500/10"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <History className="w-4 h-4" /> Purane Kirayedaar / Exit Log ({pastTenants.length})
             </button>
 
             {activeProperty.has_hostel_model && (
@@ -696,6 +891,17 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                 <Bed className="w-4 h-4" /> Rooms & Bed Matrix ({activeRooms.length} Rooms)
               </button>
             )}
+
+            <button
+              onClick={() => setActiveTab("wealth_details")}
+              className={`px-5 py-3 text-xs font-bold flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
+                activeTab === "wealth_details"
+                  ? "border-amber-500 text-amber-400 bg-amber-500/10"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" /> Property Wealth & Size (₹ Asset Details)
+            </button>
 
             <button
               onClick={() => setActiveTab("maintenance_expenses")}
@@ -716,7 +922,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   : "border-transparent text-slate-400 hover:text-slate-200"
               }`}
             >
-              <FileCheck className="w-4 h-4" /> Agreement, Rules & Damage Policy
+              <FileCheck className="w-4 h-4" /> Agreement & Damage Policy
             </button>
 
             {activeProperty.has_hostel_model && (
@@ -739,21 +945,21 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
               <div className="bg-[#111827] border border-slate-800 rounded-2xl overflow-hidden">
                 <div className="p-4 border-b border-slate-800 flex justify-between items-center">
                   <div>
-                    <h3 className="font-bold text-white text-sm">Active Tenants Directory (किरायेदारों की सूची)</h3>
-                    <p className="text-xs text-slate-400">एडवांस डिपॉजिट, साइकल डेट्स, आधार/पैन, प्रारंभिक मीटर यूनिट एवं 1-क्लिक रसीद</p>
+                    <h3 className="font-bold text-white text-sm">Active Tenants Directory (सक्रिय किरायेदार)</h3>
+                    <p className="text-xs text-slate-400">एडवांस डिपॉजिट, साइकल डेट्स, आधार/पैन, प्रारंभिक मीटर यूनिट, रसीद एवं खाली करने का सिस्टम</p>
                   </div>
-                  <span className="text-xs text-slate-400">{activeTenants.length} Tenants Listed</span>
+                  <span className="text-xs text-slate-400">{activeTenants.length} Active Tenants</span>
                 </div>
 
                 {activeTenants.length === 0 ? (
                   <div className="p-12 text-center text-slate-500 text-sm space-y-3">
                     <Users className="w-10 h-10 mx-auto text-slate-600" />
-                    <div>Koi tenant nahi joda gaya hai. Upar &apos;+ Add Kirayedaar&apos; par click karke pehla kirayedaar jodein.</div>
+                    <div>Yeh property filhal khali hai. Naya kirayedaar bithane ke liye niche button par click karein.</div>
                     <button
                       onClick={() => handleOpenUnifiedModal("tenant_only")}
                       className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow"
                     >
-                      <Plus className="w-4 h-4" /> + Naya Kirayedaar Jodein
+                      <UserPlus className="w-4 h-4" /> + Naya Kirayedaar Bithayein (Add Tenant)
                     </button>
                   </div>
                 ) : (
@@ -905,13 +1111,14 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                                 <Share2 className="w-4 h-4" />
                               </a>
 
-                              {/* Damage / Deduction Button */}
+                              {/* VACATE & SETTLE BUTTON */}
                               <button
-                                onClick={() => setShowDamageModal(tenant)}
-                                className="p-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-xl border border-rose-500/30 transition"
-                                title="Record Damage / Deposit Deduction"
+                                onClick={() => openVacateModal(tenant, activeProperty)}
+                                className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+                                title="Kirayedaar Khali Karein / Exit Settlement"
                               >
-                                <Scale className="w-4 h-4" />
+                                <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                                <span>Khali Karein</span>
                               </button>
 
                               {/* Edit Tenant */}
@@ -946,7 +1153,165 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
             </div>
           )}
 
-          {/* TAB 2: Rooms & Beds Matrix (PG/Hostel) */}
+          {/* TAB 2: Past Tenants History Log */}
+          {activeTab === "past_tenants" && (
+            <div className="bg-[#111827] border border-slate-800 rounded-2xl overflow-hidden space-y-4">
+              <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-white text-sm">Purane Kirayedaar (Past Tenants Exit History Log)</h3>
+                  <p className="text-xs text-slate-400">Pehle reh chuke kirayedaaron ka purana bahi-khata, meter reading v advance refund hisab</p>
+                </div>
+                <span className="text-xs text-slate-400">{pastTenants.length} Records</span>
+              </div>
+
+              {pastTenants.length === 0 ? (
+                <div className="p-12 text-center text-slate-500 text-sm space-y-2">
+                  <History className="w-8 h-8 mx-auto text-slate-600" />
+                  <div>Is property me abhi tak koi purana kirayedaar exit nahi hua hai.</div>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-800">
+                  {pastTenants.map((pt) => (
+                    <div key={pt.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#0B0F19]/50 transition text-xs">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <strong className="text-white text-sm">{pt.name}</strong>
+                          <span className="px-2 py-0.5 bg-slate-800 text-slate-400 rounded text-[10px]">
+                            {pt.room_number || "Shop/Unit"}
+                          </span>
+                          <span className="px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded text-[10px] font-bold">
+                            Vacated on: {pt.vacate_date || "Past"}
+                          </span>
+                        </div>
+                        <div className="text-slate-400 flex flex-wrap gap-x-4 gap-y-0.5 pt-0.5">
+                          <span>📞 {pt.phone}</span>
+                          {pt.aadhaar_no && <span>🆔 Aadhaar: {pt.aadhaar_no}</span>}
+                          <span>📅 Staying Period: {pt.joining_date} se {pt.vacate_date || "Exit"} tak</span>
+                          <span>⚡ Final Meter Reading: <strong className="text-amber-300">{pt.final_meter_reading || pt.move_in_meter_reading} Units</strong></span>
+                        </div>
+                        {pt.settlement_summary && (
+                          <p className="text-[11px] text-slate-400 bg-slate-900/80 p-2 rounded-lg border border-slate-800/80 mt-1">
+                            📝 <strong>Settlement Hisab:</strong> {pt.settlement_summary}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="text-left md:text-right shrink-0">
+                        <div className="text-slate-400 text-[11px]">Refunded Advance:</div>
+                        <div className="text-emerald-400 font-bold text-sm">₹{(pt.final_advance_refunded || 0).toLocaleString("en-IN")}</div>
+                        <button
+                          onClick={() => handleOpenUnifiedModal("tenant_only", pt.final_meter_reading, pt.room_number)}
+                          className="mt-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow transition"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>Bithayein Naya Kirayedaar</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: Property Wealth & Size Details */}
+          {activeTab === "wealth_details" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Asset Valuation Card */}
+              <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider">
+                  <TrendingUp className="w-5 h-5" /> Property Asset & Wealth Valuation
+                </div>
+                <p className="text-xs text-slate-400">
+                  Yeh property aapki total family wealth me property asset ke roop me shamil hai:
+                </p>
+
+                <div className="space-y-3 pt-2">
+                  <div className="p-4 bg-[#0B0F19] rounded-xl border border-slate-800 flex justify-between items-center">
+                    <div>
+                      <span className="text-xs text-slate-400">Current Market Valuation (अनुमानित बाजार भाव)</span>
+                      <div className="text-2xl font-black text-amber-400 mt-0.5">
+                        ₹{(activeProperty.estimated_market_value || 0).toLocaleString("en-IN")}
+                      </div>
+                    </div>
+                    <Link
+                      href="/wealth"
+                      className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition"
+                    >
+                      View in Wealth →
+                    </Link>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800">
+                      <span className="text-slate-500 block">Property Size (क्षेत्रफल)</span>
+                      <strong className="text-white text-sm">{activeProperty.property_size || 0} {activeProperty.size_unit || "sqft"}</strong>
+                    </div>
+                    <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800">
+                      <span className="text-slate-500 block">Purchase Cost (खरीद लागत)</span>
+                      <strong className="text-white text-sm">₹{(activeProperty.purchase_price || 0).toLocaleString("en-IN")}</strong>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800 text-xs flex justify-between">
+                    <div>
+                      <span className="text-slate-500 block">Ownership Name (किसके नाम पर है)</span>
+                      <strong className="text-purple-300">{activeProperty.owner_member_name || activeProperty.landlord_name || "Self"}</strong>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-500 block">Registry / Deed No.</span>
+                      <strong className="text-slate-300 font-mono">{activeProperty.registration_deed_no || "N/A"}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => openEditPropertyModal(activeProperty)}
+                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+                  >
+                    <Edit3 className="w-4 h-4" /> Edit Size, Valuation & Ownership Details
+                  </button>
+                </div>
+              </div>
+
+              {/* Rental Return & ROI Analysis */}
+              <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm uppercase tracking-wider">
+                  <BadgeIndianRupee className="w-5 h-5" /> Rental Yield & Return Analysis
+                </div>
+                <p className="text-xs text-slate-400">
+                  Property ke market value aur annual rental income ka hisab:
+                </p>
+
+                <div className="space-y-3 pt-2">
+                  <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/30 flex justify-between items-center">
+                    <div>
+                      <span className="text-xs text-emerald-300 font-bold">Annual Target Rent (सालाना किराया)</span>
+                      <div className="text-xl font-black text-white mt-0.5">
+                        ₹{((activeProperty.monthly_target_revenue || 0) * 12).toLocaleString("en-IN")} / year
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs text-slate-400">Gross Rental Yield</span>
+                      <div className="text-lg font-black text-emerald-400">
+                        {activeProperty.estimated_market_value
+                          ? `${(((activeProperty.monthly_target_revenue || 0) * 12 / activeProperty.estimated_market_value) * 100).toFixed(2)}%`
+                          : "N/A"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800 text-xs space-y-1 text-slate-400">
+                    <div>💡 <strong>Commercial Rental Yield:</strong> Typically 6% - 10% in Indian markets.</div>
+                    <div>🏠 <strong>Residential Rental Yield:</strong> Typically 2.5% - 4.5%.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: Rooms & Beds Matrix (PG/Hostel) */}
           {activeTab === "rooms_beds" && activeProperty.has_hostel_model && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeRooms.map((room) => {
@@ -985,14 +1350,28 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                             <Bed className="w-4 h-4" />
                             <div>
                               <span className="font-bold">{bed.bed_number}</span>
-                              {bed.current_tenant_name && (
+                              {bed.current_tenant_name ? (
                                 <span className="text-slate-400 block text-[10px]">
                                   Occupied by: {bed.current_tenant_name}
+                                </span>
+                              ) : (
+                                <span className="text-emerald-400 block text-[10px] font-bold">
+                                  🟢 Vacant (Khali)
                                 </span>
                               )}
                             </div>
                           </div>
-                          <span className="font-mono font-bold">₹{bed.monthly_rent}/mo</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold">₹{bed.monthly_rent}/mo</span>
+                            {bed.status === "vacant" && (
+                              <button
+                                onClick={() => handleOpenUnifiedModal("tenant_only", room.sub_meter_last_reading, `${room.room_number} - ${bed.bed_number}`)}
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold"
+                              >
+                                + Bithayein
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1002,7 +1381,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
             </div>
           )}
 
-          {/* TAB 3: Maintenance & Expenses */}
+          {/* TAB 5: Maintenance & Expenses */}
           {activeTab === "maintenance_expenses" && (
             <div className="bg-[#111827] border border-slate-800 rounded-2xl overflow-hidden space-y-4">
               <div className="p-4 border-b border-slate-800 flex justify-between items-center">
@@ -1058,10 +1437,9 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
             </div>
           )}
 
-          {/* TAB 4: Agreement, Rules & Damage Recovery */}
+          {/* TAB 6: Agreement & Rules */}
           {activeTab === "agreement_rules" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Landlord & Property Rules Card */}
               <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
                 <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider">
                   <FileCheck className="w-5 h-5" /> Property Rules & Agreement Clauses (नियम एवं शर्तें)
@@ -1079,18 +1457,17 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                     <AlertCircle className="w-4 h-4 text-amber-400" /> Early Exit & Lock-in Policy:
                   </div>
                   <p className="text-slate-400">
-                    यदि कोई किरायेदार न्यूनतम लॉक-इन अवधि (उदा. 6 या 11 महीने) से पहले मकान/दुकान खाली करता है या बिना 30 दिन के नोटिस के छोड़ता है, तो एग्रीमेंट नियमानुसार 1 महीने का किराया सिक्योरिटी डिपॉजिट से काट लिया जाएगा।
+                    यदि कोई किरायेदार न्यूनतम लॉक-इन अवधि से पहले मकान/दुकान खाली करता है या बिना 30 दिन के नोटिस के छोड़ता है, तो एग्रीमेंट नियमानुसार 1 महीने का किराया सिक्योरिटी डिपॉजिट से काट लिया जाएगा।
                   </p>
                 </div>
               </div>
 
-              {/* Damage Recovery & Security Deposit Settlement */}
               <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
                 <div className="flex items-center gap-2 text-rose-400 font-bold text-sm uppercase tracking-wider">
                   <Scale className="w-5 h-5" /> Damage Recovery Policy (टूट-फूट व हर्जाना भरपाई)
                 </div>
                 <p className="text-xs text-slate-400">
-                  समान में टूट-फूट (सैनिटरी, पेंट, पंखे, फिटिंग्स या दुकान शटर डैमेज) होने पर सिक्योरिटी डिपॉजिट से कटौती का सिस्टम:
+                  समान में टूट-फूट होने पर सिक्योरिटी डिपॉजिट से कटौती का सिस्टम:
                 </p>
 
                 <div className="space-y-2.5">
@@ -1115,15 +1492,11 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                     </div>
                   </div>
                 </div>
-
-                <div className="pt-2 text-xs text-slate-400">
-                  किसी किरायेदार की एग्जिट पर या डैमेज होने पर किरायेदार कार्ड पर दिए गए <Scale className="w-3.5 h-3.5 inline text-rose-400" /> बटन पर क्लिक करके डैमेज की सीधी कटौती दर्ज करें।
-                </div>
               </div>
             </div>
           )}
 
-          {/* TAB 5: Submeter Calculator */}
+          {/* TAB 7: Submeter Calculator */}
           {activeTab === "submeter" && activeProperty.has_hostel_model && (
             <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-6">
               <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider">
@@ -1179,7 +1552,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
       ) : null}
 
       {/* ========================================================================= */}
-      {/* MASTER UNIFIED MODAL: PROPERTY + TENANT ENTRY (ALL-IN-ONE)                 */}
+      {/* MASTER UNIFIED MODAL: PROPERTY + TENANT ENTRY                             */}
       {/* ========================================================================= */}
       {showUnifiedModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
@@ -1198,7 +1571,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   </h3>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  Puri property details, Kirayedaar profile, Advance deposit, Billing cycle dates aur Document photos ek sath save karein.
+                  Puri property details, Family member ownership, Kirayedaar profile, Advance deposit aur Sub-meter reading ek sath save karein.
                 </p>
               </div>
               <button
@@ -1251,7 +1624,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
               {(unifiedMode === "both" || unifiedMode === "property_only") && (
                 <div className="space-y-4 p-5 bg-[#0B0F19] rounded-2xl border border-slate-800">
                   <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
-                    <Building className="w-4 h-4" /> 1. Property / Dukan / Makan Ki Jankari
+                    <Building className="w-4 h-4" /> 1. Property / Dukan / Makan Ki Jankari & Ownership
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1280,6 +1653,76 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                         <option value="warehouse_godown">📦 Warehouse / Godown</option>
                         <option value="pg_hostel">🏢 PG & Hostel Model (Beds & Rooms)</option>
                       </select>
+                    </div>
+                  </div>
+
+                  {/* Family Member Ownership & Property Size */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-purple-300">Property Malik (Family Member)</label>
+                      <select
+                        value={propOwnerMemberId}
+                        onChange={(e) => setPropOwnerMemberId(e.target.value)}
+                        className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                      >
+                        {members.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} ({m.relationship || m.role})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Property Size (क्षेत्रफल)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 450"
+                        value={propSize === 0 ? "" : propSize}
+                        onChange={(e) => setPropSize(e.target.value === "" ? 0 : Number(e.target.value))}
+                        className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Size Unit</label>
+                      <select
+                        value={propSizeUnit}
+                        onChange={(e) => setPropSizeUnit(e.target.value as any)}
+                        className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                      >
+                        <option value="sqft">Sq. Ft (वर्ग फुट)</option>
+                        <option value="sqyards">Sq. Yards (वर्ग गज)</option>
+                        <option value="sqmeters">Sq. Meters</option>
+                        <option value="bigha">Bigha (बीघा)</option>
+                        <option value="dhur">Dhur / Kattha</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Market Valuation for Wealth Sync */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20 rounded-xl">
+                    <div>
+                      <label className="text-xs font-bold text-amber-300">Estimated Market Value (बाजार भाव ₹)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 3500000"
+                        value={propMarketValue === 0 ? "" : propMarketValue}
+                        onChange={(e) => setPropMarketValue(e.target.value === "" ? 0 : Number(e.target.value))}
+                        className="w-full mt-1 p-2.5 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-300 font-bold text-xs"
+                      />
+                      <span className="text-[10px] text-slate-400 block mt-0.5">Family Wealth / Net Worth me automatic judega</span>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Purchase Cost (खरीद लागत ₹)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 2200000"
+                        value={propPurchasePrice === 0 ? "" : propPurchasePrice}
+                        onChange={(e) => setPropPurchasePrice(e.target.value === "" ? 0 : Number(e.target.value))}
+                        className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs"
+                      />
                     </div>
                   </div>
 
@@ -1601,7 +2044,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                             placeholder="e.g. 1420"
                             value={tenantMoveInMeter === 0 ? "" : tenantMoveInMeter}
                             onChange={(e) => setTenantMoveInMeter(e.target.value === "" ? 0 : Number(e.target.value))}
-                            className="w-full p-2 bg-[#0B0F19] border border-amber-500/40 rounded-xl text-amber-300 font-black font-mono text-center text-sm"
+                            className="w-full p-2 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-300 font-black font-mono text-center text-sm"
                           />
                         </div>
                       </div>
@@ -1746,7 +2189,310 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 2: EDIT TENANT MODAL                                                 */}
+      {/* MODAL 2: EDIT PROPERTY & VALUATION MODAL                                   */}
+      {/* ========================================================================= */}
+      {showEditPropModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-2xl space-y-5 my-auto max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                  <Edit3 className="w-5 h-5 text-amber-400" />
+                  Property Details & Wealth Valuation Edit Karein
+                </h3>
+                <p className="text-xs text-slate-400">{showEditPropModal.title} ki jankari update karein.</p>
+              </div>
+              <button onClick={() => setShowEditPropModal(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditedProperty} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-400">Property Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={propTitle}
+                    onChange={(e) => setPropTitle(e.target.value)}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400">Property Type</label>
+                  <select
+                    value={propType}
+                    onChange={(e) => setPropType(e.target.value as any)}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                  >
+                    <option value="commercial_shop">🏪 Commercial Shop</option>
+                    <option value="residential_flat">🏠 Residential Flat</option>
+                    <option value="independent_house">🏡 Independent House</option>
+                    <option value="warehouse_godown">📦 Warehouse / Godown</option>
+                    <option value="pg_hostel">🏢 PG & Hostel Model</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-purple-300">Owner Member (Parivar Sadasya)</label>
+                  <select
+                    value={propOwnerMemberId}
+                    onChange={(e) => setPropOwnerMemberId(e.target.value)}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                  >
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.relationship || m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400">Size (क्षेत्रफल)</label>
+                  <input
+                    type="number"
+                    value={propSize === 0 ? "" : propSize}
+                    onChange={(e) => setPropSize(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400">Unit</label>
+                  <select
+                    value={propSizeUnit}
+                    onChange={(e) => setPropSizeUnit(e.target.value as any)}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                  >
+                    <option value="sqft">Sq. Ft</option>
+                    <option value="sqyards">Sq. Yards (Gaj)</option>
+                    <option value="sqmeters">Sq. Meters</option>
+                    <option value="bigha">Bigha</option>
+                    <option value="dhur">Dhur</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <div>
+                  <label className="text-xs font-bold text-amber-300">Estimated Market Value (₹)</label>
+                  <input
+                    type="number"
+                    value={propMarketValue === 0 ? "" : propMarketValue}
+                    onChange={(e) => setPropMarketValue(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-amber-500/40 rounded-xl text-amber-300 font-bold text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400">Monthly Target Rent (₹)</label>
+                  <input
+                    type="number"
+                    value={propTargetRent === 0 ? "" : propTargetRent}
+                    onChange={(e) => setPropTargetRent(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-400">Address</label>
+                  <input
+                    type="text"
+                    value={propAddress}
+                    onChange={(e) => setPropAddress(e.target.value)}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400">City</label>
+                  <input
+                    type="text"
+                    value={propCity}
+                    onChange={(e) => setPropCity(e.target.value)}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditPropModal(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black shadow"
+                >
+                  Save Property Details
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: TENANT VACATE & SETTLEMENT MODAL (KHALI KARNA & HISAB)             */}
+      {/* ========================================================================= */}
+      {showVacateModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-xl space-y-5 my-auto max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <LogOut className="w-5 h-5 text-rose-400" />
+                <h3 className="text-base md:text-lg font-black text-white">Kirayedaar Exit & Final Settlement (खाली व हिसाब)</h3>
+              </div>
+              <button onClick={() => setShowVacateModal(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-[#0B0F19] rounded-2xl border border-slate-800 space-y-1 text-xs">
+              <div className="text-slate-400">Kirayedaar: <strong className="text-white text-sm">{showVacateModal.tenant.name}</strong></div>
+              <div className="text-slate-400">Unit / Shop: <strong className="text-amber-300">{showVacateModal.tenant.room_number || "Shop Unit"}</strong></div>
+              <div className="text-slate-400">
+                Aate samay Meter Reading: <strong className="text-amber-400 font-mono">{showVacateModal.tenant.move_in_meter_reading || 0} Units</strong>
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmVacateAndSettle} className="space-y-4 text-xs">
+              {/* Meter Settlement */}
+              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-3">
+                <span className="font-bold text-amber-300 uppercase flex items-center gap-1.5 text-[11px]">
+                  <Zap className="w-4 h-4 text-amber-400" /> 1. Electricity Sub-Meter Final Reading & Bill
+                </span>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400">Final Meter Reading (वर्तमान यूनिट) *</label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="e.g. 1380"
+                      value={vacateFinalMeter === 0 ? "" : vacateFinalMeter}
+                      onChange={(e) => setVacateFinalMeter(e.target.value === "" ? 0 : Number(e.target.value))}
+                      className="w-full mt-1 p-2 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-300 font-mono font-bold text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400">Rate per Unit (₹)</label>
+                    <input
+                      type="number"
+                      value={vacateMeterRate === 0 ? "" : vacateMeterRate}
+                      onChange={(e) => setVacateMeterRate(e.target.value === "" ? 0 : Number(e.target.value))}
+                      className="w-full mt-1 p-2 bg-[#111827] border border-slate-800 rounded-xl text-white font-mono font-bold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-300 flex justify-between pt-1">
+                  <span>
+                    Consumed: {Math.max(0, vacateFinalMeter - (showVacateModal.tenant.move_in_meter_reading || 0))} Units
+                  </span>
+                  <span className="font-bold text-amber-400">
+                    Electricity Due: ₹{Math.max(0, vacateFinalMeter - (showVacateModal.tenant.move_in_meter_reading || 0)) * vacateMeterRate}
+                  </span>
+                </div>
+              </div>
+
+              {/* Damage Deduction & Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-400">Damage / Toot-phoot Katauti (₹)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={vacateDamageDeduction === 0 ? "" : vacateDamageDeduction}
+                    onChange={(e) => setVacateDamageDeduction(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-rose-400 font-bold text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-400">Vacate / Move-out Date</label>
+                  <input
+                    type="date"
+                    value={vacateDate}
+                    onChange={(e) => setVacateDate(e.target.value)}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Settlement Summary Box */}
+              {(() => {
+                const consumed = Math.max(0, vacateFinalMeter - (showVacateModal.tenant.move_in_meter_reading || 0));
+                const elecBill = consumed * vacateMeterRate;
+                const totalAdvance = showVacateModal.tenant.security_deposit || 0;
+                const netRefund = Math.max(0, totalAdvance - elecBill - vacateDamageDeduction);
+
+                return (
+                  <div className="p-4 bg-[#0B0F19] rounded-2xl border border-slate-800 space-y-2">
+                    <span className="font-bold text-slate-400 uppercase text-[10px]">Net Advance Refund Calculation</span>
+                    <div className="space-y-1 text-slate-300">
+                      <div className="flex justify-between">
+                        <span>Total Advance Held:</span>
+                        <strong className="text-white">₹{totalAdvance.toLocaleString("en-IN")}</strong>
+                      </div>
+                      <div className="flex justify-between text-rose-400">
+                        <span>Less: Electricity Bill ({consumed} units):</span>
+                        <strong>-₹{elecBill.toLocaleString("en-IN")}</strong>
+                      </div>
+                      {vacateDamageDeduction > 0 && (
+                        <div className="flex justify-between text-rose-400">
+                          <span>Less: Damage Recovery:</span>
+                          <strong>-₹{vacateDamageDeduction.toLocaleString("en-IN")}</strong>
+                        </div>
+                      )}
+                      <div className="flex justify-between pt-2 border-t border-slate-800 text-sm font-black text-emerald-400">
+                        <span>Kirayedaar ko Wapas (Net Refund):</span>
+                        <span>₹{netRefund.toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div>
+                <label className="font-bold text-slate-400">Settlement Notes / Reason</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Completed 11 months, all dues cleared, keys handed over"
+                  value={vacateNotes}
+                  onChange={(e) => setVacateNotes(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowVacateModal(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl shadow-lg shadow-rose-600/20"
+                >
+                  Confirm Exit & Vacate Unit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: EDIT TENANT MODAL                                                 */}
       {/* ========================================================================= */}
       {showEditTenantModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
@@ -1757,14 +2503,9 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   <Edit3 className="w-5 h-5 text-amber-400" />
                   Kirayedaar Profile & Agreement Edit Karein
                 </h3>
-                <p className="text-xs text-slate-400">
-                  {showEditTenantModal.name} ki details update karein.
-                </p>
+                <p className="text-xs text-slate-400">{showEditTenantModal.name} ki details update karein.</p>
               </div>
-              <button
-                onClick={() => setShowEditTenantModal(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg"
-              >
+              <button onClick={() => setShowEditTenantModal(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1897,7 +2638,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 3: BADA RENT SLIP / PRINTABLE INVOICE RECEIPT                      */}
+      {/* MODAL 5: BADA RENT SLIP / PRINTABLE INVOICE RECEIPT                      */}
       {/* ========================================================================= */}
       {showRentSlipModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
@@ -1923,10 +2664,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                 >
                   <Share2 className="w-3.5 h-3.5" /> Share WhatsApp
                 </a>
-                <button
-                  onClick={() => setShowRentSlipModal(null)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg"
-                >
+                <button onClick={() => setShowRentSlipModal(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -1972,7 +2710,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
 
                 <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-slate-800 pt-3 md:pt-0 md:pl-4">
                   <span className="text-[10px] font-bold text-blue-400 uppercase">🏠 Makan Malik (Owner Details)</span>
-                  <div className="font-bold text-sm text-white">{showRentSlipModal.property.landlord_name || "Makan Malik"}</div>
+                  <div className="font-bold text-sm text-white">{showRentSlipModal.property.owner_member_name || showRentSlipModal.property.landlord_name || "Makan Malik"}</div>
                   <div className="text-slate-400">Phone: {showRentSlipModal.property.landlord_phone || "+91 98765 43210"}</div>
                   {showRentSlipModal.property.landlord_pan && (
                     <div className="text-slate-400">Landlord PAN (HRA): <span className="font-mono text-slate-300">{showRentSlipModal.property.landlord_pan}</span></div>
@@ -2054,7 +2792,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                 <div className="flex justify-between pt-6 text-xs text-slate-400">
                   <div className="text-center space-y-1">
                     <div className="w-32 border-b border-slate-700 pb-1 font-semibold text-white">
-                      {showRentSlipModal.property.landlord_name || "Makan Malik"}
+                      {showRentSlipModal.property.owner_member_name || showRentSlipModal.property.landlord_name || "Makan Malik"}
                     </div>
                     <span className="text-[10px] text-slate-500">Landlord Signature</span>
                   </div>
@@ -2073,7 +2811,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 4: DOCUMENT / PHOTO PREVIEW MODAL                                    */}
+      {/* MODAL 6: DOCUMENT / PHOTO PREVIEW MODAL                                    */}
       {/* ========================================================================= */}
       {showDocPreview && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
@@ -2092,76 +2830,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 5: DAMAGE RECOVERY MODAL                                             */}
-      {/* ========================================================================= */}
-      {showDamageModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 w-full max-w-md space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Scale className="w-5 h-5 text-rose-400" />
-                <h3 className="text-base font-black text-white">Damage Recovery (टूट-फूट भरपाई)</h3>
-              </div>
-              <button onClick={() => setShowDamageModal(null)} className="text-slate-400 hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-400">
-              Kirayedaar <strong>{showDamageModal.name}</strong> ke security deposit se damage recovery deduct karein:
-            </p>
-
-            <form onSubmit={handleApplyDamageDeduction} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-400">Damage / Bharpai Amount (₹) *</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="0"
-                  value={damageAmount === 0 ? "" : damageAmount}
-                  onChange={(e) => setDamageAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400">Damage Details / Reason (क्या खराब हुआ?)</label>
-                <textarea
-                  rows={2}
-                  required
-                  placeholder="e.g. Bathroom washbasin crack & wall repaint charges"
-                  value={damageNotes}
-                  onChange={(e) => setDamageNotes(e.target.value)}
-                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
-                />
-              </div>
-
-              <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300">
-                Current Deposit: ₹{(showDamageModal.security_deposit || 0).toLocaleString("en-IN")} → New Balance: ₹{Math.max(0, (showDamageModal.security_deposit || 0) - (showDamageModal.damage_deduction_amount || 0) - damageAmount).toLocaleString("en-IN")}
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDamageModal(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-600/20"
-                >
-                  Apply Deduction
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL 6: ADD EXPENSE & MAINTENANCE                                        */}
+      {/* MODAL 7: ADD EXPENSE & MAINTENANCE                                        */}
       {/* ========================================================================= */}
       {showAddExpenseModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2286,7 +2955,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 7: ADD ROOM (PG / HOSTEL)                                           */}
+      {/* MODAL 8: ADD ROOM (PG / HOSTEL)                                           */}
       {/* ========================================================================= */}
       {showAddRoomModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">

@@ -570,6 +570,15 @@ export interface RentalTenant {
   early_exit_penalty?: string; // e.g. "1 Month Rent deduction if leaving before lock-in"
   special_terms?: string; // Rules, damages liability, etc.
   
+  // Tenant lifecycle & exit settlement
+  tenant_status?: 'active' | 'vacated' | 'replaced';
+  vacate_date?: string;
+  final_meter_reading?: number;
+  final_electricity_charge?: number;
+  final_damage_deduction?: number;
+  final_advance_refunded?: number;
+  settlement_summary?: string;
+
   food_included?: boolean;
   electricity_due?: number;
   rent_status: 'paid' | 'pending' | 'overdue';
@@ -596,6 +605,8 @@ export interface RentalProperty {
   id: string;
   family_id: string;
   member_id?: string;
+  owner_member_id?: string; // Family member who owns the property
+  owner_member_name?: string;
   title: string; // e.g. "Shri Ram PG & Hostel (Civil Lines)", "Sector 14 2BHK Flat"
   property_type: RentalPropertyType;
   address: string;
@@ -604,11 +615,21 @@ export interface RentalProperty {
   landlord_phone?: string;
   landlord_pan?: string;
   landlord_upi?: string;
+
+  // Wealth & Valuation
+  property_size?: number;
+  size_unit?: 'sqft' | 'sqyards' | 'sqmeters' | 'bigha' | 'dhur';
+  estimated_market_value?: number; // Market valuation reflecting in Family Wealth / Net Worth
+  purchase_price?: number;
+  purchase_date?: string;
+  registration_deed_no?: string;
+
   total_units_or_rooms: number;
   total_capacity_beds?: number;
   has_hostel_model: boolean;
   rooms?: HostelRoom[];
   tenants: RentalTenant[];
+  past_tenants?: RentalTenant[];
   expenses: RentalExpense[];
   monthly_target_revenue: number;
   security_deposit_holding: number;
