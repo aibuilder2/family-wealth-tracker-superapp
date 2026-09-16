@@ -979,8 +979,11 @@ interface FamilyContextType {
   deleteMemberLedgerEntry: (id: string) => void;
   settleMemberLedger: (fromMemberId: string, toMemberId: string, amount: number, note?: string) => void;
   addRentalProperty: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>) => RentalProperty;
+  addRentalPropertyWithTenant: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>, tenant?: Omit<RentalTenant, 'id' | 'property_id'>) => RentalProperty;
   updateRentalProperty: (propertyId: string, updates: Partial<RentalProperty>) => void;
   deleteRentalProperty: (propertyId: string) => void;
+  transferRentalProperty: (propertyId: string, toMemberId: string, details: { transfer_date: string; notes?: string }) => void;
+  sellRentalProperty: (propertyId: string, details: { sold_to_name: string; sold_price: number; sold_date: string; capital_gain?: number; notes?: string }) => void;
   addHostelRoom: (propertyId: string, room: Omit<HostelRoom, 'id'>) => void;
   addRentalTenant: (propertyId: string, tenant: Omit<RentalTenant, 'id' | 'property_id'>) => void;
   updateRentalTenant: (propertyId: string, tenantId: string, updates: Partial<RentalTenant>) => void;
@@ -2018,14 +2021,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Persistent Storage Helper for Rental Properties
-  const saveRentalProperties = (newProps: RentalProperty[]) => {
-    const cleanList = newProps.filter((p: any) => !isDemoRecord(p.id));
-    setRentalProperties(cleanList);
-    try {
-      localStorage.setItem(getStorageKey('rentals'), JSON.stringify(cleanList));
-      localStorage.setItem(getStorageKey('has_initialized'), 'true');
-    } catch (e) {}
+  // Persistent Storage Helper for Rental Properties (Supports Functional Updater for Zero-Stale Concurrency)
+  const saveRentalProperties = (updater: RentalProperty[] | ((prev: RentalProperty[]) => RentalProperty[])) => {
+    setRentalProperties(prev => {
+      const currentList = Array.isArray(updater) ? updater : updater(prev);
+      const cleanList = currentList.filter((p: any) => !isDemoRecord(p.id));
+      try {
+        localStorage.setItem(getStorageKey('rentals'), JSON.stringify(cleanList));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return cleanList;
+    });
   };
 
   // Persistent Storage Helper for Gold Loans
@@ -2045,10 +2051,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       family_id: family.id,
       tenants: [],
       past_tenants: [],
-      expenses: []
+      expenses: [],
+      ownership_status: 'owned'
     };
-    const updated = [newProp, ...rentalProperties.filter((p: any) => !isDemoRecord(p.id))];
-    saveRentalProperties(updated);
+    saveRentalProperties(prev => [newProp, ...prev.filter(p => !isDemoRecord(p.id))]);
 
     // Auto-sync property market valuation to Family Wealth Assets
     if (prop.estimated_market_value && prop.estimated_market_value > 0) {
@@ -2065,14 +2071,114 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     return newProp;
   };
 
+  // 100% Atomic: Saves Property + Tenant simultaneously in one single state update (No race conditions)
+  const addRentalPropertyWithTenant = (
+    prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>,
+    tenant?: Omit<RentalTenant, 'id' | 'property_id'>
+  ): RentalProperty => {
+    const propId = `rent-${Date.now()}`;
+    let newTenantList: RentalTenant[] = [];
+
+    if (tenant && tenant.name && tenant.name.trim().length > 0) {
+      const newTenant: RentalTenant = {
+        ...tenant,
+        id: `t-${Date.now()}`,
+        property_id: propId,
+        cycle_start_day: tenant.cycle_start_day || 1,
+        cycle_end_day: tenant.cycle_end_day || 30,
+        rent_due_day: tenant.rent_due_day || 5,
+        security_deposit: tenant.security_deposit || 0,
+        monthly_rent: tenant.monthly_rent || 0,
+        rent_status: tenant.rent_status || 'paid'
+      };
+      newTenantList = [newTenant];
+    }
+
+    const newProp: RentalProperty = {
+      ...prop,
+      id: propId,
+      family_id: family.id,
+      tenants: newTenantList,
+      past_tenants: [],
+      expenses: [],
+      security_deposit_holding: newTenantList[0]?.security_deposit || 0,
+      ownership_status: 'owned'
+    };
+
+    saveRentalProperties(prev => [newProp, ...prev.filter(p => !isDemoRecord(p.id))]);
+
+    // Auto-sync property market valuation to Family Wealth Assets
+    if (prop.estimated_market_value && prop.estimated_market_value > 0) {
+      addAsset({
+        member_id: prop.owner_member_id || currentUserId,
+        label: `${prop.title} (${prop.property_type.replace('_', ' ')})`,
+        type: 'property',
+        category: 'fixed',
+        value: Number(prop.estimated_market_value),
+        notes: `Rental Property Size: ${prop.property_size || ''} ${prop.size_unit || 'sqft'}, Location: ${prop.address || ''}, ${prop.city || ''}`
+      });
+    }
+
+    return newProp;
+  };
+
+  const transferRentalProperty = (
+    propertyId: string,
+    toMemberId: string,
+    details: { transfer_date: string; notes?: string }
+  ) => {
+    const toMember = members.find(m => m.id === toMemberId);
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        owner_member_id: toMemberId,
+        owner_member_name: toMember?.name || 'Family Member',
+        ownership_status: 'transferred' as const,
+        transfer_details: {
+          transferred_to_member_id: toMemberId,
+          transferred_to_name: toMember?.name || 'Family Member',
+          transfer_date: details.transfer_date,
+          notes: details.notes
+        }
+      };
+    }));
+  };
+
+  const sellRentalProperty = (
+    propertyId: string,
+    details: { sold_to_name: string; sold_price: number; sold_date: string; capital_gain?: number; notes?: string }
+  ) => {
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        ownership_status: 'sold' as const,
+        sold_details: details
+      };
+    }));
+
+    if (details.sold_price > 0) {
+      addTransaction({
+        member_id: currentUserId,
+        type: 'income',
+        amount: details.sold_price,
+        category: 'Property Sale (Capital Gain)',
+        category_type: 'long_term',
+        mode: 'online',
+        scope: 'ghar',
+        note: `Property Sold: #${propertyId} to ${details.sold_to_name} for ₹${details.sold_price.toLocaleString('en-IN')} ${details.notes ? `(${details.notes})` : ''}`,
+        txn_date: details.sold_date || new Date().toISOString().split('T')[0]
+      });
+    }
+  };
+
   const updateRentalProperty = (propertyId: string, updates: Partial<RentalProperty>) => {
-    const updated = rentalProperties.map(p => p.id === propertyId ? { ...p, ...updates } : p);
-    saveRentalProperties(updated);
+    saveRentalProperties(prev => prev.map(p => p.id === propertyId ? { ...p, ...updates } : p));
   };
 
   const deleteRentalProperty = (propertyId: string) => {
-    const updated = rentalProperties.filter(p => p.id !== propertyId);
-    saveRentalProperties(updated);
+    saveRentalProperties(prev => prev.filter(p => p.id !== propertyId));
   };
 
   const addHostelRoom = (propertyId: string, room: Omit<HostelRoom, 'id'>) => {
@@ -2997,8 +3103,11 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         recordLawyerFeePayment,
         rentalProperties,
         addRentalProperty,
+        addRentalPropertyWithTenant,
         updateRentalProperty,
         deleteRentalProperty,
+        transferRentalProperty,
+        sellRentalProperty,
         addHostelRoom,
         addRentalTenant,
         updateRentalTenant,

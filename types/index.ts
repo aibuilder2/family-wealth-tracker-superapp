@@ -491,7 +491,7 @@ export interface BusinessFirm {
 // ==========================================
 // RENTAL PROPERTY, PG & HOSTEL TYPES
 // ==========================================
-export type RentalPropertyType = 'residential_flat' | 'commercial_shop' | 'independent_house' | 'pg_hostel' | 'warehouse_godown';
+export type RentalPropertyType = 'residential_flat' | 'commercial_shop' | 'independent_house' | 'pg_hostel' | 'warehouse_godown' | 'vacant_plot';
 export type HostelBedStatus = 'vacant' | 'occupied' | 'under_maintenance';
 
 export interface HostelBed {
@@ -611,6 +611,8 @@ export interface RentalProperty {
   property_type: RentalPropertyType;
   address: string;
   city: string;
+  pincode?: string; // Postal PIN code (Optional)
+  gps_coordinates?: string; // GPS Latitude, Longitude or Maps link (Optional)
   landlord_name?: string;
   landlord_phone?: string;
   landlord_pan?: string;
@@ -623,6 +625,23 @@ export interface RentalProperty {
   purchase_price?: number;
   purchase_date?: string;
   registration_deed_no?: string;
+  annual_appreciation_rate?: number; // Year-on-year appreciation rate % (e.g. 12% - 18%)
+
+  // Ownership Lifecycle (Transfer to Family Member or Sold)
+  ownership_status?: 'owned' | 'transferred' | 'sold';
+  sold_details?: {
+    sold_to_name?: string;
+    sold_price?: number;
+    sold_date?: string;
+    capital_gain?: number;
+    notes?: string;
+  };
+  transfer_details?: {
+    transferred_to_member_id?: string;
+    transferred_to_name?: string;
+    transfer_date?: string;
+    notes?: string;
+  };
 
   total_units_or_rooms: number;
   total_capacity_beds?: number;

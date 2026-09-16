@@ -40,7 +40,11 @@ import {
   TrendingUp,
   UserPlus,
   MapPin,
-  Maximize2
+  Maximize2,
+  Navigation,
+  Percent,
+  RefreshCw,
+  Tag
 } from "lucide-react";
 import { RentalProperty, RentalPropertyType, HostelRoom, RentalTenant, RentalExpense } from "@/types";
 import Link from "next/link";
@@ -51,8 +55,11 @@ export default function RentalsPage() {
     currentUserId,
     rentalProperties,
     addRentalProperty,
+    addRentalPropertyWithTenant,
     updateRentalProperty,
     deleteRentalProperty,
+    transferRentalProperty,
+    sellRentalProperty,
     addHostelRoom,
     addRentalTenant,
     updateRentalTenant,
@@ -91,12 +98,16 @@ export default function RentalsPage() {
   const [propType, setPropType] = useState<RentalPropertyType>("commercial_shop");
   const [propAddress, setPropAddress] = useState("");
   const [propCity, setPropCity] = useState("Delhi NCR");
+  const [propPincode, setPropPincode] = useState("");
+  const [propGpsCoordinates, setPropGpsCoordinates] = useState("");
+  const [gpsDetecting, setGpsDetecting] = useState(false);
   const [propOwnerMemberId, setPropOwnerMemberId] = useState<string>(currentUserId || members[0]?.id || "m-head");
   const [propSize, setPropSize] = useState<number>(0);
   const [propSizeUnit, setPropSizeUnit] = useState<"sqft" | "sqyards" | "sqmeters" | "bigha" | "dhur">("sqft");
   const [propMarketValue, setPropMarketValue] = useState<number>(0);
   const [propPurchasePrice, setPropPurchasePrice] = useState<number>(0);
   const [propPurchaseDate, setPropPurchaseDate] = useState(new Date().toISOString().split("T")[0]);
+  const [propAppreciationRate, setPropAppreciationRate] = useState<number>(12);
   const [propRegistryNo, setPropRegistryNo] = useState("");
   const [propTargetRent, setPropTargetRent] = useState<number>(0);
   const [propOwnerName, setPropOwnerName] = useState("");
@@ -106,6 +117,18 @@ export default function RentalsPage() {
   const [propDefaultRules, setPropDefaultRules] = useState(
     "1. Har mahine ki due date tak rent jama karein.\n2. Sub-letting ya kisi aur ko kiraye par dena mana hai.\n3. Notice period: Kam se kam 30 din pehle suchit karein.\n4. Kisi bhi samagri ya fittings me damage hone par bharpai security deposit se ki jayegi.\n5. Chhote repairs (bulb, washer) tenant karega, structural repairs owner karega."
   );
+
+  // Property Transfer & Sell Modals
+  const [showTransferModal, setShowTransferModal] = useState<RentalProperty | null>(null);
+  const [transferToMemberId, setTransferToMemberId] = useState<string>("");
+  const [transferDate, setTransferDate] = useState(new Date().toISOString().split("T")[0]);
+  const [transferNotes, setTransferNotes] = useState("");
+
+  const [showSellModal, setShowSellModal] = useState<RentalProperty | null>(null);
+  const [soldToName, setSoldToName] = useState("");
+  const [soldPrice, setSoldPrice] = useState<number>(0);
+  const [soldDate, setSoldDate] = useState(new Date().toISOString().split("T")[0]);
+  const [soldNotes, setSoldNotes] = useState("");
 
   // Tenant Personal & Contact Fields
   const [targetPropertyId, setTargetPropertyId] = useState<string>(selectedPropId || rentalProperties[0]?.id || "");
@@ -240,16 +263,41 @@ export default function RentalsPage() {
     }
   };
 
+  // GPS Auto-detect helper (100% Free HTML5 Geolocation API)
+  const handleDetectGPS = () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      alert("Aapka browser Geolocation support nahi karta.");
+      return;
+    }
+    setGpsDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
+        setPropGpsCoordinates(coords);
+        setGpsDetecting(false);
+      },
+      (error) => {
+        setGpsDetecting(false);
+        alert("GPS Location prapt nahi ho saki: " + error.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   // Reset Master Form
   const resetMasterForm = () => {
     setPropTitle("");
     setPropType("commercial_shop");
     setPropAddress("");
+    setPropCity("Delhi NCR");
+    setPropPincode("");
+    setPropGpsCoordinates("");
     setPropSize(0);
     setPropSizeUnit("sqft");
     setPropMarketValue(0);
     setPropPurchasePrice(0);
     setPropPurchaseDate(new Date().toISOString().split("T")[0]);
+    setPropAppreciationRate(12);
     setPropRegistryNo("");
     setPropOwnerMemberId(currentUserId || members[0]?.id || "m-head");
     setPropTargetRent(0);
@@ -302,101 +350,118 @@ export default function RentalsPage() {
     setShowUnifiedModal(true);
   };
 
-  // Submit Unified Form (Property + Tenant in 1 click)
+  // Submit Unified Form (Property + Tenant in 1 click - ATOMIC PERSISTENCE)
   const handleSaveUnifiedEntry = (e: React.FormEvent) => {
     e.preventDefault();
 
-    let createdPropId = targetPropertyId;
     const selectedOwner = members.find((m) => m.id === propOwnerMemberId);
+    const formattedOwnerPhone = propOwnerPhone ? (propOwnerPhone.startsWith("+91") ? propOwnerPhone : `+91 ${propOwnerPhone}`) : "";
 
-    // 1. Create Property if mode is 'both' or 'property_only'
-    if (unifiedMode === "both" || unifiedMode === "property_only") {
+    const propPayload = {
+      title: propTitle,
+      property_type: propType,
+      address: propAddress,
+      city: propCity,
+      pincode: propPincode || undefined,
+      gps_coordinates: propGpsCoordinates || undefined,
+      owner_member_id: propOwnerMemberId,
+      owner_member_name: selectedOwner?.name || propOwnerName || "Makan Malik",
+      property_size: Number(propSize || 0),
+      size_unit: propSizeUnit,
+      estimated_market_value: Number(propMarketValue || 0),
+      purchase_price: Number(propPurchasePrice || 0),
+      purchase_date: propPurchaseDate,
+      annual_appreciation_rate: Number(propAppreciationRate || 12),
+      registration_deed_no: propRegistryNo,
+      landlord_name: selectedOwner?.name || propOwnerName || "Makan Malik",
+      landlord_phone: formattedOwnerPhone,
+      landlord_pan: propOwnerPan,
+      landlord_upi: propOwnerUpi,
+      total_units_or_rooms: 1,
+      total_capacity_beds: propType === "pg_hostel" ? 6 : 1,
+      has_hostel_model: propType === "pg_hostel",
+      monthly_target_revenue: Number(propTargetRent || tenantRent || 0),
+      security_deposit_holding: 0,
+      default_rules: propDefaultRules,
+      rooms: propType === "pg_hostel" ? [] : undefined
+    };
+
+    const formattedPhone = tenantPhone ? (tenantPhone.startsWith("+91") ? tenantPhone : `+91 ${tenantPhone}`) : "";
+    const formattedAltPhone = tenantAltPhone ? (tenantAltPhone.startsWith("+91") ? tenantAltPhone : `+91 ${tenantAltPhone}`) : "";
+
+    const tenantPayload = {
+      name: tenantName,
+      father_or_spouse_name: tenantFatherSpouse,
+      phone: formattedPhone,
+      alternate_phone: formattedAltPhone,
+      aadhaar_no: tenantAadhaar,
+      pan_no: tenantPan,
+      aadhaar_card_url: tenantAadhaarUrl,
+      pan_card_url: tenantPanUrl,
+      photo_url: tenantPhotoUrl,
+      permanent_address: tenantPermAddress,
+      current_address: propAddress || activeProperty?.address || "",
+      native_or_permanent_address: tenantPermAddress,
+      occupation: tenantOccupation,
+      is_commercial: propType === "commercial_shop" || propType === "warehouse_godown",
+      tenant_status: "active" as const,
+      move_in_meter_reading: hasSubmeter ? Number(tenantMoveInMeter || 0) : 0,
+      joining_date: tenantJoiningDate,
+      cycle_start_day: Number(tenantCycleStartDay || 1),
+      cycle_end_day: Number(tenantCycleEndDay || 30),
+      rent_due_day: Number(tenantDueDay || 5),
+      monthly_rent: Number(tenantRent || 0),
+      security_deposit: Number(tenantDeposit || 0),
+      advance_payment_date: tenantJoiningDate,
+      advance_payment_mode: tenantDepositMode,
+      advance_status: "held" as const,
+      agreement_duration_months: Number(tenantAgreementMonths || 11),
+      agreement_start_date: tenantJoiningDate,
+      lock_in_period_months: Number(tenantLockInMonths || 6),
+      notice_period_days: Number(tenantNoticeDays || 30),
+      early_exit_penalty: tenantEarlyExitPenalty,
+      special_terms: tenantSpecialTerms,
+      rent_status: "paid" as const,
+      food_included: tenantFood,
+      room_number: tenantRoomNo || (propType === "commercial_shop" ? "Shop Unit" : propType === "vacant_plot" ? "Plot / Land" : "Unit 1"),
+      bed_id: tenantBedId || undefined,
+      last_paid_date: new Date().toISOString().split("T")[0],
+      notes: tenantNotes
+    };
+
+    // Case 1: Unified creation (Property AND Tenant simultaneously - 100% ATOMIC)
+    if (unifiedMode === "both") {
       if (!propTitle) {
         alert("Kripya Property / Dukan ka Title daalein!");
         return;
       }
-
-      const formattedOwnerPhone = propOwnerPhone ? (propOwnerPhone.startsWith("+91") ? propOwnerPhone : `+91 ${propOwnerPhone}`) : "";
-
-      const newProperty = addRentalProperty({
-        title: propTitle,
-        property_type: propType,
-        address: propAddress,
-        city: propCity,
-        owner_member_id: propOwnerMemberId,
-        owner_member_name: selectedOwner?.name || propOwnerName || "Makan Malik",
-        property_size: Number(propSize || 0),
-        size_unit: propSizeUnit,
-        estimated_market_value: Number(propMarketValue || 0),
-        purchase_price: Number(propPurchasePrice || 0),
-        purchase_date: propPurchaseDate,
-        registration_deed_no: propRegistryNo,
-        landlord_name: selectedOwner?.name || propOwnerName || "Makan Malik",
-        landlord_phone: formattedOwnerPhone,
-        landlord_pan: propOwnerPan,
-        landlord_upi: propOwnerUpi,
-        total_units_or_rooms: 1,
-        total_capacity_beds: propType === "pg_hostel" ? 6 : 1,
-        has_hostel_model: propType === "pg_hostel",
-        monthly_target_revenue: Number(propTargetRent || tenantRent || 0),
-        security_deposit_holding: 0,
-        default_rules: propDefaultRules,
-        rooms: propType === "pg_hostel" ? [] : undefined
-      });
-
-      createdPropId = newProperty.id;
-      setSelectedPropId(newProperty.id);
-    }
-
-    // 2. Create Tenant if mode is 'both' or 'tenant_only'
-    if (unifiedMode === "both" || unifiedMode === "tenant_only") {
+      const newProp = addRentalPropertyWithTenant(
+        propPayload,
+        tenantName && tenantName.trim().length > 0 ? tenantPayload : undefined
+      );
+      setSelectedPropId(newProp.id);
+    } 
+    // Case 2: Only Property
+    else if (unifiedMode === "property_only") {
+      if (!propTitle) {
+        alert("Kripya Property / Dukan ka Title daalein!");
+        return;
+      }
+      const newProp = addRentalProperty(propPayload);
+      setSelectedPropId(newProp.id);
+    } 
+    // Case 3: Only Tenant for existing property
+    else if (unifiedMode === "tenant_only") {
       if (!tenantName) {
         alert("Kripya Kirayedaar ka Naam daalein!");
         return;
       }
-
-      const formattedPhone = tenantPhone ? (tenantPhone.startsWith("+91") ? tenantPhone : `+91 ${tenantPhone}`) : "";
-      const formattedAltPhone = tenantAltPhone ? (tenantAltPhone.startsWith("+91") ? tenantAltPhone : `+91 ${tenantAltPhone}`) : "";
-
-      addRentalTenant(createdPropId, {
-        name: tenantName,
-        father_or_spouse_name: tenantFatherSpouse,
-        phone: formattedPhone,
-        alternate_phone: formattedAltPhone,
-        aadhaar_no: tenantAadhaar,
-        pan_no: tenantPan,
-        aadhaar_card_url: tenantAadhaarUrl,
-        pan_card_url: tenantPanUrl,
-        photo_url: tenantPhotoUrl,
-        permanent_address: tenantPermAddress,
-        current_address: propAddress || activeProperty?.address || "",
-        native_or_permanent_address: tenantPermAddress,
-        occupation: tenantOccupation,
-        is_commercial: propType === "commercial_shop" || propType === "warehouse_godown",
-        tenant_status: "active",
-        move_in_meter_reading: Number(tenantMoveInMeter || 0),
-        joining_date: tenantJoiningDate,
-        cycle_start_day: Number(tenantCycleStartDay || 1),
-        cycle_end_day: Number(tenantCycleEndDay || 30),
-        rent_due_day: Number(tenantDueDay || 5),
-        monthly_rent: Number(tenantRent || 0),
-        security_deposit: Number(tenantDeposit || 0),
-        advance_payment_date: tenantJoiningDate,
-        advance_payment_mode: tenantDepositMode,
-        advance_status: "held",
-        agreement_duration_months: Number(tenantAgreementMonths || 11),
-        agreement_start_date: tenantJoiningDate,
-        lock_in_period_months: Number(tenantLockInMonths || 6),
-        notice_period_days: Number(tenantNoticeDays || 30),
-        early_exit_penalty: tenantEarlyExitPenalty,
-        special_terms: tenantSpecialTerms,
-        rent_status: "paid",
-        food_included: tenantFood,
-        room_number: tenantRoomNo || (propType === "commercial_shop" ? "Shop Unit" : "Unit 1"),
-        bed_id: tenantBedId || undefined,
-        last_paid_date: new Date().toISOString().split("T")[0],
-        notes: tenantNotes
-      });
+      const targetId = targetPropertyId || activeProperty?.id || rentalProperties[0]?.id;
+      if (!targetId) {
+        alert("Pehle kam se kam ek Property create karein!");
+        return;
+      }
+      addRentalTenant(targetId, tenantPayload);
     }
 
     setShowUnifiedModal(false);
@@ -481,12 +546,15 @@ export default function RentalsPage() {
     setPropType(p.property_type || "commercial_shop");
     setPropAddress(p.address || "");
     setPropCity(p.city || "Delhi NCR");
+    setPropPincode(p.pincode || "");
+    setPropGpsCoordinates(p.gps_coordinates || "");
     setPropOwnerMemberId(p.owner_member_id || currentUserId || members[0]?.id || "m-head");
     setPropSize(p.property_size || 0);
     setPropSizeUnit(p.size_unit || "sqft");
     setPropMarketValue(p.estimated_market_value || 0);
     setPropPurchasePrice(p.purchase_price || 0);
     setPropPurchaseDate(p.purchase_date || new Date().toISOString().split("T")[0]);
+    setPropAppreciationRate(p.annual_appreciation_rate || 12);
     setPropRegistryNo(p.registration_deed_no || "");
     setPropTargetRent(p.monthly_target_revenue || 0);
     setPropOwnerName(p.landlord_name || "");
@@ -508,6 +576,8 @@ export default function RentalsPage() {
       property_type: propType,
       address: propAddress,
       city: propCity,
+      pincode: propPincode || undefined,
+      gps_coordinates: propGpsCoordinates || undefined,
       owner_member_id: propOwnerMemberId,
       owner_member_name: selectedOwner?.name || propOwnerName || "Makan Malik",
       property_size: Number(propSize || 0),
@@ -515,6 +585,7 @@ export default function RentalsPage() {
       estimated_market_value: Number(propMarketValue || 0),
       purchase_price: Number(propPurchasePrice || 0),
       purchase_date: propPurchaseDate,
+      annual_appreciation_rate: Number(propAppreciationRate || 12),
       registration_deed_no: propRegistryNo,
       landlord_name: selectedOwner?.name || propOwnerName || "Makan Malik",
       landlord_phone: formattedOwnerPhone,
@@ -1236,99 +1307,370 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
             </div>
           )}
 
-          {/* TAB 3: Property Wealth & Size Details */}
+          {/* TAB 3: Property Wealth, Appreciation & Lifecycle (Transfer / Sell) */}
           {activeTab === "wealth_details" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Asset Valuation Card */}
-              <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
-                <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider">
-                  <TrendingUp className="w-5 h-5" /> Property Asset & Wealth Valuation
-                </div>
-                <p className="text-xs text-slate-400">
-                  Yeh property aapki total family wealth me property asset ke roop me shamil hai:
-                </p>
+            <div className="space-y-6">
+              {/* Top Row: Asset Details + ROI / Appreciation */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Asset Valuation Card */}
+                <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider">
+                      <TrendingUp className="w-5 h-5" /> Property Asset & Wealth Valuation
+                    </div>
+                    {/* Ownership Status Badge */}
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-black ${
+                      activeProperty.ownership_status === "sold"
+                        ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                        : activeProperty.ownership_status === "transferred"
+                        ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                        : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                    }`}>
+                      {activeProperty.ownership_status === "sold"
+                        ? "🏷️ SOLD (बिक चुकी है)"
+                        : activeProperty.ownership_status === "transferred"
+                        ? "🔄 TRANSFERRED (हस्तांतरित)"
+                        : "🟢 OWNED (सक्रिय स्वामित्व)"}
+                    </span>
+                  </div>
 
-                <div className="space-y-3 pt-2">
-                  <div className="p-4 bg-[#0B0F19] rounded-xl border border-slate-800 flex justify-between items-center">
-                    <div>
-                      <span className="text-xs text-slate-400">Current Market Valuation (अनुमानित बाजार भाव)</span>
-                      <div className="text-2xl font-black text-amber-400 mt-0.5">
-                        ₹{(activeProperty.estimated_market_value || 0).toLocaleString("en-IN")}
+                  <p className="text-xs text-slate-400">
+                    Yeh property aapki total family wealth me property asset ke roop me shamil hai:
+                  </p>
+
+                  <div className="space-y-3 pt-2">
+                    <div className="p-4 bg-[#0B0F19] rounded-xl border border-slate-800 flex justify-between items-center">
+                      <div>
+                        <span className="text-xs text-slate-400">Current Market Valuation (अनुमानित बाजार भाव)</span>
+                        <div className="text-2xl font-black text-amber-400 mt-0.5">
+                          ₹{(activeProperty.estimated_market_value || 0).toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                      <Link
+                        href="/wealth"
+                        className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition"
+                      >
+                        View in Wealth →
+                      </Link>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800">
+                        <span className="text-slate-500 block">Property Size (क्षेत्रफल)</span>
+                        <strong className="text-white text-sm">
+                          {activeProperty.property_size || 0} {activeProperty.size_unit || "sqft"}
+                        </strong>
+                      </div>
+
+                      {/* Purchase Cost + Age Badge */}
+                      <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800">
+                        <span className="text-slate-500 block">Purchase Cost (खरीद लागत)</span>
+                        <strong className="text-white text-sm">
+                          {activeProperty.purchase_price && activeProperty.purchase_price > 0
+                            ? `₹${activeProperty.purchase_price.toLocaleString("en-IN")}`
+                            : "Not Specified (Optional)"}
+                        </strong>
+                        {activeProperty.purchase_date && (
+                          <div className="mt-1 pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                            <span className="text-slate-400">Taarikh: {activeProperty.purchase_date}</span>
+                            {(() => {
+                              const pYear = new Date(activeProperty.purchase_date).getFullYear();
+                              const curYear = new Date().getFullYear();
+                              const ageYears = Math.max(0, curYear - pYear);
+                              return (
+                                <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 font-bold rounded">
+                                  {ageYears > 0 ? `${ageYears} Saal Purani` : "Isi Saal Kharidi"}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <Link
-                      href="/wealth"
-                      className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition"
+
+                    {/* Address, PIN Code & GPS Map Link */}
+                    <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800 text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Pata & PIN Code:</span>
+                        <span className="text-white font-medium">
+                          {activeProperty.address}, {activeProperty.city} {activeProperty.pincode ? `(PIN: ${activeProperty.pincode})` : ""}
+                        </span>
+                      </div>
+                      {activeProperty.gps_coordinates && (
+                        <div className="flex items-center justify-between pt-1 text-[11px]">
+                          <span className="text-slate-400 flex items-center gap-1 font-mono">
+                            <MapPin className="w-3.5 h-3.5 text-rose-400" /> {activeProperty.gps_coordinates}
+                          </span>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeProperty.gps_coordinates)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1"
+                          >
+                            🗺️ Google Maps me Dekhein →
+                          </a>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800 text-xs flex justify-between">
+                      <div>
+                        <span className="text-slate-500 block">Ownership Name (किसके नाम पर है)</span>
+                        <strong className="text-purple-300">{activeProperty.owner_member_name || activeProperty.landlord_name || "Self"}</strong>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-500 block">Registry / Deed No.</span>
+                        <strong className="text-slate-300 font-mono">{activeProperty.registration_deed_no || "N/A"}</strong>
+                      </div>
+                    </div>
+
+                    {/* Sold or Transferred Historical Logs */}
+                    {activeProperty.transfer_details && (
+                      <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-xs space-y-1">
+                        <span className="font-bold text-purple-300 flex items-center gap-1.5">
+                          <RefreshCw className="w-3.5 h-3.5" /> Parivar me Transfer Record
+                        </span>
+                        <div className="text-slate-300">
+                          Transfer kiya gaya: <strong>{activeProperty.transfer_details.transferred_to_name}</strong> ko taarikh {activeProperty.transfer_details.transfer_date} par.
+                        </div>
+                        {activeProperty.transfer_details.notes && (
+                          <div className="text-[11px] text-slate-400">Note: {activeProperty.transfer_details.notes}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {activeProperty.sold_details && (
+                      <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs space-y-1">
+                        <span className="font-bold text-rose-300 flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5" /> Property Sell (बिक्री) Record
+                        </span>
+                        <div className="text-slate-300 flex justify-between">
+                          <span>Kisko Bechi: <strong>{activeProperty.sold_details.sold_to_name}</strong></span>
+                          <span>Bikri Mulya: <strong className="text-emerald-400">₹{(activeProperty.sold_details.sold_price || 0).toLocaleString("en-IN")}</strong></span>
+                        </div>
+                        <div className="text-slate-400 flex justify-between text-[11px]">
+                          <span>Bikri Taarikh: {activeProperty.sold_details.sold_date}</span>
+                          {(activeProperty.sold_details.capital_gain || 0) > 0 && (
+                            <span className="text-emerald-400 font-bold">Munafa (Capital Gain): +₹{activeProperty.sold_details.capital_gain?.toLocaleString("en-IN")}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons: Edit, Transfer, Sell */}
+                  <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      onClick={() => openEditPropertyModal(activeProperty)}
+                      className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
                     >
-                      View in Wealth →
-                    </Link>
-                  </div>
+                      <Edit3 className="w-3.5 h-3.5" /> Edit Details
+                    </button>
 
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800">
-                      <span className="text-slate-500 block">Property Size (क्षेत्रफल)</span>
-                      <strong className="text-white text-sm">{activeProperty.property_size || 0} {activeProperty.size_unit || "sqft"}</strong>
-                    </div>
-                    <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800">
-                      <span className="text-slate-500 block">Purchase Cost (खरीद लागत)</span>
-                      <strong className="text-white text-sm">₹{(activeProperty.purchase_price || 0).toLocaleString("en-IN")}</strong>
-                    </div>
-                  </div>
+                    <button
+                      onClick={() => {
+                        setShowTransferModal(activeProperty);
+                        setTransferToMemberId(members.find(m => m.id !== activeProperty.owner_member_id)?.id || "");
+                        setTransferDate(new Date().toISOString().split("T")[0]);
+                        setTransferNotes("");
+                      }}
+                      className="py-2 px-3 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Transfer Karein
+                    </button>
 
-                  <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800 text-xs flex justify-between">
-                    <div>
-                      <span className="text-slate-500 block">Ownership Name (किसके नाम पर है)</span>
-                      <strong className="text-purple-300">{activeProperty.owner_member_name || activeProperty.landlord_name || "Self"}</strong>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-slate-500 block">Registry / Deed No.</span>
-                      <strong className="text-slate-300 font-mono">{activeProperty.registration_deed_no || "N/A"}</strong>
-                    </div>
+                    <button
+                      onClick={() => {
+                        setShowSellModal(activeProperty);
+                        setSoldToName("");
+                        setSoldPrice(activeProperty.estimated_market_value || activeProperty.purchase_price || 0);
+                        setSoldDate(new Date().toISOString().split("T")[0]);
+                        setSoldNotes("");
+                      }}
+                      className="py-2 px-3 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                    >
+                      <Tag className="w-3.5 h-3.5" /> Sell Property
+                    </button>
                   </div>
                 </div>
 
-                <div className="pt-2">
-                  <button
-                    onClick={() => openEditPropertyModal(activeProperty)}
-                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
-                  >
-                    <Edit3 className="w-4 h-4" /> Edit Size, Valuation & Ownership Details
-                  </button>
+                {/* Rental Return & ROI Analysis */}
+                <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm uppercase tracking-wider">
+                    <BadgeIndianRupee className="w-5 h-5" /> Rental Yield & Return Analysis
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Property ke market value aur annual rental income ka hisab:
+                  </p>
+
+                  <div className="space-y-3 pt-2">
+                    <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/30 flex justify-between items-center">
+                      <div>
+                        <span className="text-xs text-emerald-300 font-bold">Annual Target Rent (सालाना किराया)</span>
+                        <div className="text-xl font-black text-white mt-0.5">
+                          ₹{((activeProperty.monthly_target_revenue || 0) * 12).toLocaleString("en-IN")} / year
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs text-slate-400">Gross Rental Yield</span>
+                        <div className="text-lg font-black text-emerald-400">
+                          {activeProperty.estimated_market_value
+                            ? `${(((activeProperty.monthly_target_revenue || 0) * 12 / activeProperty.estimated_market_value) * 100).toFixed(2)}%`
+                            : "N/A"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800 text-xs space-y-1 text-slate-400">
+                      <div>💡 <strong>Commercial Rental Yield:</strong> Typically 6% - 10% in Indian markets.</div>
+                      <div>🏠 <strong>Residential Rental Yield:</strong> Typically 2.5% - 4.5%.</div>
+                      <div>📐 <strong>Khali Plot / Land:</strong> Capital appreciation is primary; lease/parking rent is bonus.</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Rental Return & ROI Analysis */}
-              <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
-                <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm uppercase tracking-wider">
-                  <BadgeIndianRupee className="w-5 h-5" /> Rental Yield & Return Analysis
-                </div>
-                <p className="text-xs text-slate-400">
-                  Property ke market value aur annual rental income ka hisab:
-                </p>
-
-                <div className="space-y-3 pt-2">
-                  <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/30 flex justify-between items-center">
-                    <div>
-                      <span className="text-xs text-emerald-300 font-bold">Annual Target Rent (सालाना किराया)</span>
-                      <div className="text-xl font-black text-white mt-0.5">
-                        ₹{((activeProperty.monthly_target_revenue || 0) * 12).toLocaleString("en-IN")} / year
-                      </div>
+              {/* Bottom Row: 12% - 18% Compound Appreciation Calculator & Yearly Log */}
+              <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider">
+                      <Percent className="w-5 h-5" /> Real Estate Compound Appreciation Engine (12% - 18% p.a.)
                     </div>
-                    <div className="text-right">
-                      <span className="text-xs text-slate-400">Gross Rental Yield</span>
-                      <div className="text-lg font-black text-emerald-400">
-                        {activeProperty.estimated_market_value
-                          ? `${(((activeProperty.monthly_target_revenue || 0) * 12 / activeProperty.estimated_market_value) * 100).toFixed(2)}%`
-                          : "N/A"}
-                      </div>
-                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Property ki kharid laagat par har saal compound rate se badhne wali mulya vriddhi (capital appreciation).
+                    </p>
                   </div>
 
-                  <div className="p-3 bg-[#0B0F19] rounded-xl border border-slate-800 text-xs space-y-1 text-slate-400">
-                    <div>💡 <strong>Commercial Rental Yield:</strong> Typically 6% - 10% in Indian markets.</div>
-                    <div>🏠 <strong>Residential Rental Yield:</strong> Typically 2.5% - 4.5%.</div>
+                  {/* Appreciation Rate Quick Selector */}
+                  <div className="flex items-center gap-2 bg-[#0B0F19] border border-slate-800 rounded-xl p-1.5">
+                    <span className="text-xs font-bold text-slate-400 px-2">Growth Rate:</span>
+                    {[10, 12, 15, 18].map((rate) => (
+                      <button
+                        key={rate}
+                        type="button"
+                        onClick={() => {
+                          updateRentalProperty(activeProperty.id, { annual_appreciation_rate: rate });
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                          (activeProperty.annual_appreciation_rate || 12) === rate
+                            ? "bg-amber-500 text-slate-950 font-black shadow"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        {rate}%
+                      </button>
+                    ))}
                   </div>
                 </div>
+
+                {(() => {
+                  const purchasePrice = Number(activeProperty.purchase_price || 0);
+                  const rate = Number(activeProperty.annual_appreciation_rate || 12);
+                  const purchaseYear = activeProperty.purchase_date
+                    ? new Date(activeProperty.purchase_date).getFullYear()
+                    : new Date().getFullYear();
+                  const currentYear = new Date().getFullYear();
+                  const yearsElapsed = Math.max(0, currentYear - purchaseYear);
+
+                  if (purchasePrice <= 0) {
+                    return (
+                      <div className="p-4 bg-slate-900/60 border border-dashed border-slate-800 rounded-xl text-center text-xs text-slate-400">
+                        Purchase Cost darj nahi hai. Purchase Cost daalne ke baad 12%-18% compounding calculation automatic active ho jayegi.
+                      </div>
+                    );
+                  }
+
+                  // Build yearly compounding schedule
+                  const schedule: { year: number; startVal: number; growth: number; endVal: number }[] = [];
+                  let runningVal = purchasePrice;
+                  for (let y = 1; y <= Math.max(yearsElapsed, 1); y++) {
+                    const yearNum = purchaseYear + y;
+                    const growth = Math.round(runningVal * (rate / 100));
+                    const endVal = runningVal + growth;
+                    schedule.push({ year: yearNum, startVal: runningVal, growth, endVal });
+                    runningVal = endVal;
+                  }
+
+                  const estimatedCurrentWorth = runningVal;
+                  const totalAppreciation = estimatedCurrentWorth - purchasePrice;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Metric cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 bg-[#0B0F19] rounded-xl border border-slate-800">
+                          <span className="text-slate-400 text-xs block">Original Purchase (Kharid Laagat)</span>
+                          <div className="text-lg font-black text-white mt-1">₹{purchasePrice.toLocaleString("en-IN")}</div>
+                          <span className="text-[11px] text-slate-500">Year: {purchaseYear}</span>
+                        </div>
+
+                        <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/30">
+                          <span className="text-amber-300 text-xs font-bold block">
+                            Estimated Appreciated Worth ({yearsElapsed} Saal @ {rate}%)
+                          </span>
+                          <div className="text-xl font-black text-amber-400 mt-1">
+                            ₹{estimatedCurrentWorth.toLocaleString("en-IN")}
+                          </div>
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateRentalProperty(activeProperty.id, { estimated_market_value: estimatedCurrentWorth });
+                                alert(`Market Valuation ₹${estimatedCurrentWorth.toLocaleString("en-IN")} par update ho gayi!`);
+                              }}
+                              className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-lg transition"
+                            >
+                              Sync to Market Value →
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/30">
+                          <span className="text-emerald-300 text-xs font-bold block">Total Capital Growth (Kul Munafa)</span>
+                          <div className="text-xl font-black text-emerald-400 mt-1">
+                            +₹{totalAppreciation.toLocaleString("en-IN")}
+                          </div>
+                          <span className="text-[11px] text-emerald-400 font-bold block mt-1">
+                            +{((totalAppreciation / purchasePrice) * 100).toFixed(1)}% Total Growth
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Year-by-year compounding progression table */}
+                      <div className="p-4 bg-[#0B0F19] rounded-xl border border-slate-800 space-y-3">
+                        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                          📅 Saal-Dar-Saal Compounding Schedule ({schedule.length} Saal Ka Record)
+                        </span>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs text-left">
+                            <thead className="text-[11px] text-slate-500 border-b border-slate-800">
+                              <tr>
+                                <th className="pb-2">Year</th>
+                                <th className="pb-2">Beginning Worth</th>
+                                <th className="pb-2">Yearly Appreciation ({rate}%)</th>
+                                <th className="pb-2 text-right">Year-End Valuation</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                              {schedule.map((row, idx) => (
+                                <tr key={row.year} className={row.year === currentYear ? "bg-amber-500/10 font-bold text-amber-300" : ""}>
+                                  <td className="py-2 font-mono">
+                                    {row.year} {row.year === currentYear && " (Current Year)"}
+                                  </td>
+                                  <td className="py-2">₹{row.startVal.toLocaleString("en-IN")}</td>
+                                  <td className="py-2 text-emerald-400">+₹{row.growth.toLocaleString("en-IN")}</td>
+                                  <td className="py-2 text-right font-mono font-bold">₹{row.endVal.toLocaleString("en-IN")}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -1673,6 +2015,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                         <option value="residential_flat">🏠 Residential Flat / Apartment</option>
                         <option value="independent_house">🏡 Independent House / Makaan</option>
                         <option value="warehouse_godown">📦 Warehouse / Godown</option>
+                        <option value="vacant_plot">📐 Khali Plot / Zameen (Open Land)</option>
                         <option value="pg_hostel">🏢 PG & Hostel Model (Beds & Rooms)</option>
                       </select>
                     </div>
@@ -1722,34 +2065,73 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                     </div>
                   </div>
 
-                  {/* Market Valuation for Wealth Sync */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20 rounded-xl">
-                    <div>
-                      <label className="text-xs font-bold text-amber-300">Estimated Market Value (बाजार भाव ₹)</label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 3500000"
-                        value={propMarketValue === 0 ? "" : propMarketValue}
-                        onChange={(e) => setPropMarketValue(e.target.value === "" ? 0 : Number(e.target.value))}
-                        className="w-full mt-1 p-2.5 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-300 font-bold text-xs"
-                      />
-                      <span className="text-[10px] text-slate-400 block mt-0.5">Family Wealth / Net Worth me automatic judega</span>
+                  {/* Valuation, Purchase Cost, Purchase Date & Appreciation */}
+                  <div className="p-4 bg-gradient-to-r from-amber-500/10 via-slate-900/40 to-transparent border border-amber-500/20 rounded-2xl space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-amber-300">Estimated Market Value (बाजार भाव ₹)</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 3500000"
+                          value={propMarketValue === 0 ? "" : propMarketValue}
+                          onChange={(e) => setPropMarketValue(e.target.value === "" ? 0 : Number(e.target.value))}
+                          className="w-full mt-1 p-2.5 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-300 font-bold text-xs"
+                        />
+                        <span className="text-[10px] text-slate-400 block mt-0.5">Family Wealth / Net Worth me automatic judega</span>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <label className="text-xs font-bold text-slate-300">Purchase Cost (खरीद लागत ₹)</label>
+                          <span className="text-[10px] text-slate-400">(Optional / Chhod sakte hain)</span>
+                        </div>
+                        <input
+                          type="number"
+                          placeholder="e.g. 2200000 (khali chhod sakte hain)"
+                          value={propPurchasePrice === 0 ? "" : propPurchasePrice}
+                          onChange={(e) => setPropPurchasePrice(e.target.value === "" ? 0 : Number(e.target.value))}
+                          className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs"
+                        />
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="text-xs font-bold text-slate-400">Purchase Cost (खरीद लागत ₹)</label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 2200000"
-                        value={propPurchasePrice === 0 ? "" : propPurchasePrice}
-                        onChange={(e) => setPropPurchasePrice(e.target.value === "" ? 0 : Number(e.target.value))}
-                        className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs"
-                      />
+                    {/* Purchase Date & Expected Appreciation Rate (Right Below Purchase Cost) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-slate-800/80">
+                      <div>
+                        <label className="text-xs font-bold text-slate-400">Kharid Taarikh (Purchase Date)</label>
+                        <input
+                          type="date"
+                          value={propPurchaseDate}
+                          onChange={(e) => setPropPurchaseDate(e.target.value)}
+                          className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs"
+                        />
+                        <span className="text-[10px] text-slate-400 block mt-0.5">
+                          Old property hone par purchase cost kam hone ka genuine praman
+                        </span>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <label className="text-xs font-bold text-emerald-400">Salana Appreciation (% p.a.)</label>
+                          <span className="text-[10px] text-emerald-400 font-bold">Default: 12% - 18%</span>
+                        </div>
+                        <input
+                          type="number"
+                          placeholder="12"
+                          value={propAppreciationRate}
+                          onChange={(e) => setPropAppreciationRate(Number(e.target.value || 12))}
+                          className="w-full mt-1 p-2.5 bg-[#111827] border border-emerald-500/30 rounded-xl text-emerald-300 font-bold text-xs"
+                        />
+                        <span className="text-[10px] text-slate-400 block mt-0.5">
+                          Her saal property ka mulya compound rate se calculate hoga
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
+                  {/* Address, City, PIN Code & Free GPS Detection */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="md:col-span-2">
                       <label className="text-xs font-bold text-slate-400">Property Address & Area</label>
                       <input
                         type="text"
@@ -1768,6 +2150,51 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                         onChange={(e) => setPropCity(e.target.value)}
                         className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs"
                       />
+                    </div>
+                  </div>
+
+                  {/* Optional PIN Code & GPS Location with 1-Click Free Detection */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-slate-400">Pincode (डाक पिन कोड)</label>
+                        <span className="text-[10px] text-slate-400">(Optional)</span>
+                      </div>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        placeholder="e.g. 110001 (Optional)"
+                        value={propPincode}
+                        onChange={(e) => setPropPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-rose-400" /> GPS Location (Coordinates / Maps)
+                        </label>
+                        <span className="text-[10px] text-slate-400">(Optional)</span>
+                      </div>
+                      <div className="flex gap-1.5 mt-1">
+                        <input
+                          type="text"
+                          placeholder="e.g. 28.6139, 77.2090"
+                          value={propGpsCoordinates}
+                          onChange={(e) => setPropGpsCoordinates(e.target.value)}
+                          className="w-full p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleDetectGPS}
+                          disabled={gpsDetecting}
+                          className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-xl text-[11px] font-bold shrink-0 transition flex items-center gap-1"
+                        >
+                          <Navigation className={`w-3.5 h-3.5 ${gpsDetecting ? "animate-spin" : ""}`} />
+                          <span>{gpsDetecting ? "Detecting..." : "Free GPS"}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2339,8 +2766,40 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Purchase Cost, Date & Appreciation Rate */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-900/60 border border-slate-800 rounded-xl">
                 <div>
+                  <label className="text-xs font-bold text-slate-300">Purchase Cost (₹)</label>
+                  <input
+                    type="number"
+                    placeholder="Optional"
+                    value={propPurchasePrice === 0 ? "" : propPurchasePrice}
+                    onChange={(e) => setPropPurchasePrice(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400">Purchase Date</label>
+                  <input
+                    type="date"
+                    value={propPurchaseDate}
+                    onChange={(e) => setPropPurchaseDate(e.target.value)}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-emerald-400">Appreciation Rate (% p.a.)</label>
+                  <input
+                    type="number"
+                    value={propAppreciationRate}
+                    onChange={(e) => setPropAppreciationRate(Number(e.target.value || 12))}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-emerald-500/30 rounded-xl text-emerald-300 font-bold text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="md:col-span-2">
                   <label className="text-xs font-bold text-slate-400">Address</label>
                   <input
                     type="text"
@@ -2357,6 +2816,45 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                     onChange={(e) => setPropCity(e.target.value)}
                     className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
                   />
+                </div>
+              </div>
+
+              {/* PIN Code & Free GPS Detection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                <div>
+                  <label className="text-xs font-bold text-slate-400">Pincode (डाक पिन कोड)</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="e.g. 110001 (Optional)"
+                    value={propPincode}
+                    onChange={(e) => setPropPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-rose-400" /> GPS Coordinates
+                  </label>
+                  <div className="flex gap-1.5 mt-1">
+                    <input
+                      type="text"
+                      placeholder="e.g. 28.6139, 77.2090"
+                      value={propGpsCoordinates}
+                      onChange={(e) => setPropGpsCoordinates(e.target.value)}
+                      className="w-full p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleDetectGPS}
+                      disabled={gpsDetecting}
+                      className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-xl text-[11px] font-bold shrink-0 transition flex items-center gap-1"
+                    >
+                      <Navigation className={`w-3.5 h-3.5 ${gpsDetecting ? "animate-spin" : ""}`} />
+                      <span>{gpsDetecting ? "..." : "Free GPS"}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -3078,6 +3576,232 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-600/20"
                 >
                   Create Room & Beds
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 9: TRANSFER PROPERTY TO FAMILY MEMBER (GIFT / REGISTRY TRANSFER)    */}
+      {/* ========================================================================= */}
+      {showTransferModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-lg space-y-5 my-auto max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-5 h-5 text-purple-400" />
+                <h3 className="text-base md:text-lg font-black text-white">Transfer Property to Family Member</h3>
+              </div>
+              <button onClick={() => setShowTransferModal(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-[#0B0F19] rounded-2xl border border-slate-800 space-y-1 text-xs">
+              <div className="text-slate-400">Property: <strong className="text-white text-sm">{showTransferModal.title}</strong></div>
+              <div className="text-slate-400">Current Malik: <strong className="text-purple-300">{showTransferModal.owner_member_name || "Self"}</strong></div>
+              <div className="text-slate-400">Market Value: <strong className="text-amber-400">₹{(showTransferModal.estimated_market_value || 0).toLocaleString("en-IN")}</strong></div>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!transferToMemberId) {
+                  alert("Kripya Parivar Sadasya chunein jinko transfer karna hai!");
+                  return;
+                }
+                transferRentalProperty(showTransferModal.id, transferToMemberId, {
+                  transfer_date: transferDate,
+                  notes: transferNotes
+                });
+                setShowTransferModal(null);
+                alert("Property safaltapoorvak parivar ke sadasya ko transfer kar di gayi hai!");
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="font-bold text-purple-300">Kisko Transfer Karna Hai (Parivar Sadasya) *</label>
+                <select
+                  required
+                  value={transferToMemberId}
+                  onChange={(e) => setTransferToMemberId(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-purple-500/40 rounded-xl text-white font-bold text-xs"
+                >
+                  <option value="">-- Parivar Sadasya Chunein --</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.relationship || m.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-400">Transfer / Registry Taarikh</label>
+                <input
+                  type="date"
+                  value={transferDate}
+                  onChange={(e) => setTransferDate(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-400">Transfer Notes / Will / Gift Deed Details</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Registered Gift deed executed, ownership updated in municipal records"
+                  value={transferNotes}
+                  onChange={(e) => setTransferNotes(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black shadow-lg shadow-purple-600/30"
+                >
+                  Confirm Ownership Transfer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 10: SELL PROPERTY (RECORD SALE & CAPITAL GAINS)                     */}
+      {/* ========================================================================= */}
+      {showSellModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-lg space-y-5 my-auto max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Tag className="w-5 h-5 text-rose-400" />
+                <h3 className="text-base md:text-lg font-black text-white">Sell Property (सम्पत्ति बिक्री व मुनाफा दर्ज करें)</h3>
+              </div>
+              <button onClick={() => setShowSellModal(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-[#0B0F19] rounded-2xl border border-slate-800 space-y-1 text-xs">
+              <div className="text-slate-400">Property: <strong className="text-white text-sm">{showSellModal.title}</strong></div>
+              <div className="text-slate-400">
+                Original Purchase: <strong className="text-white">₹{(showSellModal.purchase_price || 0).toLocaleString("en-IN")}</strong>
+              </div>
+              <div className="text-slate-400">
+                Current Market Valuation: <strong className="text-amber-400">₹{(showSellModal.estimated_market_value || 0).toLocaleString("en-IN")}</strong>
+              </div>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!soldToName) {
+                  alert("Kripya Khariddar (Buyer) ka naam daalein!");
+                  return;
+                }
+                const purchase = showSellModal.purchase_price || 0;
+                const gain = Math.max(0, soldPrice - purchase);
+                sellRentalProperty(showSellModal.id, {
+                  sold_to_name: soldToName,
+                  sold_price: Number(soldPrice || 0),
+                  sold_date: soldDate,
+                  capital_gain: gain,
+                  notes: soldNotes
+                });
+                setShowSellModal(null);
+                alert(`Property safaltapoorvak 'SOLD' mark ho gayi hai! Capital Gain: ₹${gain.toLocaleString("en-IN")}`);
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="font-bold text-slate-300">Khariddar ka Naam (Buyer / Purchaser) *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Mukesh Aggarwal & Sons"
+                  value={soldToName}
+                  onChange={(e) => setSoldToName(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-emerald-400">Bikri Mulya (Sale Amount ₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={soldPrice === 0 ? "" : soldPrice}
+                    onChange={(e) => setSoldPrice(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-emerald-500/40 rounded-xl text-emerald-400 font-black text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-400">Bikri Taarikh (Sale Date)</label>
+                  <input
+                    type="date"
+                    value={soldDate}
+                    onChange={(e) => setSoldDate(e.target.value)}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Capital Gain Live Display */}
+              {(() => {
+                const purchase = showSellModal.purchase_price || 0;
+                const gain = soldPrice - purchase;
+                return (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] text-emerald-300 uppercase font-bold block">Capital Gain (कुल मुनाफा)</span>
+                      <div className="text-base font-black text-emerald-400">
+                        {gain >= 0 ? `+₹${gain.toLocaleString("en-IN")}` : `-₹${Math.abs(gain).toLocaleString("en-IN")}`}
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-slate-400">Sale Price - Purchase Cost</span>
+                  </div>
+                );
+              })()}
+
+              <div>
+                <label className="font-bold text-slate-400">Sale / Registry Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Registry complete at sub-registrar office, full payment received in bank"
+                  value={soldNotes}
+                  onChange={(e) => setSoldNotes(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowSellModal(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-600/30"
+                >
+                  Confirm Property Sale
                 </button>
               </div>
             </form>
