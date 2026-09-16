@@ -665,37 +665,79 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [isDemoMode, setIsDemoMode] = useState(false);
 
   const [family, setFamily] = useState<Family>({
-    id: 'fam-1',
-    name: 'Sharma Parivar',
+    id: 'fam-user',
+    name: 'Mera Parivar',
     currency: 'INR',
-    invite_code: 'SHARMA77',
+    invite_code: 'PARIVAR77',
   });
 
-  const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
+  const defaultOwnerMember: Member = {
+    id: 'm-head',
+    family_id: 'fam-user',
+    name: 'Mukhiya (Self)',
+    role: 'owner',
+    color: '#B98B2A',
+    initials: 'M',
+    relationship: 'Self / Mukhiya',
+    permissions: {
+      can_view_investments: true,
+      can_view_bills: true,
+      can_view_vault: true,
+      can_view_medical: true,
+      can_view_staff: true,
+      can_view_cases: true,
+      is_admin: true,
+    }
+  };
+
+  const [members, setMembers] = useState<Member[]>([defaultOwnerMember]);
   const [currentUserId, setCurrentUserId] = useState<string>('m-head');
   const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
 
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
-  const [goals, setGoals] = useState<Goal[]>(INITIAL_GOALS);
-  const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
-  const [documents, setDocuments] = useState<DocumentItem[]>(INITIAL_DOCUMENTS);
-  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>(INITIAL_MEDICAL);
-  const [staff, setStaff] = useState<HouseholdStaff[]>(INITIAL_STAFF);
-  const [courtCases, setCourtCases] = useState<CourtCase[]>(INITIAL_CASES);
-  const [creditCards, setCreditCards] = useState<CreditCard[]>(INITIAL_CREDIT_CARDS);
-  const [recurringIncomes, setRecurringIncomes] = useState<RecurringIncome[]>(INITIAL_RECURRING_INCOME);
-  const [utilityBills, setUtilityBills] = useState<UtilityBill[]>(INITIAL_UTILITY_BILLS);
-  const [agriculturalLands, setAgriculturalLands] = useState<AgriculturalLand[]>(INITIAL_AGRI_LANDS);
-  const [vehicles, setVehicles] = useState<Vehicle[]>(INITIAL_VEHICLES);
-  const [udharContacts, setUdharContacts] = useState<UdharContact[]>(INITIAL_UDHAR_CONTACTS);
-  const [fleetVehicles, setFleetVehicles] = useState<CommercialFleetVehicle[]>(INITIAL_FLEET);
-  const [businessFirms, setBusinessFirms] = useState<BusinessFirm[]>(INITIAL_FIRMS);
-  const [memberLedgers, setMemberLedgers] = useState<MemberLedgerEntry[]>(INITIAL_MEMBER_LEDGERS);
-  const [goldLoans, setGoldLoans] = useState<GoldLoanPledge[]>(INITIAL_GOLD_LOANS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [staff, setStaff] = useState<HouseholdStaff[]>([]);
+  const [courtCases, setCourtCases] = useState<CourtCase[]>([]);
+  const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
+  const [recurringIncomes, setRecurringIncomes] = useState<RecurringIncome[]>([]);
+  const [utilityBills, setUtilityBills] = useState<UtilityBill[]>([]);
+  const [agriculturalLands, setAgriculturalLands] = useState<AgriculturalLand[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [udharContacts, setUdharContacts] = useState<UdharContact[]>([]);
+  const [fleetVehicles, setFleetVehicles] = useState<CommercialFleetVehicle[]>([]);
+  const [businessFirms, setBusinessFirms] = useState<BusinessFirm[]>([]);
+  const [memberLedgers, setMemberLedgers] = useState<MemberLedgerEntry[]>([]);
+  const [goldLoans, setGoldLoans] = useState<GoldLoanPledge[]>([]);
+  const [rentalProperties, setRentalProperties] = useState<RentalProperty[]>([]);
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
+
+  // Demo record sanitizer
+  const isDemoRecord = (id?: string) => {
+    if (!id) return false;
+    return (
+      id.startsWith('txn-') ||
+      id === 'fam-1' ||
+      id === 'm-sunita' || id === 'm-priya' || id === 'm-amit' ||
+      id.startsWith('a-') ||
+      id.startsWith('g-') ||
+      id.startsWith('gl-') ||
+      id.startsWith('rent-') ||
+      id.startsWith('fleet-') ||
+      id.startsWith('firm-') ||
+      id.startsWith('staff-') ||
+      id.startsWith('case-') ||
+      id.startsWith('veh-') ||
+      id.startsWith('agri-') ||
+      id.startsWith('udh-') ||
+      id.startsWith('ledg-')
+    );
+  };
 
   // Scoped Storage Helper for Multi-Tenant SaaS
   const getStorageKey = (k: string) => {
@@ -846,27 +888,38 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (hasInit) {
-      // Load user's saved isolated data
+      // Load user's saved isolated data, discarding any lingering demo mock items
       try {
         const sf = localStorage.getItem(key('family'));
-        if (sf) setFamily(JSON.parse(sf));
+        if (sf) {
+          const parsedF = JSON.parse(sf);
+          if (parsedF.id !== 'fam-1' && parsedF.id !== 'fam-demo') setFamily(parsedF);
+          else setFamily({ id: cleanFamId, name: name + "'s Family", currency: 'INR', invite_code: name.slice(0, 4).toUpperCase() + '99' });
+        }
         const sm = localStorage.getItem(key('members'));
-        if (sm) setMembers(JSON.parse(sm));
-        else setMembers([ownerMember]);
+        if (sm) {
+          const parsedM = JSON.parse(sm).filter((m: any) => !isDemoRecord(m.id));
+          setMembers(parsedM.length > 0 ? parsedM : [ownerMember]);
+        } else {
+          setMembers([ownerMember]);
+        }
         const stx = localStorage.getItem(key('transactions'));
-        if (stx) setTransactions(JSON.parse(stx));
+        if (stx) {
+          const parsedTx = JSON.parse(stx).filter((t: any) => !isDemoRecord(t.id));
+          setTransactions(parsedTx);
+        }
         const sa = localStorage.getItem(key('assets'));
-        if (sa) setAssets(JSON.parse(sa));
+        if (sa) setAssets(JSON.parse(sa).filter((a: any) => !isDemoRecord(a.id)));
         const sg = localStorage.getItem(key('goals'));
-        if (sg) setGoals(JSON.parse(sg));
+        if (sg) setGoals(JSON.parse(sg).filter((g: any) => !isDemoRecord(g.id)));
         const sgl = localStorage.getItem(key('gold_loans'));
-        if (sgl) setGoldLoans(JSON.parse(sgl));
+        if (sgl) setGoldLoans(JSON.parse(sgl).filter((gl: any) => !isDemoRecord(gl.id)));
         const srt = localStorage.getItem(key('rentals'));
-        if (srt) setRentalProperties(JSON.parse(srt));
+        if (srt) setRentalProperties(JSON.parse(srt).filter((r: any) => !isDemoRecord(r.id)));
         const sfl = localStorage.getItem(key('fleet'));
-        if (sfl) setFleetVehicles(JSON.parse(sfl));
+        if (sfl) setFleetVehicles(JSON.parse(sfl).filter((f: any) => !isDemoRecord(f.id)));
         const sfm = localStorage.getItem(key('firms'));
-        if (sfm) setBusinessFirms(JSON.parse(sfm));
+        if (sfm) setBusinessFirms(JSON.parse(sfm).filter((fm: any) => !isDemoRecord(fm.id)));
         setCurrentUserId(cleanMemId);
         setIsDemoMode(false);
       } catch (e) {}
@@ -913,12 +966,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: supaTx } = await supabase.from('transactions').select('*').eq('family_id', cleanFamId).limit(50);
         if (supaTx && supaTx.length > 0) {
-          setTransactions(supaTx as any);
+          const cleanSupa = supaTx.filter((t: any) => !isDemoRecord(t.id));
+          setTransactions(cleanSupa as any);
         }
         const { data: supaAssets } = await supabase.from('assets').select('*').eq('family_id', cleanFamId);
-        if (supaAssets && supaAssets.length > 0) setAssets(supaAssets as any);
+        if (supaAssets && supaAssets.length > 0) setAssets(supaAssets.filter((a: any) => !isDemoRecord(a.id)) as any);
         const { data: supaGoals } = await supabase.from('goals').select('*').eq('family_id', cleanFamId);
-        if (supaGoals && supaGoals.length > 0) setGoals(supaGoals as any);
+        if (supaGoals && supaGoals.length > 0) setGoals(supaGoals.filter((g: any) => !isDemoRecord(g.id)) as any);
       } catch (e) {}
     }
   };
@@ -950,9 +1004,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveTransactions = (newTx: Transaction[]) => {
-    setTransactions(newTx);
+    const cleanList = newTx.filter((t: any) => !isDemoRecord(t.id));
+    setTransactions(cleanList);
     try { 
-      localStorage.setItem(getStorageKey('transactions'), JSON.stringify(newTx));
+      localStorage.setItem(getStorageKey('transactions'), JSON.stringify(cleanList));
       localStorage.setItem(getStorageKey('has_initialized'), 'true');
     } catch (e) {}
   };
@@ -965,7 +1020,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       time_stamp: txData.time_stamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       created_at: new Date().toISOString(),
     };
-    saveTransactions([newTx, ...transactions]);
+    const cleanCurrent = transactions.filter((t: any) => !isDemoRecord(t.id));
+    saveTransactions([newTx, ...cleanCurrent]);
 
     if (supabase) {
       supabase.from('transactions').insert(newTx).then(({ error }: any) => {
@@ -1526,8 +1582,6 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       txn_date: new Date().toISOString().split('T')[0]
     });
   };
-
-  const [rentalProperties, setRentalProperties] = useState<RentalProperty[]>(INITIAL_RENTAL_PROPERTIES);
 
   const addRentalProperty = (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>) => {
     const newProp: RentalProperty = {
