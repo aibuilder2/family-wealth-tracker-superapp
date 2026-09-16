@@ -851,6 +851,21 @@ export type ConstructionStage =
   | 'finishing_paint' // Putty, painting, wood work, glass
   | 'handover_ready';
 
+export type MeasurementUnitBasis = 'sqft' | 'sqmtr' | 'rft' | 'lump_sum' | 'item_rate';
+
+export type ContractorCategory =
+  | 'civil_structure'
+  | 'dhalai_slab_machine' // Dhalai machine & Lanter gang
+  | 'shuttering'
+  | 'chokhat_doors' // Chokhat & Door fixing
+  | 'lintel_chajja'
+  | 'plaster_masonry'
+  | 'tiles_flooring'
+  | 'electrician'
+  | 'plumber'
+  | 'painter'
+  | 'other';
+
 export type MaterialCategory =
   | 'cement'
   | 'sariya_steel'
@@ -872,7 +887,7 @@ export interface ConstructionMaterialLog {
   vendor_name: string;
   vendor_phone?: string;
   quantity: number;
-  unit: string; // Bags, Tons, Sqft, Brass/Trolley, Pcs
+  unit: string; // Bags, Tons, Sqft, Brass/Trolley, Pcs, SqMtr
   rate_per_unit: number;
   total_amount: number;
   paid_amount: number;
@@ -887,21 +902,27 @@ export interface ThekedarContract {
   id: string;
   project_id: string;
   contractor_name: string;
-  work_scope: string; // e.g. "RCC Labor Contract", "Electrical Contract", "Tile Mistri"
+  contractor_category?: ContractorCategory;
+  work_scope: string; // e.g. "RCC Labor Contract", "Third-Party Dhalai Machine & Labor", "Chokhat Fitting"
   phone: string;
   contract_type: 'sqft_rate' | 'item_rate' | 'lump_sum_theka';
+  unit_basis?: MeasurementUnitBasis; // 'sqft' (sft), 'sqmtr' (smtr), 'rft', 'lump_sum'
+  rate_per_unit?: number;
+  total_units?: number; // Total sft or smtr
   rate_per_sqft?: number;
   total_sqft?: number;
   total_contract_value: number;
   total_paid: number;
   retention_amount?: number;
+  is_third_party_dhalai?: boolean; // Dedicated third-party dhalai machine / subcontractor
   bills: Array<{
     id: string;
-    ra_bill_no: string; // Running Account Bill #1, #2
-    stage_name: string;
+    ra_bill_no: string; // e.g. "RA Bill #1 - Plinth", "RA Bill #2 - Chokhat", "RA Bill #3 - Dhalai"
+    stage_name: string; // e.g. "Roof Dhalai (Slab Casting - Badi Rakam)", "Chokhat Level", "Plinth Level", "Daily Wage Kharcha"
     bill_amount: number;
     date: string;
     is_paid: boolean;
+    payment_mode?: string;
     notes?: string;
   }>;
   notes?: string;

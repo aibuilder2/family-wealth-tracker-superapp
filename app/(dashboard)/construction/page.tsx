@@ -4,13 +4,15 @@ import React, { useState, useMemo } from 'react';
 import { useFamilyStore } from '@/lib/store/familyStore';
 import {
   ConstructionProject, ConstructionMaterialLog, ThekedarContract,
-  LaborHaziraRecord, ConstructionStage, MaterialCategory
+  LaborHaziraRecord, ConstructionStage, MaterialCategory,
+  ContractorCategory, MeasurementUnitBasis
 } from '@/types';
 import {
   HardHat, Plus, Hammer, Truck, Users, DollarSign,
   Calendar, CheckCircle2, AlertCircle, Share2, Receipt,
   Building, Layers, Trash2, ArrowUpRight, ArrowDownLeft,
-  FileSpreadsheet, ShieldCheck, MapPin, Ruler, Phone
+  FileSpreadsheet, ShieldCheck, MapPin, Ruler, Phone,
+  Filter, Tag, Sparkles
 } from 'lucide-react';
 
 export default function ConstructionPage() {
@@ -28,6 +30,7 @@ export default function ConstructionPage() {
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>(constructionProjects[0]?.id || '');
   const [activeTab, setActiveTab] = useState<'materials' | 'thekedar' | 'labor' | 'progress'>('materials');
+  const [vendorFilter, setVendorFilter] = useState<string>('all');
 
   // Modals
   const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
@@ -65,13 +68,16 @@ export default function ConstructionPage() {
 
   // New Thekedar Form
   const [thekedarName, setThekedarName] = useState('');
+  const [contractorCategory, setContractorCategory] = useState<ContractorCategory>('civil_structure');
   const [thekedarScope, setThekedarScope] = useState('');
   const [thekedarPhone, setThekedarPhone] = useState('');
   const [contractType, setContractType] = useState<'sqft_rate' | 'item_rate' | 'lump_sum_theka'>('sqft_rate');
+  const [unitBasis, setUnitBasis] = useState<MeasurementUnitBasis>('sqft');
   const [rateSqft, setRateSqft] = useState<number | ''>('');
   const [totalSqft, setTotalSqft] = useState<number | ''>('');
   const [contractValue, setContractValue] = useState<number | ''>('');
   const [retentionAmt, setRetentionAmt] = useState<number | ''>('');
+  const [isThirdPartyDhalai, setIsThirdPartyDhalai] = useState(false);
   const [thekedarNotes, setThekedarNotes] = useState('');
 
   // New RA Bill Form
@@ -147,6 +153,48 @@ export default function ConstructionPage() {
     };
   }, [activeProject]);
 
+  // Vendor Ledger for Construction Materials
+  const vendorLedger = useMemo(() => {
+    if (!activeProject?.materials) return [];
+    const map = new Map<string, {
+      vendor_name: string;
+      vendor_phone?: string;
+      total_amount: number;
+      paid_amount: number;
+      pending_amount: number;
+      count: number;
+      items: string[];
+    }>();
+
+    for (const m of activeProject.materials) {
+      const v = m.vendor_name || 'Direct / Cash Purchase';
+      const cur = map.get(v) || {
+        vendor_name: v,
+        vendor_phone: m.vendor_phone,
+        total_amount: 0,
+        paid_amount: 0,
+        pending_amount: 0,
+        count: 0,
+        items: []
+      };
+      cur.total_amount += Number(m.total_amount) || 0;
+      cur.paid_amount += Number(m.paid_amount) || 0;
+      cur.pending_amount += Number(m.pending_amount) || 0;
+      cur.count += 1;
+      if (m.material_name && !cur.items.includes(m.material_name)) {
+        cur.items.push(m.material_name);
+      }
+      map.set(v, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.total_amount - a.total_amount);
+  }, [activeProject]);
+
+  const filteredMaterials = useMemo(() => {
+    if (!activeProject?.materials) return [];
+    if (vendorFilter === 'all') return activeProject.materials;
+    return activeProject.materials.filter(m => (m.vendor_name || 'Direct / Cash Purchase') === vendorFilter);
+  }, [activeProject, vendorFilter]);
+
   // Handlers
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,6 +252,7 @@ export default function ConstructionPage() {
     setMatRate('');
     setMatPaid('');
     setVendorName('');
+    setVendorPhone('');
     setInvoiceNo('');
     setVehicleNo('');
     setMatNotes('');
@@ -219,13 +268,18 @@ export default function ConstructionPage() {
 
     addThekedarContract(activeProject.id, {
       contractor_name: thekedarName.trim(),
+      contractor_category: contractorCategory,
       work_scope: thekedarScope.trim() || 'Civil / Construction Work',
       phone: thekedarPhone.trim() || '',
       contract_type: contractType,
+      unit_basis: unitBasis,
+      rate_per_unit: rateSqft ? Number(rateSqft) : undefined,
+      total_units: totalSqft ? Number(totalSqft) : undefined,
       rate_per_sqft: rateSqft ? Number(rateSqft) : undefined,
       total_sqft: totalSqft ? Number(totalSqft) : undefined,
       total_contract_value: val,
       retention_amount: retentionAmt ? Number(retentionAmt) : 0,
+      is_third_party_dhalai: isThirdPartyDhalai,
       notes: thekedarNotes
     });
 
@@ -236,6 +290,8 @@ export default function ConstructionPage() {
     setRateSqft('');
     setTotalSqft('');
     setContractValue('');
+    setRetentionAmt('');
+    setIsThirdPartyDhalai(false);
     setThekedarNotes('');
   };
 
@@ -521,11 +577,83 @@ export default function ConstructionPage() {
           {/* TAB 1: MATERIAL KHAREED */}
           {activeTab === 'materials' && (
             <div className="space-y-4">
+              {/* Vendor Supply & Udhar Ledger Card */}
+              {vendorLedger.length > 0 && (
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-blue-400" />
+                      <h4 className="text-sm font-bold text-white">🏢 Material Vendor Directory & Udhar Ledger</h4>
+                    </div>
+                    <span className="text-[11px] text-slate-400">{vendorLedger.length} Vendors Registered</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {vendorLedger.map((v) => (
+                      <div
+                        key={v.vendor_name}
+                        onClick={() => setVendorFilter(vendorFilter === v.vendor_name ? 'all' : v.vendor_name)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                          vendorFilter === v.vendor_name
+                            ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                            : 'bg-slate-800/60 border-slate-700/60 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-xs font-bold text-white truncate max-w-[140px]">{v.vendor_name}</p>
+                            <p className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                              {v.items.slice(0, 2).join(', ')}{v.items.length > 2 ? ` +${v.items.length - 2}` : ''}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs font-black text-blue-400">₹{v.total_amount.toLocaleString('en-IN')}</span>
+                            <span className={`text-[9px] font-bold block ${v.pending_amount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                              {v.pending_amount > 0 ? `Baki: ₹${v.pending_amount.toLocaleString('en-IN')}` : 'Paid'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Filter chips */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800 overflow-x-auto text-xs pb-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                      <Filter className="w-3 h-3" /> Filter:
+                    </span>
+                    <button
+                      onClick={() => setVendorFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 transition-all ${
+                        vendorFilter === 'all'
+                          ? 'bg-blue-600 text-white font-bold'
+                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Sabhi Vendors ({activeProject.materials?.length || 0})
+                    </button>
+                    {vendorLedger.map(v => (
+                      <button
+                        key={v.vendor_name}
+                        onClick={() => setVendorFilter(v.vendor_name)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 transition-all ${
+                          vendorFilter === v.vendor_name
+                            ? 'bg-blue-600 text-white font-bold'
+                            : 'bg-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {v.vendor_name} ({v.count})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <Truck className="w-5 h-5 text-blue-400" />
-                    Material Khareed Register ({activeProject.materials?.length || 0} Deliveries)
+                    Material Khareed Register ({filteredMaterials.length} Deliveries)
                   </h3>
                   <p className="text-xs text-slate-400">
                     Cement, Sariya, Ret, Rodi, Bricks, Tiles ki receipt aur payment tracking.
@@ -539,14 +667,14 @@ export default function ConstructionPage() {
                 </button>
               </div>
 
-              {(!activeProject.materials || activeProject.materials.length === 0) ? (
+              {filteredMaterials.length === 0 ? (
                 <div className="p-10 text-center bg-slate-900/60 rounded-2xl border border-slate-800 text-slate-400 text-sm space-y-2">
                   <Truck className="w-10 h-10 mx-auto text-slate-600" />
-                  <p>Abhi tak koi material delivery add nahi ki gayi hai.</p>
+                  <p>Koi material delivery record nahi mila.</p>
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {activeProject.materials.map((mat) => (
+                  {filteredMaterials.map((mat) => (
                     <div
                       key={mat.id}
                       className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition-all"
@@ -573,7 +701,7 @@ export default function ConstructionPage() {
                             ₹{Number(mat.total_amount).toLocaleString('en-IN')}
                           </div>
                           <span className={`text-[10px] font-bold block ${mat.pending_amount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                            {mat.pending_amount > 0 ? `Baki: ₹${mat.pending_amount}` : 'Fully Paid'}
+                            {mat.pending_amount > 0 ? `Baki: ₹${mat.pending_amount.toLocaleString('en-IN')}` : 'Fully Paid'}
                           </span>
                         </div>
 
@@ -599,10 +727,10 @@ export default function ConstructionPage() {
                 <div>
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <Hammer className="w-5 h-5 text-purple-400" />
-                    Thekedar & Contractor Contracts ({activeProject.contractors?.length || 0} Thekedar)
+                    Thekedar, Dhalai Gang & Multi-Stage Theka ({activeProject.contractors?.length || 0})
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Civil RCC, Tile Mistri, Sanitary & Electrical Thekedar ke bills aur payments.
+                    SFT / SMTR / Lump-sum theka, Third-Party Dhalai machine, Chokhat level & stage-wise milestone payouts.
                   </p>
                 </div>
                 <button
@@ -627,12 +755,29 @@ export default function ConstructionPage() {
                     >
                       <div className="flex items-start justify-between">
                         <div>
-                          <h4 className="text-base font-bold text-white">{c.contractor_name}</h4>
-                          <p className="text-xs text-purple-400 font-semibold">{c.work_scope}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-base font-bold text-white">{c.contractor_name}</h4>
+                            {c.is_third_party_dhalai && (
+                              <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                🚜 3rd-Party Dhalai Machine
+                              </span>
+                            )}
+                            {c.contractor_category && (
+                              <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                {c.contractor_category.replace('_', ' ')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-purple-400 font-semibold mt-1">{c.work_scope}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Basis: <strong className="text-slate-200 uppercase">{c.unit_basis || (c.contract_type === 'sqft_rate' ? 'sqft' : c.contract_type)}</strong>
+                            {c.rate_per_sqft && ` @ ₹${c.rate_per_sqft}/${c.unit_basis || 'sft'}`}
+                            {c.total_sqft && ` (${c.total_sqft} ${c.unit_basis || 'sft'})`}
+                          </p>
                           {c.phone && <p className="text-xs text-slate-400 font-mono mt-0.5">{c.phone}</p>}
                         </div>
 
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <span className="text-[10px] text-slate-400 block">Total Theka</span>
                           <span className="text-base font-black text-purple-400">
                             ₹{c.total_contract_value?.toLocaleString('en-IN')}
@@ -646,7 +791,7 @@ export default function ConstructionPage() {
                       {/* RA Bills list */}
                       <div className="space-y-2 bg-slate-800/40 p-3 rounded-xl border border-slate-700/60 text-xs">
                         <div className="flex items-center justify-between text-slate-300 font-bold">
-                          <span>Running Account (RA) Bills ({c.bills?.length || 0})</span>
+                          <span>Milestone RA Bills ({c.bills?.length || 0})</span>
                           <button
                             onClick={() => {
                               setSelectedThekedarId(c.id);
@@ -660,8 +805,8 @@ export default function ConstructionPage() {
 
                         {c.bills?.map(b => (
                           <div key={b.id} className="flex items-center justify-between py-1 border-t border-slate-700/50 text-[11px]">
-                            <span className="text-slate-300">{b.ra_bill_no}: {b.stage_name}</span>
-                            <span className="font-bold text-white">₹{Number(b.bill_amount).toLocaleString('en-IN')}</span>
+                            <span className="text-slate-300">{b.ra_bill_no}: <strong className="text-slate-100">{b.stage_name}</strong></span>
+                            <span className="font-bold text-emerald-400">₹{Number(b.bill_amount).toLocaleString('en-IN')}</span>
                           </div>
                         ))}
                       </div>
@@ -1030,7 +1175,7 @@ export default function ConstructionPage() {
       {/* MODAL 3: ADD THEKEDAR */}
       {isAddThekedarOpen && activeProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Hammer className="w-5 h-5 text-purple-400" /> Naya Thekedar / Contract Jodein
@@ -1041,38 +1186,47 @@ export default function ConstructionPage() {
             <form onSubmit={handleAddThekedar} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-400 block mb-1">Contractor Name *</label>
+                  <label className="text-xs font-bold text-slate-400 block mb-1">Contractor / Agency Name *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Raju Mistri, Sharma Electricals"
+                    placeholder="e.g. Raju Mistri, Jai Balaji Dhalai Gang"
                     value={thekedarName}
                     onChange={e => setThekedarName(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-purple-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-400 block mb-1">Work Scope</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Civil RCC Labor, Tile Fitting"
-                    value={thekedarScope}
-                    onChange={e => setThekedarScope(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-purple-500 outline-none"
-                  />
+                  <label className="text-xs font-bold text-slate-400 block mb-1">Contractor Category</label>
+                  <select
+                    value={contractorCategory}
+                    onChange={e => setContractorCategory(e.target.value as any)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-purple-500 outline-none"
+                  >
+                    <option value="civil_structure">🏗️ Civil Structure & Masonry</option>
+                    <option value="dhalai_slab_machine">🚜 3rd-Party Dhalai Machine & Lanter Gang</option>
+                    <option value="chokhat_doors">🚪 Chokhat & Door Framing</option>
+                    <option value="shuttering">🪵 Shuttering & Scaffolding</option>
+                    <option value="lintel_chajja">🧱 Lintel Beam & Chajja</option>
+                    <option value="plaster_masonry">🎨 Plaster & Masonry</option>
+                    <option value="tiles_flooring">🏛️ Tiles & Flooring</option>
+                    <option value="electrician">⚡ Electrician Contract</option>
+                    <option value="plumber">🚿 Plumber Contract</option>
+                    <option value="painter">🖌️ Paint & Putty</option>
+                    <option value="other">📝 Other Speciality</option>
+                  </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-400 block mb-1">Total Contract Value (₹) *</label>
+                  <label className="text-xs font-bold text-slate-400 block mb-1">Work Scope Description</label>
                   <input
-                    type="number"
-                    required
-                    placeholder="500000"
-                    value={contractValue}
-                    onChange={e => setContractValue(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-purple-500 outline-none"
+                    type="text"
+                    placeholder="e.g. Ground+1 Floor RCC, Dhalai Machine with Vibrator"
+                    value={thekedarScope}
+                    onChange={e => setThekedarScope(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-purple-500 outline-none"
                   />
                 </div>
                 <div>
@@ -1084,6 +1238,80 @@ export default function ConstructionPage() {
                     onChange={e => setThekedarPhone(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-purple-500 outline-none"
                   />
+                </div>
+              </div>
+
+              {/* Unit Basis & Rate Calculation */}
+              <div className="bg-slate-800/50 p-3.5 rounded-2xl border border-slate-700 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 block mb-1">Measurement Unit Basis</label>
+                    <select
+                      value={unitBasis}
+                      onChange={e => setUnitBasis(e.target.value as any)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-purple-500 outline-none"
+                    >
+                      <option value="sqft">📐 Per SqFt (sft)</option>
+                      <option value="sqmtr">📏 Per SqMtr (smtr)</option>
+                      <option value="rft">📏 Running Feet (rft)</option>
+                      <option value="lump_sum">📦 Lump-Sum (Total Theka)</option>
+                      <option value="item_rate">🔢 Item / Piece Rate</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 block mb-1">Rate per Unit (₹)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 240 / sft"
+                      value={rateSqft}
+                      onChange={e => {
+                        const r = e.target.value === '' ? '' : Number(e.target.value);
+                        setRateSqft(r);
+                        if (r && totalSqft) setContractValue(Number(r) * Number(totalSqft));
+                      }}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-purple-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 block mb-1">Total Units (Area / Area sft)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 2500"
+                      value={totalSqft}
+                      onChange={e => {
+                        const s = e.target.value === '' ? '' : Number(e.target.value);
+                        setTotalSqft(s);
+                        if (rateSqft && s) setContractValue(Number(rateSqft) * Number(s));
+                      }}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-purple-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 block mb-1">Total Agreed Theka (₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="600000"
+                      value={contractValue}
+                      onChange={e => setContractValue(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-bold focus:border-purple-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={isThirdPartyDhalai}
+                      onChange={e => setIsThirdPartyDhalai(e.target.checked)}
+                      className="w-4 h-4 rounded text-purple-600 bg-slate-800 border-slate-700"
+                    />
+                    <span>🚜 Yeh Third-Party Dhalai / Machine Thekedar hai</span>
+                  </label>
                 </div>
               </div>
 
@@ -1107,34 +1335,78 @@ export default function ConstructionPage() {
         </div>
       )}
 
-      {/* MODAL 4: ADD RA BILL */}
+      {/* MODAL 4: ADD RA BILL WITH STAGE PRESETS */}
       {isAddRABillOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-purple-400" /> Running Account (RA) Bill
+                <Receipt className="w-5 h-5 text-purple-400" /> Milestone Running Account (RA) Bill
               </h3>
               <button onClick={() => setIsAddRABillOpen(false)} className="text-slate-400 hover:text-white text-xl">✕</button>
             </div>
 
+            {/* Quick Stage Presets */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Quick Milestone Presets (Click to Select Stage):
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs">
+                {[
+                  { name: '🧱 Plinth & Foundation Complete', prefix: 'Plinth Level Payment' },
+                  { name: '🚪 Chokhat & Frame Level', prefix: 'Chokhat Fitting Payment' },
+                  { name: '🏗️ Lintel Beam & Chajja', prefix: 'Lintel Level Payment' },
+                  { name: '🏢 Roof Dhalai (Slab Lanter)', prefix: 'Roof Dhalai Major Milestone' },
+                  { name: '🧱 Brickwork / Masonry Done', prefix: 'Brickwork Complete' },
+                  { name: '🎨 Plaster (Inner & Outer)', prefix: 'Plaster Stage Payment' },
+                  { name: '🪟 Tiles & Flooring Complete', prefix: 'Flooring Payment' },
+                  { name: '🔑 Final Handover & Retention', prefix: 'Final Handover Balance' },
+                  { name: '👷 Daily Wages Kharcha / Khuraki', prefix: 'Daily Running Advance' }
+                ].map((st) => (
+                  <button
+                    key={st.name}
+                    type="button"
+                    onClick={() => setRaStageName(st.name)}
+                    className={`p-2 rounded-xl text-left border transition-all text-[11px] truncate ${
+                      raStageName === st.name
+                        ? 'bg-purple-600 text-white font-bold border-purple-400 shadow-sm'
+                        : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    }`}
+                  >
+                    {st.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <form onSubmit={handleAddRABill} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">RA Bill No.</label>
-                <input
-                  type="text"
-                  value={raBillNo}
-                  onChange={e => setRaBillNo(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:border-purple-500 outline-none"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-400 block mb-1">RA Bill No. / Title</label>
+                  <input
+                    type="text"
+                    value={raBillNo}
+                    onChange={e => setRaBillNo(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:border-purple-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 block mb-1">Bill Date</label>
+                  <input
+                    type="date"
+                    value={raDate}
+                    onChange={e => setRaDate(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:border-purple-500 outline-none"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">Stage Completed *</label>
+                <label className="text-xs font-bold text-slate-400 block mb-1">Stage Completed Description *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Ground floor slab casting complete"
+                  placeholder="e.g. 1st Floor Roof Dhalai Complete (Badi Rakam)"
                   value={raStageName}
                   onChange={e => setRaStageName(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:border-purple-500 outline-none"
@@ -1142,7 +1414,7 @@ export default function ConstructionPage() {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">Bill Amount (₹) *</label>
+                <label className="text-xs font-bold text-slate-400 block mb-1">Milestone Bill Amount (₹) *</label>
                 <input
                   type="number"
                   required
@@ -1150,8 +1422,21 @@ export default function ConstructionPage() {
                   placeholder="150000"
                   value={raBillAmount}
                   onChange={e => setRaBillAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:border-purple-500 outline-none"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white font-bold focus:border-purple-500 outline-none"
                 />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="raPaid"
+                  checked={raIsPaid}
+                  onChange={e => setRaIsPaid(e.target.checked)}
+                  className="w-4 h-4 rounded text-purple-600 bg-slate-800 border-slate-700"
+                />
+                <label htmlFor="raPaid" className="text-xs text-slate-300 cursor-pointer">
+                  Yeh payment abhi de di gayi hai (Mark as Paid)
+                </label>
               </div>
 
               <div className="pt-2 flex justify-end gap-2.5">
@@ -1166,7 +1451,7 @@ export default function ConstructionPage() {
                   type="submit"
                   className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-purple-600/30"
                 >
-                  Bill Add Karein
+                  Milestone Bill Save Karein
                 </button>
               </div>
             </form>

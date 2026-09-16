@@ -11,7 +11,8 @@ import {
   PieChart, ArrowRightLeft, FileSpreadsheet, CheckCircle2,
   AlertCircle, Share2, Calendar, Lock, Layers, Receipt,
   Sparkles, Trash2, ArrowUpRight, ArrowDownLeft, FileText,
-  BadgeCheck, Clock, RefreshCw, Briefcase, ChevronRight
+  BadgeCheck, Clock, RefreshCw, Briefcase, ChevronRight,
+  Store, ShoppingBag, Filter, Tag
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -32,7 +33,8 @@ export default function BusinessSetupPage() {
   } = useFamilyStore();
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>(businessSetupProjects[0]?.id || '');
-  const [activeTab, setActiveTab] = useState<'expenses' | 'funding' | 'analytics' | 'capitalize' | 'repayments'>('expenses');
+  const [activeTab, setActiveTab] = useState<'expenses' | 'funding' | 'vendors' | 'analytics' | 'capitalize' | 'repayments'>('expenses');
+  const [vendorFilter, setVendorFilter] = useState<string>('all');
 
   // Modals
   const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
@@ -188,6 +190,46 @@ export default function BusinessSetupPage() {
       netFundingBalance
     };
   }, [activeProject]);
+
+  // Vendor Supply & Purchase Ledger for Setup Project
+  const vendorLedger = useMemo(() => {
+    if (!activeProject?.expenses) return [];
+    const map = new Map<string, {
+      vendor_name: string;
+      total_amount: number;
+      gst_paid: number;
+      items_count: number;
+      categories: string[];
+      expenses: PreOpExpense[];
+    }>();
+
+    for (const exp of activeProject.expenses) {
+      const v = exp.vendor_name?.trim() || 'Direct / Local Supplier';
+      const cur = map.get(v) || {
+        vendor_name: v,
+        total_amount: 0,
+        gst_paid: 0,
+        items_count: 0,
+        categories: [],
+        expenses: []
+      };
+      cur.total_amount += Number(exp.amount) || 0;
+      cur.gst_paid += Number(exp.gst_amount) || 0;
+      cur.items_count += 1;
+      if (!cur.categories.includes(exp.category)) {
+        cur.categories.push(exp.category);
+      }
+      cur.expenses.push(exp);
+      map.set(v, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.total_amount - a.total_amount);
+  }, [activeProject]);
+
+  const filteredExpenses = useMemo(() => {
+    if (!activeProject?.expenses) return [];
+    if (vendorFilter === 'all') return activeProject.expenses;
+    return activeProject.expenses.filter(e => (e.vendor_name?.trim() || 'Direct / Local Supplier') === vendorFilter);
+  }, [activeProject, vendorFilter]);
 
   // Handlers
   const handleCreateProject = (e: React.FormEvent) => {
@@ -549,6 +591,18 @@ export default function BusinessSetupPage() {
               </button>
 
               <button
+                onClick={() => setActiveTab('vendors')}
+                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'vendors'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Store className="w-4 h-4" />
+                <span>Vendors & Supplies ({vendorLedger.length})</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('analytics')}
                 className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 ${
                   activeTab === 'analytics'
@@ -604,11 +658,43 @@ export default function BusinessSetupPage() {
           {/* TAB 1: PRE-OPERATIVE EXPENSES */}
           {activeTab === 'expenses' && (
             <div className="space-y-4">
+              {/* Vendor filter chips */}
+              {vendorLedger.length > 0 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                    <Filter className="w-3 h-3" /> Vendor:
+                  </span>
+                  <button
+                    onClick={() => setVendorFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 transition-all ${
+                      vendorFilter === 'all'
+                        ? 'bg-indigo-600 text-white font-bold'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Sabhi Kharche ({activeProject.expenses?.length || 0})
+                  </button>
+                  {vendorLedger.map(v => (
+                    <button
+                      key={v.vendor_name}
+                      onClick={() => setVendorFilter(v.vendor_name)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 transition-all ${
+                        vendorFilter === v.vendor_name
+                          ? 'bg-indigo-600 text-white font-bold'
+                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {v.vendor_name} ({v.items_count})
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     <Receipt className="w-5 h-5 text-emerald-400" />
-                    Pre-Operative Kharcha Ledger ({activeProject.expenses?.length || 0} Entries)
+                    Pre-Operative Kharcha Ledger ({filteredExpenses.length} Entries)
                   </h3>
                   <p className="text-xs text-slate-400">
                     Day 0 se lekar business launch tak ke sabhi establishment kharche.
@@ -622,14 +708,14 @@ export default function BusinessSetupPage() {
                 </button>
               </div>
 
-              {(!activeProject.expenses || activeProject.expenses.length === 0) ? (
+              {filteredExpenses.length === 0 ? (
                 <div className="p-10 text-center bg-slate-900/60 rounded-2xl border border-slate-800 text-slate-400 text-sm space-y-2">
                   <Receipt className="w-10 h-10 mx-auto text-slate-600" />
-                  <p>Abhi tak koi pre-operative kharcha darj nahi kiya gaya hai.</p>
+                  <p>Koi kharcha record nahi mila.</p>
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {activeProject.expenses.map((exp) => (
+                  {filteredExpenses.map((exp) => (
                     <div
                       key={exp.id}
                       className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition-all"
@@ -772,6 +858,126 @@ export default function BusinessSetupPage() {
                             <span className="font-bold text-white">₹{Number(t.amount).toLocaleString('en-IN')}</span>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: VENDORS & SUPPLIES DIRECTORY */}
+          {activeTab === 'vendors' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Store className="w-5 h-5 text-indigo-400" />
+                    Vendor Directory & Purchase Matrix ({vendorLedger.length} Suppliers)
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Kis vendor se kitna furniture, IT equipment, machinery ya interior saman aaya—sabka hisab.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsAddExpenseOpen(true)}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" /> Naya Vendor Bill Jodein
+                </button>
+              </div>
+
+              {vendorLedger.length === 0 ? (
+                <div className="p-10 text-center bg-slate-900/60 rounded-2xl border border-slate-800 text-slate-400 text-sm space-y-2">
+                  <Store className="w-10 h-10 mx-auto text-slate-600" />
+                  <p>Abhi tak koi vendor purchase record nahi hai.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {vendorLedger.map((v) => (
+                    <div
+                      key={v.vendor_name}
+                      className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4 hover:border-slate-700 transition-all"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-base font-bold text-white flex items-center gap-2">
+                              <Store className="w-4 h-4 text-indigo-400" /> {v.vendor_name}
+                            </h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                              {v.items_count} Purchases / Bills
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            {v.categories.map((cat) => (
+                              <span
+                                key={cat}
+                                className="text-[9px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700"
+                              >
+                                {cat.replace('_', ' ')}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center sm:items-end justify-between sm:flex-col shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800">
+                          <span className="text-[10px] text-slate-400 block">Total Supplied Value</span>
+                          <span className="text-lg font-black text-emerald-400">
+                            ₹{v.total_amount.toLocaleString('en-IN')}
+                          </span>
+                          {v.gst_paid > 0 && (
+                            <span className="text-[10px] text-blue-400 block font-mono">
+                              GST Paid: ₹{v.gst_paid.toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Itemized Bills Table for this Vendor */}
+                      <div className="space-y-1.5 bg-slate-800/40 p-3 rounded-xl border border-slate-700/60 text-xs">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-700/60 flex justify-between">
+                          <span>Purchased Items & Invoices</span>
+                          <span>Amount</span>
+                        </div>
+                        {v.expenses.map((exp) => (
+                          <div
+                            key={exp.id}
+                            className="flex items-center justify-between py-1.5 border-b border-slate-700/30 last:border-b-0 text-[11px]"
+                          >
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-slate-200">{exp.title}</span>
+                                {exp.is_fixed_asset && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">
+                                    Fixed Asset
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-slate-400 font-mono">
+                                Date: {exp.date} {exp.invoice_no ? `· Inv #${exp.invoice_no}` : ''}
+                              </p>
+                            </div>
+
+                            <span className="font-bold text-white shrink-0">
+                              ₹{Number(exp.amount).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Quick Action */}
+                      <div className="flex justify-end pt-1">
+                        <button
+                          onClick={() => {
+                            setExpVendor(v.vendor_name);
+                            setIsAddExpenseOpen(true);
+                          }}
+                          className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold inline-flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Is Vendor ka Naya Bill Jodein
+                        </button>
                       </div>
                     </div>
                   ))}
