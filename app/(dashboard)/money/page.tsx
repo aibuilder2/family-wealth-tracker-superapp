@@ -52,25 +52,51 @@ export default function MoneyPage() {
         }
       />
 
-      {/* Udhar Manager Link Banner */}
-      <div className="px-4">
+      {/* Len-Den & Udhar Hubs Grid */}
+      <div className="px-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        {/* Parivar Member Aapsi Hisab */}
+        <Link
+          href="/family/hisab"
+          className="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 flex items-center justify-between hover:bg-indigo-50 transition-all shadow-xs block group"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold">🤝</span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-indigo-950 group-hover:text-indigo-700 transition-colors">
+                Parivar Sadasya Aapsi Len-Den
+              </h4>
+              <p className="text-[10px] text-indigo-900/70">
+                Sadasyon ke aapsi paise, saman &amp; khata
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-indigo-600 bg-white/80 px-2 py-0.5 rounded-md border border-indigo-200">
+            Aapsi Khata →
+          </span>
+        </Link>
+
+        {/* Bahar ka Udhar Manager */}
         <Link
           href="/money/udhar"
-          className="p-3 rounded-2xl bg-gold/10 border border-gold/25 flex items-center justify-between hover:bg-gold/15 transition-all shadow-sm block"
+          className="p-3 rounded-2xl bg-gold/10 border border-gold/25 flex items-center justify-between hover:bg-gold/15 transition-all shadow-xs block group"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-gold text-white flex items-center justify-center shrink-0">
               <HandCoins size={16} />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-ink">Udhar & Settlement Manager</h4>
+              <h4 className="text-xs font-bold text-ink group-hover:text-gold transition-colors">
+                Bahar ka Udhar Manager
+              </h4>
               <p className="text-[10px] text-ink-muted">
                 Lena: <Mono className="font-bold text-coral">₹{totalUdharGiven.toLocaleString('en-IN')}</Mono> · Dena: <Mono className="font-bold text-green">₹{totalUdharTaken.toLocaleString('en-IN')}</Mono>
               </p>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-gold flex items-center gap-0.5">
-            Hisab Karein <ArrowRight size={13} />
+          <span className="text-[10px] font-bold text-gold bg-white/80 px-2 py-0.5 rounded-md border border-gold/30">
+            Udhar →
           </span>
         </Link>
       </div>

@@ -8,19 +8,25 @@ import { Avatar } from '@/components/ui/Avatar';
 import {
   Calendar as CalendarIcon, Clock, ArrowDownRight, ArrowUpRight,
   Bell, Scale, CreditCard, Users, Cake, Phone, MessageCircle,
-  Filter, Sparkles, ChevronRight, Gift
+  Filter, Sparkles, ChevronRight, Gift, HandCoins, ArrowRightLeft,
+  CheckCircle2, ShoppingBag, Banknote
 } from 'lucide-react';
 import { getRelativeDateLabel } from '@/lib/utils/dateHelpers';
 import Link from 'next/link';
 
 export default function CalendarPage() {
-  const { allCalendarEvents, members, transactions } = useFamilyStore();
-  const [activeTab, setActiveTab] = useState<'family' | 'expense' | 'dues' | 'hearings' | 'all'>('family');
+  const { allCalendarEvents, members, transactions, memberLedgers, currentUserId } = useFamilyStore();
+  const [activeTab, setActiveTab] = useState<'family' | 'expense' | 'member_ledger' | 'dues' | 'hearings' | 'all'>('family');
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('all');
 
   // Sorted Events
   const sortedEvents = [...allCalendarEvents].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  // Sorted Member Ledgers (Latest First)
+  const sortedMemberLedgers = [...memberLedgers].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
   // Helper: Birthday calculations for family members
@@ -48,6 +54,18 @@ export default function CalendarPage() {
       isToday: diffDays === 0,
       isUpcoming: diffDays > 0 && diffDays <= 30,
     };
+  };
+
+  // Helper: Calculate pairwise balance between currentUser and another member
+  const calculateBalance = (memberA: string, memberB: string) => {
+    const aGaveB = memberLedgers
+      .filter(l => l.from_member_id === memberA && l.to_member_id === memberB)
+      .reduce((sum, l) => sum + Number(l.amount || 0), 0);
+    const bGaveA = memberLedgers
+      .filter(l => l.from_member_id === memberB && l.to_member_id === memberA)
+      .reduce((sum, l) => sum + Number(l.amount || 0), 0);
+
+    return aGaveB - bGaveA;
   };
 
   // Filtered transactions for the Expense tab
@@ -91,14 +109,15 @@ export default function CalendarPage() {
     <div className="space-y-4 pb-12">
       <ScreenHeader
         title="Calendar & Timeline"
-        subtitle="Parivar ke sadasya, janamdin aur ghar ke kharche alag-alag dekhein"
+        subtitle="Ghar ke kharche, sadasya janamdin aur aapsi len-den alag-alag dekhein"
       />
 
-      {/* TOP NAVIGATION TABS (Separating Family from Expenses) */}
+      {/* TOP NAVIGATION TABS */}
       <div className="px-4 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
         {[
           { key: 'family', label: '👨‍👩‍👧‍👦 Parivar & Janamdin', count: members.length },
           { key: 'expense', label: '💸 Ghar ke Kharche', count: transactions.length },
+          { key: 'member_ledger', label: '🤝 Sadasya Len-Den', count: memberLedgers.length },
           { key: 'dues', label: '🧾 Bill & EMI Dues', count: dueEvents.length },
           { key: 'hearings', label: '⚖️ Court Dates', count: hearingEvents.length },
           { key: 'all', label: '🗓️ Sabhi Events', count: sortedEvents.length },
@@ -133,18 +152,18 @@ export default function CalendarPage() {
           <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-gold/10 to-emerald-50 border border-gold/30 shadow-xs flex items-center justify-between">
             <div>
               <span className="text-[10px] uppercase font-bold text-gold-dark tracking-wider bg-gold/15 px-2 py-0.5 rounded-full">
-                Parivar Calendar Hub
+                Parivar Profile Hub
               </span>
               <h3 className="text-sm font-bold text-ink mt-1">
-                Parivar ke Sadasya aur Janamdin Tareekh
+                Parivar Sadasya, Rishta aur Aapsi Khata
               </h3>
               <p className="text-xs text-ink-muted mt-0.5">
-                Yahan sirf family members aur unki mahatvapoorna dates dikhengi
+                Yahan parivar sadasya, unka janamdin aur aapsi hisab ka status dikhta hai
               </p>
             </div>
             <Link
               href="/family/tree"
-              className="px-3 py-1.5 bg-navy text-paper text-xs font-semibold rounded-xl hover:bg-navy-light transition-all flex items-center gap-1 shadow-xs"
+              className="px-3 py-1.5 bg-navy text-paper text-xs font-semibold rounded-xl hover:bg-navy-light transition-all flex items-center gap-1 shadow-xs shrink-0"
             >
               Vansh Tree <ChevronRight size={12} />
             </Link>
@@ -155,6 +174,8 @@ export default function CalendarPage() {
             {members.map((m) => {
               const bdayInfo = getMemberBirthdayInfo(m.dob);
               const isMukhiya = m.role === 'owner' || m.relationship?.toLowerCase().includes('mukhiya');
+              const isSelf = m.id === currentUserId;
+              const balance = !isSelf ? calculateBalance(currentUserId, m.id) : 0;
 
               return (
                 <div
@@ -177,7 +198,7 @@ export default function CalendarPage() {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs text-ink-muted mt-1">
+                      <div className="flex items-center gap-2 text-xs text-ink-muted mt-1 flex-wrap">
                         {m.phone && (
                           <span className="flex items-center gap-1">
                             <Phone size={11} className="text-gold" /> {m.phone}
@@ -189,6 +210,29 @@ export default function CalendarPage() {
                           </span>
                         )}
                       </div>
+
+                      {/* Aapsi Len-Den Status for this member */}
+                      {!isSelf && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <Link
+                            href="/family/hisab"
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md border inline-flex items-center gap-1 transition-all ${
+                              balance > 0
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                                : balance < 0
+                                ? 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
+                                : 'bg-paper-dim text-ink-muted border-paper-dim hover:border-gold/40'
+                            }`}
+                          >
+                            <HandCoins size={11} />
+                            {balance > 0
+                              ? `₹${balance.toLocaleString('en-IN')} Inse Lena Hai`
+                              : balance < 0
+                              ? `₹${Math.abs(balance).toLocaleString('en-IN')} Inhe Dena Hai`
+                              : 'Aapsi Hisab Barabar ✓'}
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -239,18 +283,26 @@ export default function CalendarPage() {
       )}
 
       {/* ============================================================= */}
-      {/* TAB 2: GHAR KE KHARCHE (TRANSACTIONS ONLY, SEPARATE VIEW)     */}
+      {/* TAB 2: GHAR KE KHARCHE (HOUSEHOLD EXPENSES & INCOMES ONLY)    */}
       {/* ============================================================= */}
       {activeTab === 'expense' && (
         <div className="px-4 space-y-4">
+          {/* Informational Guidance */}
+          <div className="p-3 bg-paper-dim/60 border border-paper-dim rounded-xl text-xs text-ink-muted flex items-center gap-2">
+            <Sparkles size={14} className="text-gold shrink-0" />
+            <span>
+              <strong>Ghar ke Samuhik Kharche</strong>: Rashan, doodh, bijli bill, school fees jaisa kharch. (Sadasya aapsi hisab ke liye <strong>'Sadasya Len-Den'</strong> tab dekhein).
+            </span>
+          </div>
+
           {/* Summary Box & Filter Bar */}
           <div className="p-4 rounded-2xl bg-paper border border-paper-dim shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-paper-dim pb-3">
               <div>
                 <span className="text-[10px] uppercase font-bold text-coral tracking-wider">
-                  Kharche &amp; Kamai Timeline
+                  Ghar ke Kharche
                 </span>
-                <h3 className="text-sm font-bold text-ink">Daily Transaction Timeline</h3>
+                <h3 className="text-sm font-bold text-ink">Daily Household Transactions</h3>
               </div>
 
               {/* Member Filter Dropdown */}
@@ -350,7 +402,152 @@ export default function CalendarPage() {
       )}
 
       {/* ============================================================= */}
-      {/* TAB 3: BILL & EMI DUES                                        */}
+      {/* TAB 3: SADASYA AAPSI LEN-DEN (MEMBER LEDGER / KHATA)          */}
+      {/* ============================================================= */}
+      {activeTab === 'member_ledger' && (
+        <div className="px-4 space-y-4">
+          {/* Informational Guidance */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-indigo-900 tracking-wider bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-200">
+                Aapsi Hisab-Kitab • Member Khata
+              </span>
+              <h3 className="text-sm font-bold text-ink mt-1">
+                Parivar Sadasyon ka Aapsi Len-Den
+              </h3>
+              <p className="text-xs text-ink-muted mt-0.5">
+                Kis sadasya ne kisko cash diya, samaan laya, ya reimbursement lena hai — ye sab yahan alag darj hota hai.
+              </p>
+            </div>
+            <Link
+              href="/family/hisab"
+              className="px-3.5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-xs shrink-0 self-start sm:self-center"
+            >
+              + Aapsi Hisab Kholein <ChevronRight size={14} />
+            </Link>
+          </div>
+
+          {/* Member-by-Member Khata Summary Cards */}
+          <div className="space-y-2.5">
+            <h4 className="text-xs font-bold text-ink-muted uppercase tracking-wider">
+              Sadasya-wise Aapsi Balance (Aapke sath):
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {members
+                .filter(m => m.id !== currentUserId)
+                .map((m) => {
+                  const netBalance = calculateBalance(currentUserId, m.id);
+                  const memberEntries = memberLedgers.filter(
+                    l => (l.from_member_id === currentUserId && l.to_member_id === m.id) ||
+                         (l.from_member_id === m.id && l.to_member_id === currentUserId)
+                  );
+
+                  return (
+                    <div
+                      key={m.id}
+                      className="p-3.5 rounded-2xl bg-paper border border-paper-dim shadow-xs hover:border-gold/50 transition-all flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Avatar m={m} size={38} />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-ink truncate">{m.name}</p>
+                          <p className="text-[10px] text-ink-muted truncate">
+                            {m.relationship || 'Sadasya'} • {memberEntries.length} Len-Den
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        {netBalance > 0 ? (
+                          <div className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                            +₹{netBalance.toLocaleString('en-IN')} <br />
+                            <span className="text-[9px] font-normal">Lena Hai</span>
+                          </div>
+                        ) : netBalance < 0 ? (
+                          <div className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg">
+                            -₹{Math.abs(netBalance).toLocaleString('en-IN')} <br />
+                            <span className="text-[9px] font-normal">Dena Hai</span>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] font-semibold text-ink-muted bg-paper-dim px-2 py-1 rounded-lg">
+                            Barabar ✓
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Member Ledger Chronological Timeline */}
+          <div className="space-y-2.5 pt-2">
+            <h4 className="text-xs font-bold text-ink-muted uppercase tracking-wider">
+              Aapsi Len-Den Timeline (Tareekh-wise):
+            </h4>
+
+            {sortedMemberLedgers.length === 0 ? (
+              <div className="p-8 text-center bg-paper rounded-2xl border border-paper-dim text-ink-muted text-xs">
+                Abhi tak sadasyon ke beech koi aapsi len-den darj nahi hua hai.
+                <div className="mt-2">
+                  <Link
+                    href="/family/hisab"
+                    className="inline-block px-3 py-1.5 bg-gold text-white rounded-xl text-xs font-bold"
+                  >
+                    + Pehla Len-Den Dalein
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              sortedMemberLedgers.map((item) => {
+                const fromM = members.find(m => m.id === item.from_member_id);
+                const toM = members.find(m => m.id === item.to_member_id);
+
+                return (
+                  <div
+                    key={item.id}
+                    className="p-3.5 rounded-xl bg-paper border border-paper-dim shadow-xs flex items-start gap-3 hover:border-gold/40 transition-all"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0 mt-0.5">
+                      <ArrowRightLeft size={14} />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <h4 className="text-xs font-bold text-ink truncate">{item.title}</h4>
+                        <Mono className="text-xs font-bold text-indigo-900">
+                          ₹{Number(item.amount || 0).toLocaleString('en-IN')}
+                        </Mono>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[11px] text-ink-muted mt-1 flex-wrap">
+                        <span className="font-semibold text-ink">
+                          {fromM?.name || 'Sadasya'}
+                        </span>
+                        <span className="text-gold font-bold">➔</span>
+                        <span className="font-semibold text-ink">
+                          {toM?.name || 'Sadasya'}
+                        </span>
+                        <span>• {getRelativeDateLabel(item.date)} ({item.date})</span>
+                      </div>
+
+                      {item.items_detail && (
+                        <p className="text-[10px] text-ink-muted mt-1 bg-paper-dim px-2 py-0.5 rounded inline-block">
+                          {item.items_detail}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================= */}
+      {/* TAB 4: BILL & EMI DUES                                        */}
       {/* ============================================================= */}
       {activeTab === 'dues' && (
         <div className="px-4 space-y-3">
@@ -394,7 +591,7 @@ export default function CalendarPage() {
       )}
 
       {/* ============================================================= */}
-      {/* TAB 4: COURT DATES                                            */}
+      {/* TAB 5: COURT DATES                                            */}
       {/* ============================================================= */}
       {activeTab === 'hearings' && (
         <div className="px-4 space-y-3">
@@ -431,7 +628,7 @@ export default function CalendarPage() {
       )}
 
       {/* ============================================================= */}
-      {/* TAB 5: COMBINED (ALL EVENTS CHRONOLOGICAL)                    */}
+      {/* TAB 6: COMBINED (ALL EVENTS CHRONOLOGICAL)                    */}
       {/* ============================================================= */}
       {activeTab === 'all' && (
         <div className="px-4 space-y-2.5">
