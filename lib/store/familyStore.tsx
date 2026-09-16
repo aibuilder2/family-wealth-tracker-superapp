@@ -584,10 +584,15 @@ interface FamilyContextType {
   deleteMemberLedgerEntry: (id: string) => void;
   settleMemberLedger: (fromMemberId: string, toMemberId: string, amount: number, note?: string) => void;
   addRentalProperty: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>) => void;
+  updateRentalProperty: (propertyId: string, updates: Partial<RentalProperty>) => void;
+  deleteRentalProperty: (propertyId: string) => void;
   addHostelRoom: (propertyId: string, room: Omit<HostelRoom, 'id'>) => void;
   addRentalTenant: (propertyId: string, tenant: Omit<RentalTenant, 'id' | 'property_id'>) => void;
-  collectRentPayment: (propertyId: string, tenantId: string, amount: number, isPaid: boolean) => void;
+  updateRentalTenant: (propertyId: string, tenantId: string, updates: Partial<RentalTenant>) => void;
+  deleteRentalTenant: (propertyId: string, tenantId: string) => void;
+  collectRentPayment: (propertyId: string, tenantId: string, amount: number, isPaid: boolean, details?: { payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque'; transaction_id?: string; maintenance_deduction?: number; damage_deduction?: number; notes?: string }) => void;
   addRentalExpense: (propertyId: string, expense: Omit<RentalExpense, 'id' | 'property_id'>) => void;
+  deleteRentalExpense: (propertyId: string, expenseId: string) => void;
   addBusinessFirm: (firm: Omit<BusinessFirm, 'id' | 'family_id' | 'total_revenue' | 'total_expenses' | 'total_gst_collected' | 'total_tds_deducted' | 'current_firm_balance' | 'total_drawings_paid' | 'drawings'>) => void;
   recordFirmDrawingToFamily: (firmId: string, drawing: { amount: number; drawing_type: 'partner_salary' | 'profit_dividend' | 'director_remuneration'; credited_to_member_id: string; note: string }) => void;
 
@@ -1594,6 +1599,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setRentalProperties(prev => [newProp, ...prev]);
   };
 
+  const updateRentalProperty = (propertyId: string, updates: Partial<RentalProperty>) => {
+    setRentalProperties(prev => prev.map(p => p.id === propertyId ? { ...p, ...updates } : p));
+  };
+
+  const deleteRentalProperty = (propertyId: string) => {
+    setRentalProperties(prev => prev.filter(p => p.id !== propertyId));
+  };
+
   const addHostelRoom = (propertyId: string, room: Omit<HostelRoom, 'id'>) => {
     setRentalProperties(prev => prev.map(p => {
       if (p.id !== propertyId) return p;
@@ -1616,7 +1629,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     const newTenant: RentalTenant = {
       ...tenant,
       id: `t-${Date.now()}`,
-      property_id: propertyId
+      property_id: propertyId,
+      cycle_start_day: tenant.cycle_start_day || 1,
+      cycle_end_day: tenant.cycle_end_day || 30,
+      rent_due_day: tenant.rent_due_day || 5,
+      security_deposit: tenant.security_deposit || 0,
+      monthly_rent: tenant.monthly_rent || 0,
+      rent_status: tenant.rent_status || 'paid'
     };
     setRentalProperties(prev => prev.map(p => {
       if (p.id !== propertyId) return p;
@@ -1636,7 +1655,49 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const collectRentPayment = (propertyId: string, tenantId: string, amount: number, isPaid: boolean) => {
+  const updateRentalTenant = (propertyId: string, tenantId: string, updates: Partial<RentalTenant>) => {
+    setRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        tenants: p.tenants.map(t => t.id === tenantId ? { ...t, ...updates } : t)
+      };
+    }));
+  };
+
+  const deleteRentalTenant = (propertyId: string, tenantId: string) => {
+    setRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      const target = p.tenants.find(t => t.id === tenantId);
+      let updatedRooms = p.rooms;
+      if (p.rooms && target?.bed_id) {
+        updatedRooms = p.rooms.map(rm => ({
+          ...rm,
+          beds: rm.beds.map(b => b.id === target.bed_id ? { ...b, status: 'vacant', current_tenant_id: undefined, current_tenant_name: undefined } : b)
+        }));
+      }
+      return {
+        ...p,
+        rooms: updatedRooms,
+        tenants: p.tenants.filter(t => t.id !== tenantId),
+        security_deposit_holding: Math.max(0, (p.security_deposit_holding || 0) - (target?.security_deposit || 0))
+      };
+    }));
+  };
+
+  const collectRentPayment = (
+    propertyId: string,
+    tenantId: string,
+    amount: number,
+    isPaid: boolean,
+    details?: {
+      payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque';
+      transaction_id?: string;
+      maintenance_deduction?: number;
+      damage_deduction?: number;
+      notes?: string;
+    }
+  ) => {
     setRentalProperties(prev => prev.map(p => {
       if (p.id !== propertyId) return p;
       return {
@@ -1646,7 +1707,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           return {
             ...t,
             rent_status: isPaid ? 'paid' : 'pending',
-            last_paid_date: isPaid ? new Date().toISOString().split('T')[0] : t.last_paid_date
+            last_paid_date: isPaid ? new Date().toISOString().split('T')[0] : t.last_paid_date,
+            last_paid_amount: isPaid ? amount : t.last_paid_amount,
+            last_payment_mode: details?.payment_mode || t.last_payment_mode || 'upi',
+            last_transaction_id: details?.transaction_id || t.last_transaction_id,
+            maintenance_deduction_amount: details?.maintenance_deduction !== undefined ? details.maintenance_deduction : t.maintenance_deduction_amount,
+            damage_deduction_amount: details?.damage_deduction !== undefined ? details.damage_deduction : t.damage_deduction_amount,
+            notes: details?.notes || t.notes
           };
         })
       };
@@ -1661,7 +1728,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         category_type: 'main_ghar',
         mode: 'online',
         scope: 'ghar',
-        note: `Rent collected for property #${propertyId}`,
+        note: `Rent collected (₹${amount}) for property #${propertyId} ${details?.notes ? ` - ${details.notes}` : ''}`,
         txn_date: new Date().toISOString().split('T')[0]
       });
     }
@@ -1681,17 +1748,30 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       };
     }));
 
-    addTransaction({
-      member_id: currentUserId,
-      type: 'expense',
-      amount: expense.amount,
-      category: 'Property Maintenance & Staff',
-      category_type: 'main_ghar',
-      mode: 'online',
-      scope: 'ghar',
-      note: `Rental expense: ${expense.note}`,
-      txn_date: expense.date || new Date().toISOString().split('T')[0]
-    });
+    // If expense was paid by owner (or logged as family expense)
+    if (expense.paid_by !== 'tenant' || !expense.is_adjusted_in_rent) {
+      addTransaction({
+        member_id: currentUserId,
+        type: 'expense',
+        amount: expense.amount,
+        category: 'Property Maintenance & Staff',
+        category_type: 'main_ghar',
+        mode: 'online',
+        scope: 'ghar',
+        note: `Rental expense: ${expense.note} (${expense.paid_by === 'tenant' ? 'Paid by Tenant' : 'Paid by Owner'})`,
+        txn_date: expense.date || new Date().toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const deleteRentalExpense = (propertyId: string, expenseId: string) => {
+    setRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        expenses: p.expenses.filter(e => e.id !== expenseId)
+      };
+    }));
   };
 
   const addGoldLoan = (pledge: Omit<GoldLoanPledge, 'id' | 'family_id' | 'created_at' | 'interest_payments'>) => {
@@ -1926,10 +2006,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         recordLawyerFeePayment,
         rentalProperties,
         addRentalProperty,
+        updateRentalProperty,
+        deleteRentalProperty,
         addHostelRoom,
         addRentalTenant,
+        updateRentalTenant,
+        deleteRentalTenant,
         collectRentPayment,
         addRentalExpense,
+        deleteRentalExpense,
         memberLedgers,
         addMemberLedgerEntry,
         deleteMemberLedgerEntry,

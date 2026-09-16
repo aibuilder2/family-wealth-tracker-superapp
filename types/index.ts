@@ -525,27 +525,62 @@ export interface RentalTenant {
   bed_id?: string;
   bed_number?: string;
   name: string;
+  father_or_spouse_name?: string;
   phone: string;
+  alternate_phone?: string;
   aadhaar_no?: string;
   permanent_address?: string;
+  current_address?: string;
+  occupation?: string;
+  
+  // Billing cycle & dates
   joining_date: string;
-  monthly_rent: number;
-  security_deposit: number;
+  cycle_start_day?: number; // e.g. 5 (5th of every month)
+  cycle_end_day?: number; // e.g. 4 (4th of next month)
   rent_due_day: number;
+  
+  // Rent & Advance Deposit
+  monthly_rent: number;
+  security_deposit: number; // Advance amount
+  advance_payment_date?: string;
+  advance_payment_mode?: 'cash' | 'upi' | 'bank_transfer' | 'cheque';
+  advance_status?: 'held' | 'partially_adjusted' | 'refunded';
+  
+  // Damage & Maintenance Adjustments
+  damage_deduction_amount?: number;
+  damage_notes?: string;
+  maintenance_deduction_amount?: number;
+  maintenance_deduction_notes?: string;
+
+  // Agreement & Rules (Niyam & Sharte)
+  agreement_duration_months?: number; // e.g. 11
+  agreement_start_date?: string;
+  agreement_end_date?: string;
+  lock_in_period_months?: number; // e.g. 6
+  notice_period_days?: number; // e.g. 30
+  early_exit_penalty?: string; // e.g. "1 Month Rent deduction if leaving before lock-in"
+  special_terms?: string; // Rules, damages liability, etc.
+  
   food_included?: boolean;
   electricity_due?: number;
   rent_status: 'paid' | 'pending' | 'overdue';
   last_paid_date?: string;
+  last_paid_amount?: number;
+  last_payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque';
+  last_transaction_id?: string;
   notes?: string;
 }
 
 export interface RentalExpense {
   id: string;
   property_id: string;
-  category: 'warden_salary' | 'cook_salary' | 'maid_cleaning' | 'wifi_internet' | 'electricity_main' | 'water_supply' | 'maintenance' | 'property_tax' | 'other';
+  category: 'warden_salary' | 'cook_salary' | 'maid_cleaning' | 'wifi_internet' | 'electricity_main' | 'water_supply' | 'maintenance' | 'property_tax' | 'damage_repair' | 'other';
   amount: number;
   date: string;
   note: string;
+  paid_by?: 'owner' | 'tenant'; // Kon karega / kisne karwaya (Owner or Tenant)
+  is_adjusted_in_rent?: boolean; // Agar tenant ne karwaya to rent se minus hua ya nahi
+  tenant_id?: string;
 }
 
 export interface RentalProperty {
@@ -556,6 +591,10 @@ export interface RentalProperty {
   property_type: RentalPropertyType;
   address: string;
   city: string;
+  landlord_name?: string;
+  landlord_phone?: string;
+  landlord_pan?: string;
+  landlord_upi?: string;
   total_units_or_rooms: number;
   total_capacity_beds?: number;
   has_hostel_model: boolean;
@@ -564,6 +603,7 @@ export interface RentalProperty {
   expenses: RentalExpense[];
   monthly_target_revenue: number;
   security_deposit_holding: number;
+  default_rules?: string;
   notes?: string;
 }
 
