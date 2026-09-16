@@ -529,9 +529,18 @@ export interface RentalTenant {
   phone: string;
   alternate_phone?: string;
   aadhaar_no?: string;
+  pan_no?: string;
+  aadhaar_card_url?: string;
+  pan_card_url?: string;
+  photo_url?: string;
   permanent_address?: string;
   current_address?: string;
+  native_or_permanent_address?: string;
   occupation?: string;
+  is_commercial?: boolean;
+  
+  // Electricity sub-meter check-in reading
+  move_in_meter_reading?: number;
   
   // Billing cycle & dates
   joining_date: string;

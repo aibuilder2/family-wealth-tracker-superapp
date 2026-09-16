@@ -978,7 +978,7 @@ interface FamilyContextType {
   addMemberLedgerEntry: (entry: Omit<MemberLedgerEntry, 'id' | 'family_id' | 'created_at'>) => void;
   deleteMemberLedgerEntry: (id: string) => void;
   settleMemberLedger: (fromMemberId: string, toMemberId: string, amount: number, note?: string) => void;
-  addRentalProperty: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>) => void;
+  addRentalProperty: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>) => RentalProperty;
   updateRentalProperty: (propertyId: string, updates: Partial<RentalProperty>) => void;
   deleteRentalProperty: (propertyId: string) => void;
   addHostelRoom: (propertyId: string, room: Omit<HostelRoom, 'id'>) => void;
@@ -2017,7 +2017,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const addRentalProperty = (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>) => {
+  const addRentalProperty = (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>): RentalProperty => {
     const newProp: RentalProperty = {
       ...prop,
       id: `rent-${Date.now()}`,
@@ -2026,6 +2026,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       expenses: []
     };
     setRentalProperties(prev => [newProp, ...prev]);
+    return newProp;
   };
 
   const updateRentalProperty = (propertyId: string, updates: Partial<RentalProperty>) => {
