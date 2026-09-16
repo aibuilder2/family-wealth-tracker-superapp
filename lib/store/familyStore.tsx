@@ -8,7 +8,8 @@ import {
   Vehicle, VehicleServiceLog, UdharContact, UdharSettlement, UdharSettlementMode, CommercialFleetVehicle, FleetTrip, FleetBusinessType, CommercialVehicleType, LawyerFeePayment, LawyerPaymentType, BusinessFirm, FirmDrawing, EntityType,
   RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentalPropertyType,
   MemberLedgerEntry, MemberLedgerType,
-  GoldLoanPledge, GoldLoanInterestPayment, GoldLoanStatus, GoldPurityKarat
+  GoldLoanPledge, GoldLoanInterestPayment, GoldLoanStatus, GoldPurityKarat,
+  Trip, TripMember, TripExpense, TripPoolContribution, TripType, TripExpenseType, TripExpenseCategory
 } from '@/types';
 
 export const INITIAL_MEMBERS: Member[] = [
@@ -552,6 +553,102 @@ export const INITIAL_GOLD_LOANS: GoldLoanPledge[] = [
   }
 ];
 
+export const INITIAL_TRIPS: Trip[] = [
+  {
+    id: 'trip-1',
+    family_id: 'fam-1',
+    title: 'Manali & Kasol Parivar Holiday',
+    destination: 'Manali, Himachal Pradesh',
+    start_date: '2026-10-10',
+    end_date: '2026-10-15',
+    trip_type: 'family_vacation',
+    budget_target: 65000,
+    status: 'ongoing',
+    notes: 'Family vacation including Sunita, Priya, Amit, and cousin Rahul.',
+    members: [
+      { id: 'tm-1', name: 'Head of Family (Self)', phone: '+91 98765 43210', is_family_member: true },
+      { id: 'tm-2', name: 'Sunita Sharma', phone: '+91 98765 43211', is_family_member: true },
+      { id: 'tm-3', name: 'Rahul Sharma (Cousin)', phone: '+91 98111 22334', is_family_member: false },
+      { id: 'tm-4', name: 'Amit Sharma', phone: '+91 98765 43213', is_family_member: true },
+    ],
+    pool_contributions: [
+      {
+        id: 'tpc-1',
+        trip_id: 'trip-1',
+        member_id: 'tm-1',
+        member_name: 'Head of Family (Self)',
+        amount: 15000,
+        date: '2026-10-08',
+        payment_mode: 'upi',
+        notes: 'Initial trip pool deposit'
+      },
+      {
+        id: 'tpc-2',
+        trip_id: 'trip-1',
+        member_id: 'tm-3',
+        member_name: 'Rahul Sharma (Cousin)',
+        amount: 15000,
+        date: '2026-10-08',
+        payment_mode: 'bank_transfer',
+        notes: 'Trip share advance'
+      }
+    ],
+    expenses: [
+      {
+        id: 'te-1',
+        trip_id: 'trip-1',
+        title: 'Solang Valley Resort (2 Rooms - 3 Nights)',
+        amount: 22000,
+        category: 'hotel_stay',
+        expense_type: 'group_split',
+        paid_by_member_id: 'tm-1',
+        paid_by_name: 'Head of Family (Self)',
+        split_among_member_ids: ['tm-1', 'tm-2', 'tm-3', 'tm-4'],
+        date: '2026-10-10',
+        notes: 'Resort booking with breakfast'
+      },
+      {
+        id: 'te-2',
+        trip_id: 'trip-1',
+        title: 'Toyota Innova Crysta Cab Chandigarh-Manali',
+        amount: 14500,
+        category: 'taxi_fuel_toll',
+        expense_type: 'group_split',
+        paid_by_member_id: 'tm-3',
+        paid_by_name: 'Rahul Sharma (Cousin)',
+        split_among_member_ids: ['tm-1', 'tm-2', 'tm-3', 'tm-4'],
+        date: '2026-10-10',
+        notes: 'Cab rental + toll taxes'
+      },
+      {
+        id: 'te-3',
+        trip_id: 'trip-1',
+        title: 'Himachali Traditional Shawl & Wooden Gifts',
+        amount: 4200,
+        category: 'shopping_personal',
+        expense_type: 'personal_individual',
+        paid_by_member_id: 'tm-2',
+        paid_by_name: 'Sunita Sharma',
+        date: '2026-10-12',
+        notes: 'Personal gift purchase at Mall Road'
+      },
+      {
+        id: 'te-4',
+        trip_id: 'trip-1',
+        title: 'Dinner at Johnson Cafe & Trout Fish',
+        amount: 3850,
+        category: 'food_restaurant',
+        expense_type: 'group_split',
+        paid_by_member_id: 'tm-1',
+        paid_by_name: 'Head of Family (Self)',
+        split_among_member_ids: ['tm-1', 'tm-2', 'tm-3', 'tm-4'],
+        date: '2026-10-11',
+        notes: 'Group dinner'
+      }
+    ]
+  }
+];
+
 interface FamilyContextType {
   family: Family;
   members: Member[];
@@ -574,6 +671,16 @@ interface FamilyContextType {
   rentalProperties: RentalProperty[];
   memberLedgers: MemberLedgerEntry[];
   goldLoans: GoldLoanPledge[];
+  trips: Trip[];
+
+  addTrip: (trip: Omit<Trip, 'id' | 'family_id' | 'expenses' | 'pool_contributions' | 'created_at'>) => void;
+  updateTrip: (tripId: string, updates: Partial<Trip>) => void;
+  deleteTrip: (tripId: string) => void;
+  addTripMember: (tripId: string, member: Omit<TripMember, 'id'>) => void;
+  removeTripMember: (tripId: string, memberId: string) => void;
+  addTripPoolContribution: (tripId: string, pool: Omit<TripPoolContribution, 'id' | 'trip_id'>) => void;
+  addTripExpense: (tripId: string, expense: Omit<TripExpense, 'id' | 'trip_id'>, syncToFamilyKharcha?: boolean) => void;
+  deleteTripExpense: (tripId: string, expenseId: string) => void;
 
   addGoldLoan: (pledge: Omit<GoldLoanPledge, 'id' | 'family_id' | 'created_at' | 'interest_payments'>) => void;
   recordGoldInterestPayment: (pledgeId: string, payment: Omit<GoldLoanInterestPayment, 'id'>) => void;
@@ -718,6 +825,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [memberLedgers, setMemberLedgers] = useState<MemberLedgerEntry[]>([]);
   const [goldLoans, setGoldLoans] = useState<GoldLoanPledge[]>([]);
   const [rentalProperties, setRentalProperties] = useState<RentalProperty[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
@@ -740,7 +848,11 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       id.startsWith('veh-') ||
       id.startsWith('agri-') ||
       id.startsWith('udh-') ||
-      id.startsWith('ledg-')
+      id.startsWith('ledg-') ||
+      id.startsWith('trip-') ||
+      id.startsWith('tm-') ||
+      id.startsWith('te-') ||
+      id.startsWith('tpc-')
     );
   };
 
@@ -773,6 +885,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setBusinessFirms(INITIAL_FIRMS);
     setMemberLedgers(INITIAL_MEMBER_LEDGERS);
     setGoldLoans(INITIAL_GOLD_LOANS);
+    setTrips(INITIAL_TRIPS);
     setIsDemoMode(true);
     if (authUser?.id) {
       try { localStorage.setItem(getStorageKey('mode'), 'demo'); } catch (e) {}
@@ -829,6 +942,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setBusinessFirms([]);
     setMemberLedgers([]);
     setGoldLoans([]);
+    setRentalProperties([]);
+    setTrips([]);
     setIsDemoMode(false);
 
     if (authUser?.id) {
@@ -844,6 +959,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(getStorageKey('rentals'), JSON.stringify([]));
         localStorage.setItem(getStorageKey('fleet'), JSON.stringify([]));
         localStorage.setItem(getStorageKey('firms'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('trips'), JSON.stringify([]));
       } catch (e) {}
     }
   };
@@ -925,6 +1041,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         if (sfl) setFleetVehicles(JSON.parse(sfl).filter((f: any) => !isDemoRecord(f.id)));
         const sfm = localStorage.getItem(key('firms'));
         if (sfm) setBusinessFirms(JSON.parse(sfm).filter((fm: any) => !isDemoRecord(fm.id)));
+        const strp = localStorage.getItem(key('trips'));
+        if (strp) setTrips(JSON.parse(strp).filter((tr: any) => !isDemoRecord(tr.id)));
         setCurrentUserId(cleanMemId);
         setIsDemoMode(false);
       } catch (e) {}
@@ -956,6 +1074,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       setBusinessFirms([]);
       setMemberLedgers([]);
       setGoldLoans([]);
+      setRentalProperties([]);
+      setTrips([]);
       setIsDemoMode(false);
 
       try {
@@ -1855,6 +1975,140 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setGoldLoans(prev => prev.map(p => p.id === pledgeId ? { ...p, status } : p));
   };
 
+  // Trip and Holiday Management Methods
+  const addTrip = (tripData: Omit<Trip, 'id' | 'family_id' | 'expenses' | 'pool_contributions' | 'created_at'>) => {
+    const newTrip: Trip = {
+      ...tripData,
+      id: 'trip-' + Date.now(),
+      family_id: family.id,
+      expenses: [],
+      pool_contributions: [],
+      created_at: new Date().toISOString(),
+    };
+    setTrips(prev => {
+      const updated = [newTrip, ...prev.filter(t => !isDemoRecord(t.id))];
+      try {
+        localStorage.setItem(getStorageKey('trips'), JSON.stringify(updated));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  const updateTrip = (tripId: string, updates: Partial<Trip>) => {
+    setTrips(prev => {
+      const updated = prev.map(t => t.id === tripId ? { ...t, ...updates } : t);
+      try { localStorage.setItem(getStorageKey('trips'), JSON.stringify(updated.filter(t => !isDemoRecord(t.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const deleteTrip = (tripId: string) => {
+    setTrips(prev => {
+      const updated = prev.filter(t => t.id !== tripId);
+      try { localStorage.setItem(getStorageKey('trips'), JSON.stringify(updated.filter(t => !isDemoRecord(t.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addTripMember = (tripId: string, member: Omit<TripMember, 'id'>) => {
+    const newMember: TripMember = {
+      ...member,
+      id: 'tm-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5),
+    };
+    setTrips(prev => {
+      const updated = prev.map(t => {
+        if (t.id !== tripId) return t;
+        return {
+          ...t,
+          members: [...(t.members || []), newMember]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('trips'), JSON.stringify(updated.filter(t => !isDemoRecord(t.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const removeTripMember = (tripId: string, memberId: string) => {
+    setTrips(prev => {
+      const updated = prev.map(t => {
+        if (t.id !== tripId) return t;
+        return {
+          ...t,
+          members: (t.members || []).filter(m => m.id !== memberId)
+        };
+      });
+      try { localStorage.setItem(getStorageKey('trips'), JSON.stringify(updated.filter(t => !isDemoRecord(t.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addTripPoolContribution = (tripId: string, pool: Omit<TripPoolContribution, 'id' | 'trip_id'>) => {
+    const newPool: TripPoolContribution = {
+      ...pool,
+      id: 'tpc-' + Date.now(),
+      trip_id: tripId,
+    };
+    setTrips(prev => {
+      const updated = prev.map(t => {
+        if (t.id !== tripId) return t;
+        return {
+          ...t,
+          pool_contributions: [...(t.pool_contributions || []), newPool]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('trips'), JSON.stringify(updated.filter(t => !isDemoRecord(t.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addTripExpense = (tripId: string, expense: Omit<TripExpense, 'id' | 'trip_id'>, syncToFamilyKharcha: boolean = false) => {
+    const newExpense: TripExpense = {
+      ...expense,
+      id: 'te-' + Date.now(),
+      trip_id: tripId,
+    };
+    setTrips(prev => {
+      const updated = prev.map(t => {
+        if (t.id !== tripId) return t;
+        return {
+          ...t,
+          expenses: [newExpense, ...(t.expenses || [])]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('trips'), JSON.stringify(updated.filter(t => !isDemoRecord(t.id)))); } catch (e) {}
+      return updated;
+    });
+
+    if (syncToFamilyKharcha) {
+      addTransaction({
+        member_id: currentUserId,
+        type: 'expense',
+        amount: expense.amount,
+        category: 'Travel & Holiday Kharcha',
+        category_type: 'main_ghar',
+        mode: 'online',
+        scope: 'ghar',
+        note: `🏖️ Holiday Trip: ${expense.title} (Paid by ${expense.paid_by_name})`,
+        txn_date: expense.date || new Date().toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const deleteTripExpense = (tripId: string, expenseId: string) => {
+    setTrips(prev => {
+      const updated = prev.map(t => {
+        if (t.id !== tripId) return t;
+        return {
+          ...t,
+          expenses: (t.expenses || []).filter(e => e.id !== expenseId)
+        };
+      });
+      try { localStorage.setItem(getStorageKey('trips'), JSON.stringify(updated.filter(t => !isDemoRecord(t.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
   const openQuickAdd = (type: 'expense' | 'income' | 'udhar' = 'expense') => {
     setQuickAddType(type);
     setIsQuickAddOpen(true);
@@ -2024,6 +2278,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         recordGoldInterestPayment,
         settleAndReleaseGoldLoan,
         updateGoldLoanStatus,
+        trips,
+        addTrip,
+        updateTrip,
+        deleteTrip,
+        addTripMember,
+        removeTripMember,
+        addTripPoolContribution,
+        addTripExpense,
+        deleteTripExpense,
         totalWealth,
         liquidWealth,
         fixedWealth,

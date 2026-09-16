@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Wallet, PiggyBank, Calendar, Menu, FileText, Users, Scale, HeartPulse, Sparkles, Settings, Sprout, Car, Truck, Building2, Target, X, Coins } from 'lucide-react';
+import { Home, Wallet, PiggyBank, Calendar, Menu, FileText, Users, Scale, HeartPulse, Sparkles, Settings, Sprout, Car, Truck, Building2, Target, X, Coins, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 export function BottomNav() {
@@ -18,6 +18,7 @@ export function BottomNav() {
   ];
 
   const moreItems = [
+    { href: '/trips', label: '🏖️ Holiday, Tour & Trips Splitter', icon: Compass, desc: 'Advance pool fund, group split, niji personal kharcha & WhatsApp hisab' },
     { href: '/gold-loans', label: '🥇 Sona Girvi & Gold Loans', icon: Coins, desc: '75% LTV, Karat calc, Barcode seal pouch, Byaaj & OTP NOC' },
     { href: '/family/hisab', label: '🤝 Member Aapsi Hisab-Kitab', icon: Users, desc: 'Samaan lana, cash len-den, running balance & WhatsApp receipt' },
     { href: '/wealth/goals', label: '🎯 Family Goals & Lakshya Hub', icon: Target, desc: 'Education, Shadi, Home & Retirement progress' },

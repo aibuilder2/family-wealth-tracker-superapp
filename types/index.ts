@@ -666,6 +666,59 @@ export interface GoldLoanPledge {
   noc_otp_verified?: boolean;
   noc_date?: string;
   created_at?: string;
+}// ==========================================
+// TRIP, HOLIDAY & VACATION SPLIT EXPENSE TYPES
+// ==========================================
+export type TripType = 'family_vacation' | 'friends_tour' | 'pilgrimage_yatra' | 'couple_solo' | 'business_trip';
+export type TripExpenseType = 'group_split' | 'personal_individual' | 'advance_pool_deposit';
+export type TripExpenseCategory = 'hotel_stay' | 'flight_train_bus' | 'taxi_fuel_toll' | 'food_restaurant' | 'sightseeing_entry' | 'shopping_personal' | 'activities_sports' | 'emergency_medical' | 'other';
+
+export interface TripMember {
+  id: string;
+  name: string;
+  phone?: string;
+  is_family_member?: boolean;
 }
 
+export interface TripExpense {
+  id: string;
+  trip_id: string;
+  title: string;
+  amount: number;
+  category: TripExpenseCategory;
+  expense_type: TripExpenseType; // 'group_split' | 'personal_individual' | 'advance_pool_deposit'
+  paid_by_member_id: string;
+  paid_by_name: string;
+  split_among_member_ids?: string[];
+  date: string;
+  notes?: string;
+  bill_url?: string;
+}
 
+export interface TripPoolContribution {
+  id: string;
+  trip_id: string;
+  member_id: string;
+  member_name: string;
+  amount: number;
+  date: string;
+  payment_mode?: 'upi' | 'cash' | 'bank_transfer';
+  notes?: string;
+}
+
+export interface Trip {
+  id: string;
+  family_id: string;
+  title: string;
+  destination: string;
+  start_date: string;
+  end_date: string;
+  trip_type: TripType;
+  budget_target?: number;
+  status: 'planned' | 'ongoing' | 'completed';
+  members: TripMember[];
+  pool_contributions: TripPoolContribution[];
+  expenses: TripExpense[];
+  notes?: string;
+  created_at?: string;
+}
