@@ -110,23 +110,45 @@ CREATE TABLE IF NOT EXISTS public.construction_materials (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. THEKEDAR CONTRACTS & RA BILLS
+-- 7. THEKEDAR CONTRACTS & RA BILLS (Civil, Dhalai Machine, Chokhat, Shuttering)
 CREATE TABLE IF NOT EXISTS public.thekedar_contracts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id UUID NOT NULL REFERENCES public.construction_projects(id) ON DELETE CASCADE,
     contractor_name TEXT NOT NULL,
+    contractor_category TEXT DEFAULT 'civil_structure', -- 'civil_structure', 'dhalai_slab_machine', 'chokhat_doors', 'shuttering', 'plaster_masonry', 'tiles_flooring', etc.
     work_scope TEXT NOT NULL,
     phone TEXT,
-    contract_type TEXT NOT NULL DEFAULT 'sqft_rate',
+    contract_type TEXT NOT NULL DEFAULT 'sqft_rate', -- 'sqft_rate', 'item_rate', 'lump_sum_theka'
+    unit_basis TEXT DEFAULT 'sqft', -- 'sqft', 'sqmtr', 'rft', 'lump_sum', 'item_rate'
+    rate_per_unit NUMERIC(10,2),
+    total_units NUMERIC(10,2),
     rate_per_sqft NUMERIC(10,2),
     total_sqft NUMERIC(10,2),
     total_contract_value NUMERIC(15,2) NOT NULL DEFAULT 0,
     total_paid NUMERIC(15,2) NOT NULL DEFAULT 0,
     retention_amount NUMERIC(12,2) DEFAULT 0,
-    bills JSONB DEFAULT '[]'::jsonb,
+    is_third_party_dhalai BOOLEAN DEFAULT false,
+    bills JSONB DEFAULT '[]'::jsonb, -- Stage Milestone RA Bills: Plinth, Chokhat, Lintel, Dhalai Lanter, Plaster, Finishing
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- IDEMPOTENT COLUMN ADDITIONS (In case tables were created earlier)
+ALTER TABLE public.thekedar_contracts ADD COLUMN IF NOT EXISTS contractor_category TEXT DEFAULT 'civil_structure';
+ALTER TABLE public.thekedar_contracts ADD COLUMN IF NOT EXISTS unit_basis TEXT DEFAULT 'sqft';
+ALTER TABLE public.thekedar_contracts ADD COLUMN IF NOT EXISTS rate_per_unit NUMERIC(10,2);
+ALTER TABLE public.thekedar_contracts ADD COLUMN IF NOT EXISTS total_units NUMERIC(10,2);
+ALTER TABLE public.thekedar_contracts ADD COLUMN IF NOT EXISTS is_third_party_dhalai BOOLEAN DEFAULT false;
+
+ALTER TABLE public.preop_expenses ADD COLUMN IF NOT EXISTS vendor_name TEXT;
+ALTER TABLE public.preop_expenses ADD COLUMN IF NOT EXISTS gst_amount NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE public.preop_expenses ADD COLUMN IF NOT EXISTS invoice_no TEXT;
+ALTER TABLE public.preop_expenses ADD COLUMN IF NOT EXISTS is_fixed_asset BOOLEAN DEFAULT true;
+
+ALTER TABLE public.construction_materials ADD COLUMN IF NOT EXISTS vendor_name TEXT;
+ALTER TABLE public.construction_materials ADD COLUMN IF NOT EXISTS vendor_phone TEXT;
+ALTER TABLE public.construction_materials ADD COLUMN IF NOT EXISTS vehicle_no TEXT;
+ALTER TABLE public.construction_materials ADD COLUMN IF NOT EXISTS invoice_no TEXT;
 
 -- 8. LABOR HAZIRA & DAILY WAGES
 CREATE TABLE IF NOT EXISTS public.labor_hazira_logs (
@@ -155,26 +177,30 @@ ALTER TABLE public.construction_materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.thekedar_contracts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.labor_hazira_logs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow authenticated user family setup projects" ON public.business_setup_projects
-    FOR ALL USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Allow authenticated user funding sources" ON public.setup_funding_sources
-    FOR ALL USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Allow authenticated user preop expenses" ON public.preop_expenses
-    FOR ALL USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Allow authenticated user repayments" ON public.setup_project_repayments
-    FOR ALL USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Allow authenticated user construction projects" ON public.construction_projects
-    FOR ALL USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Allow authenticated user construction materials" ON public.construction_materials
-    FOR ALL USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Allow authenticated user thekedar contracts" ON public.thekedar_contracts
-    FOR ALL USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Allow authenticated user labor hazira" ON public.labor_hazira_logs
-    FOR ALL USING (auth.uid() IS NOT NULL);
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated user family setup projects') THEN
+        CREATE POLICY "Allow authenticated user family setup projects" ON public.business_setup_projects FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated user funding sources') THEN
+        CREATE POLICY "Allow authenticated user funding sources" ON public.setup_funding_sources FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated user preop expenses') THEN
+        CREATE POLICY "Allow authenticated user preop expenses" ON public.preop_expenses FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated user repayments') THEN
+        CREATE POLICY "Allow authenticated user repayments" ON public.setup_project_repayments FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated user construction projects') THEN
+        CREATE POLICY "Allow authenticated user construction projects" ON public.construction_projects FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated user construction materials') THEN
+        CREATE POLICY "Allow authenticated user construction materials" ON public.construction_materials FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated user thekedar contracts') THEN
+        CREATE POLICY "Allow authenticated user thekedar contracts" ON public.thekedar_contracts FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated user labor hazira') THEN
+        CREATE POLICY "Allow authenticated user labor hazira" ON public.labor_hazira_logs FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+END $$;
