@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Wallet, PiggyBank, Calendar, Menu, FileText, Users, Scale, HeartPulse, Sparkles, Settings, Sprout, Car, Truck, Building2, Target, X, Coins, Compass } from 'lucide-react';
+import { Home, Wallet, PiggyBank, Calendar, Menu, FileText, Users, Scale, HeartPulse, Sparkles, Settings, Sprout, Car, Truck, Building2, Target, X, Coins, Compass, HardHat, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 export function BottomNav() {
@@ -18,6 +18,8 @@ export function BottomNav() {
   ];
 
   const moreItems = [
+    { href: '/firms/setup', label: '🏛️ Business Setup & Pre-Op CapEx', icon: Briefcase, desc: 'Day-0 pre-launch kharcha, Bank/Private loan tranches, Girvi & Capitalization' },
+    { href: '/construction', label: '🏗️ Makan & Site Construction', icon: HardHat, desc: 'Cement/Sariya material log, Thekedar RA bills & Daily labor hazira' },
     { href: '/trips', label: '🏖️ Holiday, Tour & Trips Splitter', icon: Compass, desc: 'Advance pool fund, group split, niji personal kharcha & WhatsApp hisab' },
     { href: '/gold-loans', label: '🥇 Sona Girvi & Gold Loans', icon: Coins, desc: '75% LTV, Karat calc, Barcode seal pouch, Byaaj & OTP NOC' },
     { href: '/family/hisab', label: '🤝 Member Aapsi Hisab-Kitab', icon: Users, desc: 'Samaan lana, cash len-den, running balance & WhatsApp receipt' },

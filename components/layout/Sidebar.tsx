@@ -52,6 +52,8 @@ export default function Sidebar() {
         </div>
         
         <NavItem path="/trips" label="🏖️ Holiday & Trip Splitter" Icon={Compass} activeColor="text-cyan-400" />
+        <NavItem path="/firms/setup" label="🏛️ Business Setup & CapEx" Icon={Briefcase} activeColor="text-blue-400" />
+        <NavItem path="/construction" label="🏗️ Makan & Construction" Icon={Landmark} activeColor="text-amber-400" />
         <NavItem path="/portfolio" label="My Portfolio" Icon={PieChart} activeColor="text-purple-400" />
         <NavItem path="/wealth/goals" label="Goals & Lakshya Hub" Icon={Target} activeColor="text-yellow-400" />
         <NavItem path="/family/hisab" label="Member Aapsi Hisab" Icon={Briefcase} activeColor="text-emerald-400" />

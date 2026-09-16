@@ -9,7 +9,9 @@ import {
   RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentalPropertyType,
   MemberLedgerEntry, MemberLedgerType,
   GoldLoanPledge, GoldLoanInterestPayment, GoldLoanStatus, GoldPurityKarat,
-  Trip, TripMember, TripExpense, TripPoolContribution, TripType, TripExpenseType, TripExpenseCategory
+  Trip, TripMember, TripExpense, TripPoolContribution, TripType, TripExpenseType, TripExpenseCategory,
+  BusinessSetupProject, ProjectFundingSource, DisbursalTranche, PreOpExpense, ProjectRepayment, PreOpExpenseCategory, FundingSourceType,
+  ConstructionProject, ConstructionMaterialLog, ThekedarContract, LaborHaziraRecord, ConstructionStage, MaterialCategory
 } from '@/types';
 
 export const INITIAL_MEMBERS: Member[] = [
@@ -649,6 +651,268 @@ export const INITIAL_TRIPS: Trip[] = [
   }
 ];
 
+export const INITIAL_SETUP_PROJECTS: BusinessSetupProject[] = [
+  {
+    id: 'bsp-1',
+    family_id: 'fam-1',
+    project_name: 'Shree Krishna Sweets & Restro Cafe',
+    business_type: 'Restaurant, Sweets & Bakery',
+    target_launch_date: '2026-11-01',
+    status: 'setup_in_progress',
+    notes: 'Civil Lines main market commercial retail setup. 3-phase commercial electricity, 2000 sqft shop.',
+    funding_sources: [
+      {
+        id: 'sfs-1',
+        project_id: 'bsp-1',
+        source_type: 'self_savings',
+        provider_name: 'Promoter Self Savings (Family Capital)',
+        sanctioned_amount: 500000,
+        disbursed_amount: 500000,
+        interest_rate_annual: 0,
+        charge_interest: false,
+        processing_fees: 0,
+        documentation_bank_charges: 0,
+        collateral: { is_pledged: false },
+        tranches: [
+          { id: 'st-1', tranche_no: 1, amount: 500000, disbursal_date: '2026-08-01', notes: 'Initial token & advance fund' }
+        ]
+      },
+      {
+        id: 'sfs-2',
+        project_id: 'bsp-1',
+        source_type: 'bank_term_loan',
+        provider_name: 'State Bank of India (MSME Project Loan)',
+        sanctioned_amount: 1500000,
+        disbursed_amount: 1000000,
+        interest_rate_annual: 9.25,
+        charge_interest: true,
+        processing_fees: 15000,
+        documentation_bank_charges: 6500,
+        collateral: {
+          is_pledged: true,
+          asset_type: 'real_estate_property',
+          title: 'Shop Registry #402, Civil Lines Market',
+          estimated_valuation: 3500000,
+          bank_charge_status: 'equitable_mortgage',
+          safe_custody_notes: 'Original registry in SBI Vault branch'
+        },
+        tranches: [
+          { id: 'st-2', tranche_no: 1, amount: 600000, disbursal_date: '2026-08-15', notes: 'Stage 1 civil & flooring disbursal' },
+          { id: 'st-3', tranche_no: 2, amount: 400000, disbursal_date: '2026-09-10', notes: 'Stage 2 kitchen equipment advance' }
+        ]
+      },
+      {
+        id: 'sfs-3',
+        project_id: 'bsp-1',
+        source_type: 'friends_family_debt',
+        provider_name: 'Ramesh Chacha (Family Seed Loan)',
+        sanctioned_amount: 300000,
+        disbursed_amount: 300000,
+        interest_rate_annual: 6.0,
+        charge_interest: true,
+        processing_fees: 0,
+        documentation_bank_charges: 0,
+        collateral: { is_pledged: false },
+        tranches: [
+          { id: 'st-4', tranche_no: 1, amount: 300000, disbursal_date: '2026-08-20', notes: 'Pre-launch working capital' }
+        ]
+      }
+    ],
+    expenses: [
+      {
+        id: 'poe-1',
+        project_id: 'bsp-1',
+        title: 'Company LLP Registration & CA Incorporation Fees',
+        amount: 28500,
+        category: 'legal_incorporation',
+        date: '2026-08-05',
+        funding_source_id: 'sfs-1',
+        funding_source_name: 'Promoter Self Savings (Family Capital)',
+        vendor_name: 'Gupta & Associates CA',
+        gst_amount: 4350,
+        invoice_no: 'INV-CA-881',
+        is_fixed_asset: false,
+        notes: 'LLP deed stamp duty, MCA filing and ROC clearance'
+      },
+      {
+        id: 'poe-2',
+        project_id: 'bsp-1',
+        title: 'GST, Trade License, FSSAI Food & Fire NOC',
+        amount: 18500,
+        category: 'licensing_gst_ip',
+        date: '2026-08-12',
+        funding_source_id: 'sfs-1',
+        funding_source_name: 'Promoter Self Savings (Family Capital)',
+        vendor_name: 'City Municipal Corp & FSSAI',
+        is_fixed_asset: false,
+        notes: 'Official government compliance registration fees'
+      },
+      {
+        id: 'poe-3',
+        project_id: 'bsp-1',
+        title: 'Shop Advance Security Deposit (11 Months)',
+        amount: 300000,
+        category: 'advance_rent_security',
+        date: '2026-08-02',
+        funding_source_id: 'sfs-1',
+        funding_source_name: 'Promoter Self Savings (Family Capital)',
+        vendor_name: 'Sunil Aggarwal (Landlord)',
+        is_fixed_asset: true,
+        notes: 'Refundable commercial security deposit'
+      },
+      {
+        id: 'poe-4',
+        project_id: 'bsp-1',
+        title: 'Interior, False Ceiling, LED Lighting & Woodwork',
+        amount: 480000,
+        category: 'interior_furniture',
+        date: '2026-08-25',
+        funding_source_id: 'sfs-2',
+        funding_source_name: 'State Bank of India (MSME Project Loan)',
+        vendor_name: 'Royal Decor & Woodcraft',
+        gst_amount: 73220,
+        is_fixed_asset: true,
+        notes: 'Front customer counter, display glass racks & seating'
+      },
+      {
+        id: 'poe-5',
+        project_id: 'bsp-1',
+        title: 'Commercial Sweet Display Counters, Oven & Fryers',
+        amount: 420000,
+        category: 'machinery_equipment',
+        date: '2026-09-12',
+        funding_source_id: 'sfs-2',
+        funding_source_name: 'State Bank of India (MSME Project Loan)',
+        vendor_name: 'Modern Kitchen Tech Machinery',
+        gst_amount: 64067,
+        is_fixed_asset: true,
+        notes: '3 stainless steel hot/cold counters, 40L planetary mixer'
+      },
+      {
+        id: 'poe-6',
+        project_id: 'bsp-1',
+        title: 'POS Billing Software, Barcode Printers & Website Menu',
+        amount: 35000,
+        category: 'it_website_software',
+        date: '2026-09-14',
+        funding_source_id: 'sfs-3',
+        funding_source_name: 'Ramesh Chacha (Family Seed Loan)',
+        vendor_name: 'CloudPos Tech Solutions',
+        is_fixed_asset: true,
+        notes: 'Touch POS machine, thermal bill printer & online ordering setup'
+      }
+    ],
+    repayments: []
+  }
+];
+
+export const INITIAL_CONSTRUCTION_PROJECTS: ConstructionProject[] = [
+  {
+    id: 'cp-1',
+    family_id: 'fam-1',
+    site_title: 'Sector 14 Residential Villa (3 Floors)',
+    site_location: 'Plot #42, Sector 14, Urban Estate',
+    plot_area_sqft: 2250,
+    builtup_area_sqft: 4500,
+    target_budget: 6500000,
+    current_stage: 'structure_lintel',
+    start_date: '2026-07-01',
+    target_completion_date: '2027-02-28',
+    status: 'ongoing',
+    notes: 'RCC framed structure, ground floor parking + 2 residential floors',
+    materials: [
+      {
+        id: 'cm-1',
+        project_id: 'cp-1',
+        material_name: 'Ultratech Super Cement (Grade 53)',
+        category: 'cement',
+        vendor_name: 'Bansal Building Materials',
+        vendor_phone: '+91 98112 44556',
+        quantity: 400,
+        unit: 'Bags',
+        rate_per_unit: 380,
+        total_amount: 152000,
+        paid_amount: 152000,
+        pending_amount: 0,
+        invoice_no: 'BBM-2026-441',
+        vehicle_no: 'HR 38 T 8812',
+        date: '2026-07-10',
+        notes: 'Foundation & plinth beam casting'
+      },
+      {
+        id: 'cm-2',
+        project_id: 'cp-1',
+        material_name: 'Tata Tiscon Fe 550D Sariya Steel (12mm & 16mm)',
+        category: 'sariya_steel',
+        vendor_name: 'Aggarwal Steel Traders',
+        vendor_phone: '+91 98110 99887',
+        quantity: 5.5,
+        unit: 'Tons',
+        rate_per_unit: 58000,
+        total_amount: 319000,
+        paid_amount: 250000,
+        pending_amount: 69000,
+        invoice_no: 'AST-7821',
+        vehicle_no: 'DL 1L AA 9021',
+        date: '2026-07-14',
+        notes: 'Columns and footing cage'
+      }
+    ],
+    contractors: [
+      {
+        id: 'tc-1',
+        project_id: 'cp-1',
+        contractor_name: 'Raju Mistri (Civil RCC Thekedar)',
+        work_scope: 'Foundation, Columns, Brickwork & Slab Casting (Labor Only)',
+        phone: '+91 98777 66554',
+        contract_type: 'sqft_rate',
+        rate_per_sqft: 220,
+        total_sqft: 4500,
+        total_contract_value: 990000,
+        total_paid: 320000,
+        retention_amount: 50000,
+        notes: 'Payment stage-wise per slab casting',
+        bills: [
+          {
+            id: 'rab-1',
+            ra_bill_no: 'RA Bill #1',
+            stage_name: 'Plinth Beam & Ground Columns Complete',
+            bill_amount: 180000,
+            date: '2026-08-01',
+            is_paid: true,
+            notes: 'Paid via bank transfer'
+          },
+          {
+            id: 'rab-2',
+            ra_bill_no: 'RA Bill #2',
+            stage_name: 'First Floor Slab Casting Done',
+            bill_amount: 140000,
+            date: '2026-08-28',
+            is_paid: true,
+            notes: 'Paid via UPI'
+          }
+        ]
+      }
+    ],
+    daily_labor_logs: [
+      {
+        id: 'lhl-1',
+        project_id: 'cp-1',
+        date: '2026-09-12',
+        mistri_count: 3,
+        mistri_rate: 900,
+        labor_count: 8,
+        labor_rate: 550,
+        total_daily_wage: 7100,
+        paid_amount: 7100,
+        khuraki_advance: 200,
+        supervisor_name: 'Mukesh Sharma',
+        notes: 'First floor outer brick masonry work'
+      }
+    ]
+  }
+];
+
 interface FamilyContextType {
   family: Family;
   members: Member[];
@@ -672,6 +936,30 @@ interface FamilyContextType {
   memberLedgers: MemberLedgerEntry[];
   goldLoans: GoldLoanPledge[];
   trips: Trip[];
+  businessSetupProjects: BusinessSetupProject[];
+  constructionProjects: ConstructionProject[];
+
+  // Business Setup Actions
+  addSetupProject: (project: Omit<BusinessSetupProject, 'id' | 'family_id' | 'funding_sources' | 'expenses' | 'repayments' | 'created_at'>) => void;
+  updateSetupProject: (projectId: string, updates: Partial<BusinessSetupProject>) => void;
+  deleteSetupProject: (projectId: string) => void;
+  addProjectFundingSource: (projectId: string, source: Omit<ProjectFundingSource, 'id' | 'project_id' | 'tranches' | 'created_at'>) => void;
+  addDisbursalTranche: (projectId: string, sourceId: string, tranche: Omit<DisbursalTranche, 'id'>) => void;
+  addPreOpExpense: (projectId: string, expense: Omit<PreOpExpense, 'id' | 'project_id'>) => void;
+  deletePreOpExpense: (projectId: string, expenseId: string) => void;
+  recordProjectRepayment: (projectId: string, repayment: Omit<ProjectRepayment, 'id' | 'project_id'>) => void;
+  capitalizeProjectToFirm: (projectId: string, firmId: string, closingNotes?: string) => void;
+  closeSetupProject: (projectId: string, closingNotes: string) => void;
+
+  // Construction Actions
+  addConstructionProject: (project: Omit<ConstructionProject, 'id' | 'family_id' | 'materials' | 'contractors' | 'daily_labor_logs' | 'created_at'>) => void;
+  updateConstructionProject: (projectId: string, updates: Partial<ConstructionProject>) => void;
+  deleteConstructionProject: (projectId: string) => void;
+  addConstructionMaterial: (projectId: string, material: Omit<ConstructionMaterialLog, 'id' | 'project_id'>) => void;
+  deleteConstructionMaterial: (projectId: string, materialId: string) => void;
+  addThekedarContract: (projectId: string, contract: Omit<ThekedarContract, 'id' | 'project_id' | 'total_paid' | 'bills'>) => void;
+  addThekedarRABill: (projectId: string, contractId: string, bill: { ra_bill_no: string; stage_name: string; bill_amount: number; date: string; is_paid: boolean; notes?: string }) => void;
+  addLaborHaziraLog: (projectId: string, log: Omit<LaborHaziraRecord, 'id' | 'project_id'>) => void;
 
   addTrip: (trip: Omit<Trip, 'id' | 'family_id' | 'expenses' | 'pool_contributions' | 'created_at'>) => void;
   updateTrip: (tripId: string, updates: Partial<Trip>) => void;
@@ -826,6 +1114,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [goldLoans, setGoldLoans] = useState<GoldLoanPledge[]>([]);
   const [rentalProperties, setRentalProperties] = useState<RentalProperty[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [businessSetupProjects, setBusinessSetupProjects] = useState<BusinessSetupProject[]>([]);
+  const [constructionProjects, setConstructionProjects] = useState<ConstructionProject[]>([]);
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
@@ -852,7 +1142,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       id.startsWith('trip-') ||
       id.startsWith('tm-') ||
       id.startsWith('te-') ||
-      id.startsWith('tpc-')
+      id.startsWith('tpc-') ||
+      id.startsWith('bsp-') ||
+      id.startsWith('sfs-') ||
+      id.startsWith('poe-') ||
+      id.startsWith('cp-') ||
+      id.startsWith('cm-') ||
+      id.startsWith('tc-') ||
+      id.startsWith('lhl-')
     );
   };
 
@@ -886,6 +1183,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setMemberLedgers(INITIAL_MEMBER_LEDGERS);
     setGoldLoans(INITIAL_GOLD_LOANS);
     setTrips(INITIAL_TRIPS);
+    setBusinessSetupProjects(INITIAL_SETUP_PROJECTS);
+    setConstructionProjects(INITIAL_CONSTRUCTION_PROJECTS);
     setIsDemoMode(true);
     if (authUser?.id) {
       try { localStorage.setItem(getStorageKey('mode'), 'demo'); } catch (e) {}
@@ -944,6 +1243,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setGoldLoans([]);
     setRentalProperties([]);
     setTrips([]);
+    setBusinessSetupProjects([]);
+    setConstructionProjects([]);
     setIsDemoMode(false);
 
     if (authUser?.id) {
@@ -960,6 +1261,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(getStorageKey('fleet'), JSON.stringify([]));
         localStorage.setItem(getStorageKey('firms'), JSON.stringify([]));
         localStorage.setItem(getStorageKey('trips'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify([]));
       } catch (e) {}
     }
   };
@@ -1043,6 +1346,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         if (sfm) setBusinessFirms(JSON.parse(sfm).filter((fm: any) => !isDemoRecord(fm.id)));
         const strp = localStorage.getItem(key('trips'));
         if (strp) setTrips(JSON.parse(strp).filter((tr: any) => !isDemoRecord(tr.id)));
+        const sbsp = localStorage.getItem(key('setup_projects'));
+        if (sbsp) setBusinessSetupProjects(JSON.parse(sbsp).filter((b: any) => !isDemoRecord(b.id)));
+        const scp = localStorage.getItem(key('construction_projects'));
+        if (scp) setConstructionProjects(JSON.parse(scp).filter((c: any) => !isDemoRecord(c.id)));
         setCurrentUserId(cleanMemId);
         setIsDemoMode(false);
       } catch (e) {}
@@ -1076,6 +1383,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       setGoldLoans([]);
       setRentalProperties([]);
       setTrips([]);
+      setBusinessSetupProjects([]);
+      setConstructionProjects([]);
       setIsDemoMode(false);
 
       try {
@@ -2109,6 +2418,334 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // ==========================================
+  // BUSINESS SETUP & PRE-OPERATIVE CAPEX METHODS
+  // ==========================================
+  const addSetupProject = (projectData: Omit<BusinessSetupProject, 'id' | 'family_id' | 'funding_sources' | 'expenses' | 'repayments' | 'created_at'>) => {
+    const newProj: BusinessSetupProject = {
+      ...projectData,
+      id: 'bsp-' + Date.now(),
+      family_id: family.id,
+      funding_sources: [],
+      expenses: [],
+      repayments: [],
+      created_at: new Date().toISOString()
+    };
+    setBusinessSetupProjects(prev => {
+      const updated = [newProj, ...prev.filter(p => !isDemoRecord(p.id))];
+      try { localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const updateSetupProject = (projectId: string, updates: Partial<BusinessSetupProject>) => {
+    setBusinessSetupProjects(prev => {
+      const updated = prev.map(p => p.id === projectId ? { ...p, ...updates } : p);
+      try { localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const deleteSetupProject = (projectId: string) => {
+    setBusinessSetupProjects(prev => {
+      const updated = prev.filter(p => p.id !== projectId);
+      try { localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addProjectFundingSource = (projectId: string, source: Omit<ProjectFundingSource, 'id' | 'project_id' | 'tranches' | 'created_at'>) => {
+    const newSource: ProjectFundingSource = {
+      ...source,
+      id: 'sfs-' + Date.now(),
+      project_id: projectId,
+      tranches: [
+        {
+          id: 'st-' + Date.now(),
+          tranche_no: 1,
+          amount: source.disbursed_amount || source.sanctioned_amount,
+          disbursal_date: new Date().toISOString().split('T')[0],
+          notes: 'Initial sanction disbursal'
+        }
+      ],
+      created_at: new Date().toISOString()
+    };
+    setBusinessSetupProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          funding_sources: [...(p.funding_sources || []), newSource]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addDisbursalTranche = (projectId: string, sourceId: string, tranche: Omit<DisbursalTranche, 'id'>) => {
+    const newTranche: DisbursalTranche = {
+      ...tranche,
+      id: 'st-' + Date.now()
+    };
+    setBusinessSetupProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          funding_sources: (p.funding_sources || []).map(fs => {
+            if (fs.id !== sourceId) return fs;
+            const newTranches = [...(fs.tranches || []), newTranche];
+            const newDisbursed = newTranches.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+            return {
+              ...fs,
+              tranches: newTranches,
+              disbursed_amount: newDisbursed
+            };
+          })
+        };
+      });
+      try { localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addPreOpExpense = (projectId: string, expense: Omit<PreOpExpense, 'id' | 'project_id'>) => {
+    const newExpense: PreOpExpense = {
+      ...expense,
+      id: 'poe-' + Date.now(),
+      project_id: projectId
+    };
+    setBusinessSetupProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          expenses: [newExpense, ...(p.expenses || [])]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const deletePreOpExpense = (projectId: string, expenseId: string) => {
+    setBusinessSetupProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          expenses: (p.expenses || []).filter(e => e.id !== expenseId)
+        };
+      });
+      try { localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const recordProjectRepayment = (projectId: string, repayment: Omit<ProjectRepayment, 'id' | 'project_id'>) => {
+    const newRepay: ProjectRepayment = {
+      ...repayment,
+      id: 'prr-' + Date.now(),
+      project_id: projectId
+    };
+    setBusinessSetupProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          repayments: [newRepay, ...(p.repayments || [])]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const capitalizeProjectToFirm = (projectId: string, firmId: string, closingNotes?: string) => {
+    const targetProject = businessSetupProjects.find(p => p.id === projectId);
+    if (!targetProject) return;
+
+    const totalExp = (targetProject.expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const fixedAssets = (targetProject.expenses || []).filter(e => e.is_fixed_asset).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const preOp35D = (targetProject.expenses || []).filter(e => !e.is_fixed_asset).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const totalProcFees = (targetProject.funding_sources || []).reduce((sum, s) => sum + Number(s.processing_fees || 0) + Number(s.documentation_bank_charges || 0), 0);
+
+    const promoterEquity = (targetProject.funding_sources || []).filter(s => s.source_type === 'self_savings').reduce((sum, s) => sum + Number(s.disbursed_amount || 0), 0);
+    const bankDebt = (targetProject.funding_sources || []).filter(s => s.source_type === 'bank_term_loan').reduce((sum, s) => sum + Number(s.disbursed_amount || 0), 0);
+    const privateDebt = (targetProject.funding_sources || []).filter(s => s.source_type === 'private_bank_nbfc').reduce((sum, s) => sum + Number(s.disbursed_amount || 0), 0);
+    const friendsDebt = (targetProject.funding_sources || []).filter(s => s.source_type === 'friends_family_debt').reduce((sum, s) => sum + Number(s.disbursed_amount || 0), 0);
+
+    setBusinessSetupProjects(prev => prev.map(p => {
+      if (p.id !== projectId) return p;
+      return {
+        ...p,
+        status: 'capitalized_live',
+        linked_firm_id: firmId,
+        capitalization_date: new Date().toISOString().split('T')[0],
+        capitalization_summary: {
+          total_project_cost: totalExp + totalProcFees,
+          total_fixed_assets: fixedAssets,
+          total_preop_35d: preOp35D,
+          total_accrued_interest: 0,
+          total_processing_fees: totalProcFees,
+          promoter_equity: promoterEquity,
+          bank_debt: bankDebt,
+          private_debt: privateDebt,
+          friends_family_debt: friendsDebt,
+          closing_notes: closingNotes || 'Capitalized into active firm balance sheet'
+        }
+      };
+    }));
+  };
+
+  const closeSetupProject = (projectId: string, closingNotes: string) => {
+    setBusinessSetupProjects(prev => prev.map(p => {
+      if (p.id !== projectId) return p;
+      return {
+        ...p,
+        status: 'closed',
+        notes: p.notes ? `${p.notes} | Closure Note: ${closingNotes}` : closingNotes
+      };
+    }));
+  };
+
+  // ==========================================
+  // CONSTRUCTION & THEKEDARI MANAGEMENT METHODS
+  // ==========================================
+  const addConstructionProject = (project: Omit<ConstructionProject, 'id' | 'family_id' | 'materials' | 'contractors' | 'daily_labor_logs' | 'created_at'>) => {
+    const newProj: ConstructionProject = {
+      ...project,
+      id: 'cp-' + Date.now(),
+      family_id: family.id,
+      materials: [],
+      contractors: [],
+      daily_labor_logs: [],
+      created_at: new Date().toISOString()
+    };
+    setConstructionProjects(prev => {
+      const updated = [newProj, ...prev.filter(p => !isDemoRecord(p.id))];
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const updateConstructionProject = (projectId: string, updates: Partial<ConstructionProject>) => {
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => p.id === projectId ? { ...p, ...updates } : p);
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const deleteConstructionProject = (projectId: string) => {
+    setConstructionProjects(prev => {
+      const updated = prev.filter(p => p.id !== projectId);
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addConstructionMaterial = (projectId: string, material: Omit<ConstructionMaterialLog, 'id' | 'project_id'>) => {
+    const newMat: ConstructionMaterialLog = {
+      ...material,
+      id: 'cm-' + Date.now(),
+      project_id: projectId
+    };
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          materials: [newMat, ...(p.materials || [])]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const deleteConstructionMaterial = (projectId: string, materialId: string) => {
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          materials: (p.materials || []).filter(m => m.id !== materialId)
+        };
+      });
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addThekedarContract = (projectId: string, contract: Omit<ThekedarContract, 'id' | 'project_id' | 'total_paid' | 'bills'>) => {
+    const newContract: ThekedarContract = {
+      ...contract,
+      id: 'tc-' + Date.now(),
+      project_id: projectId,
+      total_paid: 0,
+      bills: []
+    };
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          contractors: [...(p.contractors || []), newContract]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addThekedarRABill = (projectId: string, contractId: string, bill: { ra_bill_no: string; stage_name: string; bill_amount: number; date: string; is_paid: boolean; notes?: string }) => {
+    const newBill = {
+      id: 'rab-' + Date.now(),
+      ...bill
+    };
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          contractors: (p.contractors || []).map(c => {
+            if (c.id !== contractId) return c;
+            const updatedBills = [...(c.bills || []), newBill];
+            const updatedPaid = updatedBills.filter(b => b.is_paid).reduce((sum, b) => sum + Number(b.bill_amount || 0), 0);
+            return {
+              ...c,
+              bills: updatedBills,
+              total_paid: updatedPaid
+            };
+          })
+        };
+      });
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const addLaborHaziraLog = (projectId: string, log: Omit<LaborHaziraRecord, 'id' | 'project_id'>) => {
+    const newLog: LaborHaziraRecord = {
+      ...log,
+      id: 'lhl-' + Date.now(),
+      project_id: projectId
+    };
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          daily_labor_logs: [newLog, ...(p.daily_labor_logs || [])]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
   const openQuickAdd = (type: 'expense' | 'income' | 'udhar' = 'expense') => {
     setQuickAddType(type);
     setIsQuickAddOpen(true);
@@ -2287,6 +2924,26 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addTripPoolContribution,
         addTripExpense,
         deleteTripExpense,
+        businessSetupProjects,
+        addSetupProject,
+        updateSetupProject,
+        deleteSetupProject,
+        addProjectFundingSource,
+        addDisbursalTranche,
+        addPreOpExpense,
+        deletePreOpExpense,
+        recordProjectRepayment,
+        capitalizeProjectToFirm,
+        closeSetupProject,
+        constructionProjects,
+        addConstructionProject,
+        updateConstructionProject,
+        deleteConstructionProject,
+        addConstructionMaterial,
+        deleteConstructionMaterial,
+        addThekedarContract,
+        addThekedarRABill,
+        addLaborHaziraLog,
         totalWealth,
         liquidWealth,
         fixedWealth,

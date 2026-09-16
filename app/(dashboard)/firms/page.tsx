@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useFamilyStore } from '@/lib/store/familyStore';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Mono } from '@/components/ui/Mono';
 import { Button } from '@/components/ui/Button';
-import { Building2, Plus, ArrowRight, DollarSign, Receipt, FileSpreadsheet, CheckCircle, ShieldCheck, Wallet, ArrowDownRight } from 'lucide-react';
+import { Building2, Plus, ArrowRight, DollarSign, Receipt, FileSpreadsheet, CheckCircle, ShieldCheck, Wallet, ArrowDownRight, Briefcase } from 'lucide-react';
 import { EntityType } from '@/types';
 import confetti from 'canvas-confetti';
 
@@ -85,6 +86,28 @@ export default function BusinessFirmsPage() {
           </button>
         }
       />
+
+      {/* Quick Link to Setup & Pre-Op CapEx Module */}
+      <div className="px-4">
+        <Link
+          href="/firms/setup"
+          className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-navy via-navy-light to-navy border border-gold/30 text-paper shadow-md hover:border-gold transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gold/20 border border-gold/40 flex items-center justify-center text-gold-light shrink-0">
+              <Briefcase size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-bold text-paper font-serif">🚀 New Business Setup & Pre-Op CapEx</p>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gold/20 text-gold-light uppercase border border-gold/30">Inception Hub</span>
+              </div>
+              <p className="text-[10px] text-paper-dim/80 line-clamp-1">Day-0 kharcha, Bank loan tranches, Girvi/Collateral & Capital Account Transfer</p>
+            </div>
+          </div>
+          <ArrowRight size={16} className="text-gold-light shrink-0 group-hover:translate-x-1 transition-transform" />
+        </Link>
+      </div>
 
       {/* Firm Selector Tabs */}
       <div className="px-4 flex gap-2 overflow-x-auto pb-1 no-scrollbar">

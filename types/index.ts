@@ -722,3 +722,221 @@ export interface Trip {
   notes?: string;
   created_at?: string;
 }
+
+// =========================================================================
+// BUSINESS SETUP, PRE-OPERATIVE CAPEX & CAPITALIZATION TYPES
+// =========================================================================
+export type PreOpExpenseCategory =
+  | 'legal_incorporation' // Company/LLP registration, Stamp duty, MOA/AOA, CA fees
+  | 'licensing_gst_ip' // GST, MSME Udyam, Trade License, FSSAI, Trademark, Copyright
+  | 'interior_furniture' // Furniture, civil works, electricals, shop/office fitouts, signboards
+  | 'it_website_software' // Website, Mobile app, POS ERP software, Domain, Cloud server
+  | 'machinery_equipment' // Plant & machinery, Tools, Hardware, ACs, Backup Inverter/DG
+  | 'advance_rent_security' // Office/Shop advance deposit, Land lease advance
+  | 'travelling_conveyance' // Site visits, vendor meetings, partner travel
+  | 'marketing_prelaunch' // Branding, logo design, pre-launch promotions, hoarding
+  | 'inventory_raw_material' // Initial stock, raw material trial runs
+  | 'other_preoperative';
+
+export type FundingSourceType =
+  | 'self_savings' // Promoter / Family Savings
+  | 'bank_term_loan' // Public/Commercial Bank Project Loan
+  | 'private_bank_nbfc' // Private Bank / NBFC
+  | 'friends_family_debt' // Dost / Rishtedaar Udhar
+  | 'investor_seed_equity' // Outside Seed Partner / Investor
+  | 'other_source';
+
+export interface CollateralSecurity {
+  is_pledged: boolean;
+  asset_type?: 'real_estate_property' | 'fixed_deposit_lien' | 'gold_pledge' | 'machinery_hypothecation' | 'personal_guarantee' | 'other';
+  title?: string; // e.g. "Civil Lines Commercial Plot Registry", "₹10L SBI FD Lien"
+  estimated_valuation?: number;
+  bank_charge_status?: 'registered_mortgage' | 'equitable_mortgage' | 'lien_marked' | 'hypothecated';
+  safe_custody_notes?: string;
+}
+
+export interface DisbursalTranche {
+  id: string;
+  tranche_no: number;
+  amount: number;
+  disbursal_date: string;
+  notes?: string;
+}
+
+export interface ProjectFundingSource {
+  id: string;
+  project_id: string;
+  source_type: FundingSourceType;
+  provider_name: string; // e.g. "State Bank of India", "Papa ki Savings", "HDFC Private Bank", "Ramesh Chacha"
+  sanctioned_amount: number;
+  disbursed_amount: number;
+  interest_rate_annual: number; // 0 for zero-interest
+  charge_interest: boolean;
+  processing_fees: number;
+  documentation_bank_charges: number;
+  collateral: CollateralSecurity;
+  tranches: DisbursalTranche[];
+  notes?: string;
+  created_at?: string;
+}
+
+export interface PreOpExpense {
+  id: string;
+  project_id: string;
+  title: string;
+  amount: number;
+  category: PreOpExpenseCategory;
+  date: string;
+  funding_source_id?: string;
+  funding_source_name?: string;
+  vendor_name?: string;
+  gst_amount?: number;
+  invoice_no?: string;
+  is_fixed_asset: boolean; // True if fixed asset, False if preliminary revenue expense (35D)
+  notes?: string;
+  bill_url?: string;
+}
+
+export interface ProjectRepayment {
+  id: string;
+  project_id: string;
+  funding_source_id: string;
+  funding_source_name: string;
+  amount: number;
+  repayment_date: string;
+  payment_mode: 'bank' | 'upi' | 'cash';
+  principal_portion: number;
+  interest_portion: number;
+  notes?: string;
+}
+
+export interface BusinessSetupProject {
+  id: string;
+  family_id: string;
+  project_name: string;
+  business_type: string; // e.g. "Retail Bakery & Cafe", "Transport Fleet Depot", "Textile Manufacturing"
+  target_launch_date: string;
+  actual_launch_date?: string;
+  status: 'setup_in_progress' | 'capitalized_live' | 'closed';
+  linked_firm_id?: string;
+  funding_sources: ProjectFundingSource[];
+  expenses: PreOpExpense[];
+  repayments: ProjectRepayment[];
+  capitalization_date?: string;
+  capitalization_summary?: {
+    total_project_cost: number;
+    total_fixed_assets: number;
+    total_preop_35d: number;
+    total_accrued_interest: number;
+    total_processing_fees: number;
+    promoter_equity: number;
+    bank_debt: number;
+    private_debt: number;
+    friends_family_debt: number;
+    closing_notes?: string;
+  };
+  notes?: string;
+  created_at?: string;
+}
+
+// =========================================================================
+// CONSTRUCTION & THEKEDARI PROJECT MANAGEMENT TYPES
+// =========================================================================
+export type ConstructionStage =
+  | 'planning_sanction' // Map approval, soil test, architect
+  | 'foundation_plinth' // Excavation, footing, plinth beam
+  | 'structure_lintel' // Columns, RCC slab casting, brickwork
+  | 'plumbing_electrical' // Sanitary, pipe fitting, wiring
+  | 'plaster_flooring' // Wall plaster, tiles, marble, granite
+  | 'finishing_paint' // Putty, painting, wood work, glass
+  | 'handover_ready';
+
+export type MaterialCategory =
+  | 'cement'
+  | 'sariya_steel'
+  | 'sand_ret_balu'
+  | 'aggregate_rodi_gitti'
+  | 'bricks_eent_blocks'
+  | 'tiles_marble'
+  | 'plumbing_sanitary'
+  | 'electrical_wiring'
+  | 'wood_doors_windows'
+  | 'paint_putty'
+  | 'other_material';
+
+export interface ConstructionMaterialLog {
+  id: string;
+  project_id: string;
+  material_name: string;
+  category: MaterialCategory;
+  vendor_name: string;
+  vendor_phone?: string;
+  quantity: number;
+  unit: string; // Bags, Tons, Sqft, Brass/Trolley, Pcs
+  rate_per_unit: number;
+  total_amount: number;
+  paid_amount: number;
+  pending_amount: number;
+  invoice_no?: string;
+  vehicle_no?: string; // Delivery truck plate
+  date: string;
+  notes?: string;
+}
+
+export interface ThekedarContract {
+  id: string;
+  project_id: string;
+  contractor_name: string;
+  work_scope: string; // e.g. "RCC Labor Contract", "Electrical Contract", "Tile Mistri"
+  phone: string;
+  contract_type: 'sqft_rate' | 'item_rate' | 'lump_sum_theka';
+  rate_per_sqft?: number;
+  total_sqft?: number;
+  total_contract_value: number;
+  total_paid: number;
+  retention_amount?: number;
+  bills: Array<{
+    id: string;
+    ra_bill_no: string; // Running Account Bill #1, #2
+    stage_name: string;
+    bill_amount: number;
+    date: string;
+    is_paid: boolean;
+    notes?: string;
+  }>;
+  notes?: string;
+}
+
+export interface LaborHaziraRecord {
+  id: string;
+  project_id: string;
+  date: string;
+  mistri_count: number;
+  mistri_rate: number;
+  labor_count: number;
+  labor_rate: number;
+  total_daily_wage: number;
+  paid_amount: number;
+  khuraki_advance?: number;
+  supervisor_name?: string;
+  notes?: string;
+}
+
+export interface ConstructionProject {
+  id: string;
+  family_id: string;
+  site_title: string; // e.g. "Sector 14 House Construction", "Commercial Plaza Ground Floor"
+  site_location: string;
+  plot_area_sqft?: number;
+  builtup_area_sqft?: number;
+  target_budget: number;
+  current_stage: ConstructionStage;
+  start_date: string;
+  target_completion_date: string;
+  status: 'ongoing' | 'completed' | 'on_hold';
+  materials: ConstructionMaterialLog[];
+  contractors: ThekedarContract[];
+  daily_labor_logs: LaborHaziraRecord[];
+  notes?: string;
+  created_at?: string;
+}
