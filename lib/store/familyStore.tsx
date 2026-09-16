@@ -1124,37 +1124,38 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
 
-  // Demo record sanitizer
+  // Demo record sanitizer — ONLY matches hardcoded static demo IDs (short strings).
+  // Real user-created IDs are timestamp-based (e.g., rent-1748293845678) and must NOT be filtered.
   const isDemoRecord = (id?: string) => {
     if (!id) return false;
-    return (
-      id.startsWith('txn-') ||
-      id === 'fam-1' ||
-      id === 'm-sunita' || id === 'm-priya' || id === 'm-amit' ||
-      id.startsWith('a-') ||
-      id.startsWith('g-') ||
-      id.startsWith('gl-') ||
-      id.startsWith('rent-') ||
-      id.startsWith('fleet-') ||
-      id.startsWith('firm-') ||
-      id.startsWith('staff-') ||
-      id.startsWith('case-') ||
-      id.startsWith('veh-') ||
-      id.startsWith('agri-') ||
-      id.startsWith('udh-') ||
-      id.startsWith('ledg-') ||
-      id.startsWith('trip-') ||
-      id.startsWith('tm-') ||
-      id.startsWith('te-') ||
-      id.startsWith('tpc-') ||
-      id.startsWith('bsp-') ||
-      id.startsWith('sfs-') ||
-      id.startsWith('poe-') ||
-      id.startsWith('cp-') ||
-      id.startsWith('cm-') ||
-      id.startsWith('tc-') ||
-      id.startsWith('lhl-')
-    );
+    // Hardcoded static demo IDs from INITIAL_* arrays
+    const DEMO_EXACT_IDS = new Set([
+      'fam-1', 'fam-demo',
+      'm-sunita', 'm-priya', 'm-amit',
+      'rent-1', 'rent-2', 'rent-3',
+      'fleet-1', 'fleet-2',
+      'firm-1', 'firm-2',
+      'staff-1', 'staff-2',
+      'case-1', 'case-2',
+      'veh-1', 'veh-2',
+      'agri-1', 'agri-2',
+      'udh-1', 'udh-2',
+      'trip-1', 'trip-2',
+      'bsp-1', 'bsp-2',
+      'cp-1', 'cp-2',
+    ]);
+    if (DEMO_EXACT_IDS.has(id)) return true;
+    // Also filter known demo prefixes with short numeric suffix (demo-style): e.g. txn-1, a-1, g-1
+    // We check if ID has a prefix AND the part after the last '-' is a short number (1-3 digits = demo)
+    const DEMO_PREFIXES = ['txn-', 'a-', 'g-', 'gl-', 'rm-', 'b-', 'tm-', 'te-', 'tpc-', 'sfs-', 'poe-', 'ledg-', 'cm-', 'tc-', 'lhl-'];
+    for (const prefix of DEMO_PREFIXES) {
+      if (id.startsWith(prefix)) {
+        const suffix = id.slice(prefix.length);
+        // If suffix is a short number (1–3 digits), it's a demo record
+        if (/^\d{1,3}$/.test(suffix)) return true;
+      }
+    }
+    return false;
   };
 
   // Scoped Storage Helper for Multi-Tenant SaaS
@@ -1554,7 +1555,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const addMember = (m: Omit<Member, 'id' | 'family_id'>) => {
     const newM: Member = { ...m, id: 'm-' + Date.now(), family_id: family.id };
-    setMembers([...members, newM]);
+    const updated = [...members, newM];
+    setMembers(updated);
+    try {
+      localStorage.setItem(getStorageKey('members'), JSON.stringify(updated));
+      localStorage.setItem(getStorageKey('has_initialized'), 'true');
+    } catch (e) {}
     if (supabase) {
       supabase.from('family_members').insert(newM).then();
     }
