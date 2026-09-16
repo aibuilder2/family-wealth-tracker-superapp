@@ -2023,11 +2023,12 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                       </div>
 
                       <div>
-                        <label className="text-xs font-bold text-amber-300">Advance Security Deposit (₹) *</label>
+                        <label className="text-xs font-bold text-slate-300">
+                          Advance Security Deposit (₹) <span className="text-[10px] text-amber-400 font-normal">(Optional)</span>
+                        </label>
                         <input
                           type="number"
-                          required
-                          placeholder="0"
+                          placeholder="0 (Plot ke liye chhod sakte hain)"
                           value={tenantDeposit === 0 ? "" : tenantDeposit}
                           onChange={(e) => setTenantDeposit(e.target.value === "" ? 0 : Number(e.target.value))}
                           className="w-full mt-1 p-2.5 bg-[#111827] border border-amber-500/40 rounded-xl text-amber-400 font-black text-sm"

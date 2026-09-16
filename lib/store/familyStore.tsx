@@ -2018,6 +2018,26 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Persistent Storage Helper for Rental Properties
+  const saveRentalProperties = (newProps: RentalProperty[]) => {
+    const cleanList = newProps.filter((p: any) => !isDemoRecord(p.id));
+    setRentalProperties(cleanList);
+    try {
+      localStorage.setItem(getStorageKey('rentals'), JSON.stringify(cleanList));
+      localStorage.setItem(getStorageKey('has_initialized'), 'true');
+    } catch (e) {}
+  };
+
+  // Persistent Storage Helper for Gold Loans
+  const saveGoldLoans = (newLoans: GoldLoanPledge[]) => {
+    const cleanList = newLoans.filter((gl: any) => !isDemoRecord(gl.id));
+    setGoldLoans(cleanList);
+    try {
+      localStorage.setItem(getStorageKey('gold_loans'), JSON.stringify(cleanList));
+      localStorage.setItem(getStorageKey('has_initialized'), 'true');
+    } catch (e) {}
+  };
+
   const addRentalProperty = (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>): RentalProperty => {
     const newProp: RentalProperty = {
       ...prop,
@@ -2027,7 +2047,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       past_tenants: [],
       expenses: []
     };
-    setRentalProperties(prev => [newProp, ...prev]);
+    const updated = [newProp, ...rentalProperties.filter((p: any) => !isDemoRecord(p.id))];
+    saveRentalProperties(updated);
 
     // Auto-sync property market valuation to Family Wealth Assets
     if (prop.estimated_market_value && prop.estimated_market_value > 0) {
@@ -2045,15 +2066,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateRentalProperty = (propertyId: string, updates: Partial<RentalProperty>) => {
-    setRentalProperties(prev => prev.map(p => p.id === propertyId ? { ...p, ...updates } : p));
+    const updated = rentalProperties.map(p => p.id === propertyId ? { ...p, ...updates } : p);
+    saveRentalProperties(updated);
   };
 
   const deleteRentalProperty = (propertyId: string) => {
-    setRentalProperties(prev => prev.filter(p => p.id !== propertyId));
+    const updated = rentalProperties.filter(p => p.id !== propertyId);
+    saveRentalProperties(updated);
   };
 
   const addHostelRoom = (propertyId: string, room: Omit<HostelRoom, 'id'>) => {
-    setRentalProperties(prev => prev.map(p => {
+    const updated = rentalProperties.map(p => {
       if (p.id !== propertyId) return p;
       const newRoom: HostelRoom = {
         ...room,
@@ -2067,7 +2090,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         total_capacity_beds: totalBeds,
         total_units_or_rooms: updatedRooms.length
       };
-    }));
+    });
+    saveRentalProperties(updated);
   };
 
   const addRentalTenant = (propertyId: string, tenant: Omit<RentalTenant, 'id' | 'property_id'>) => {
@@ -2082,7 +2106,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       monthly_rent: tenant.monthly_rent || 0,
       rent_status: tenant.rent_status || 'paid'
     };
-    setRentalProperties(prev => prev.map(p => {
+    const updated = rentalProperties.map(p => {
       if (p.id !== propertyId) return p;
       let updatedRooms = p.rooms;
       if (p.rooms && tenant.bed_id) {
@@ -2097,21 +2121,23 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         tenants: [...p.tenants, newTenant],
         security_deposit_holding: (p.security_deposit_holding || 0) + (tenant.security_deposit || 0)
       };
-    }));
+    });
+    saveRentalProperties(updated);
   };
 
   const updateRentalTenant = (propertyId: string, tenantId: string, updates: Partial<RentalTenant>) => {
-    setRentalProperties(prev => prev.map(p => {
+    const updated = rentalProperties.map(p => {
       if (p.id !== propertyId) return p;
       return {
         ...p,
         tenants: p.tenants.map(t => t.id === tenantId ? { ...t, ...updates } : t)
       };
-    }));
+    });
+    saveRentalProperties(updated);
   };
 
   const deleteRentalTenant = (propertyId: string, tenantId: string) => {
-    setRentalProperties(prev => prev.map(p => {
+    const updated = rentalProperties.map(p => {
       if (p.id !== propertyId) return p;
       const target = p.tenants.find(t => t.id === tenantId);
       let updatedRooms = p.rooms;
@@ -2127,7 +2153,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         tenants: p.tenants.filter(t => t.id !== tenantId),
         security_deposit_holding: Math.max(0, (p.security_deposit_holding || 0) - (target?.security_deposit || 0))
       };
-    }));
+    });
+    saveRentalProperties(updated);
   };
 
   const vacateAndSettleTenant = (
@@ -2143,7 +2170,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       notes?: string;
     }
   ) => {
-    setRentalProperties(prev => prev.map(p => {
+    const updated = rentalProperties.map(p => {
       if (p.id !== propertyId) return p;
       const target = p.tenants.find(t => t.id === tenantId);
       if (!target) return p;
@@ -2176,7 +2203,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         past_tenants: [vacatedTenant, ...(p.past_tenants || [])],
         security_deposit_holding: Math.max(0, (p.security_deposit_holding || 0) - (target.security_deposit || 0))
       };
-    }));
+    });
+    saveRentalProperties(updated);
   };
 
   const collectRentPayment = (
@@ -2192,7 +2220,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       notes?: string;
     }
   ) => {
-    setRentalProperties(prev => prev.map(p => {
+    const updated = rentalProperties.map(p => {
       if (p.id !== propertyId) return p;
       return {
         ...p,
@@ -2200,7 +2228,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           if (t.id !== tenantId) return t;
           return {
             ...t,
-            rent_status: isPaid ? 'paid' : 'pending',
+            rent_status: (isPaid ? 'paid' : 'pending') as 'paid' | 'pending',
             last_paid_date: isPaid ? new Date().toISOString().split('T')[0] : t.last_paid_date,
             last_paid_amount: isPaid ? amount : t.last_paid_amount,
             last_payment_mode: details?.payment_mode || t.last_payment_mode || 'upi',
@@ -2211,7 +2239,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           };
         })
       };
-    }));
+    });
+    saveRentalProperties(updated);
 
     if (isPaid && amount > 0) {
       addTransaction({
@@ -2234,13 +2263,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       id: `exp-${Date.now()}`,
       property_id: propertyId
     };
-    setRentalProperties(prev => prev.map(p => {
+    const updated = rentalProperties.map(p => {
       if (p.id !== propertyId) return p;
       return {
         ...p,
         expenses: [...p.expenses, newExp]
       };
-    }));
+    });
+    saveRentalProperties(updated);
 
     // If expense was paid by owner (or logged as family expense)
     if (expense.paid_by !== 'tenant' || !expense.is_adjusted_in_rent) {
@@ -2259,13 +2289,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteRentalExpense = (propertyId: string, expenseId: string) => {
-    setRentalProperties(prev => prev.map(p => {
+    const updated = rentalProperties.map(p => {
       if (p.id !== propertyId) return p;
       return {
         ...p,
         expenses: p.expenses.filter(e => e.id !== expenseId)
       };
-    }));
+    });
+    saveRentalProperties(updated);
   };
 
   const addGoldLoan = (pledge: Omit<GoldLoanPledge, 'id' | 'family_id' | 'created_at' | 'interest_payments'>) => {
@@ -2276,7 +2307,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       created_at: new Date().toISOString(),
       interest_payments: []
     };
-    setGoldLoans(prev => [newPledge, ...prev]);
+    const updated = [newPledge, ...goldLoans.filter(gl => !isDemoRecord(gl.id))];
+    saveGoldLoans(updated);
 
     addTransaction({
       member_id: currentUserId,
@@ -2296,13 +2328,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       ...payment,
       id: `gl-pay-${Date.now()}`
     };
-    setGoldLoans(prev => prev.map(p => {
+    const updated = goldLoans.map(p => {
       if (p.id !== pledgeId) return p;
       return {
         ...p,
         interest_payments: [...(p.interest_payments || []), newPay]
       };
-    }));
+    });
+    saveGoldLoans(updated);
 
     addTransaction({
       member_id: currentUserId,
@@ -2318,16 +2351,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const settleAndReleaseGoldLoan = (pledgeId: string, otpCode: string, note?: string) => {
-    setGoldLoans(prev => prev.map(p => {
+    const updated = goldLoans.map(p => {
       if (p.id !== pledgeId) return p;
       return {
         ...p,
-        status: 'settled',
+        status: 'settled' as const,
         noc_otp_verified: true,
         noc_date: new Date().toISOString().split('T')[0],
         notes: note ? `${p.notes || ''} | Settle note: ${note} (OTP: ${otpCode})` : p.notes
       };
-    }));
+    });
+    saveGoldLoans(updated);
 
     const target = goldLoans.find(p => p.id === pledgeId);
     if (target) {
@@ -2346,7 +2380,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateGoldLoanStatus = (pledgeId: string, status: GoldLoanStatus) => {
-    setGoldLoans(prev => prev.map(p => p.id === pledgeId ? { ...p, status } : p));
+    const updated = goldLoans.map(p => p.id === pledgeId ? { ...p, status } : p);
+    saveGoldLoans(updated);
   };
 
   // Trip and Holiday Management Methods
