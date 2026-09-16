@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BookOpen, HelpCircle, CheckCircle2, XCircle, ChevronRight, AlertTriangle, Star, List, ThumbsUp, Share2 } from "lucide-react";
+import {
+  BookOpen, HelpCircle, CheckCircle2, XCircle, ChevronRight,
+  AlertTriangle, Star, List, ThumbsUp, Share2, Trophy,
+  ArrowRight, ArrowLeft, RotateCcw, Check
+} from "lucide-react";
+import confetti from "canvas-confetti";
 import { createClient } from "@/lib/supabase/client";
 import FnoRiskVisual from "@/components/learn/FnoRiskVisual";
 import LossStatistics from "@/components/learn/LossStatistics";
@@ -18,16 +23,16 @@ const ALL_CATEGORY_CHAPTERS: { [key: string]: any[] } = {
       id: "l-1",
       lesson_number: 1,
       title: "Share Market Basic: Share Kya Hota Hai?",
-      content: "Jab aap kisi company ka ek share khareedte hain, to aap us company ke chote hissedar (part-owner) ban jaate hain. Company jab profit kamati hai to aapko dividend aur capital appreciation milta hai.",
+      content: "Jab aap kisi company ka ek share khareedte hain, to aap us company ke chote hissedar (part-owner) ban jaate hain. Company jab profit kamati hai to aapko dividend aur capital appreciation milta hai.\n\n• Share = Hissedari\n• Jab company grow karti hai to aapki daulat (wealth) grow karti hai.\n• Long-term me ache business me invest karna compounding ka sabse bada zariya hai.",
       quiz_data: [
-        { question: "Share khareedne par aap kya bante hain?", options: ["Company ke Malik/Part-Owner", "Bank Manager", "Auditor"], correct: 0 }
+        { question: "Share khareedne par aap kya bante hain?", options: ["Company ke Malik / Part-Owner", "Bank Manager", "Auditor"], correct: 0 }
       ]
     },
     {
       id: "l-2",
       lesson_number: 2,
       title: "NSE, BSE aur SEBI: Market Kaise Kaam Karta Hai?",
-      content: "NSE (National Stock Exchange) aur BSE (Bombay Stock Exchange) India ke do main exchanges hain jahan shares trade hote hain. SEBI (Securities & Exchange Board of India) market ka regulator hai jo investors ko protect karta hai.",
+      content: "NSE (National Stock Exchange) aur BSE (Bombay Stock Exchange) India ke do main exchanges hain jahan shares trade hote hain. \n\nSEBI (Securities & Exchange Board of India) market ka regulator hai jo har retail investor ko protect karta hai aur fraud/manipulation ko rokta hai.",
       quiz_data: [
         { question: "India me Stock Market ka regulator kaun hai?", options: ["RBI", "SEBI", "IRDAI"], correct: 1 }
       ]
@@ -36,7 +41,7 @@ const ALL_CATEGORY_CHAPTERS: { [key: string]: any[] } = {
       id: "l-3",
       lesson_number: 3,
       title: "Candlestick Patterns & Technical Analysis",
-      content: "Har Green candle buyers ki strength aur Red candle sellers ki pressure show karti hai. Bullish Engulfing, Hammer, aur Doji key reversal patterns hain.",
+      content: "Har Green candle buyers ki strength aur Red candle sellers ki pressure show karti hai.\n\n• Bullish Engulfing: Sellers ko buyers ne poori tarah daba diya (Upar jaane ka signal).\n• Hammer: Neeche se strong buying rejection aayi.\n• Doji: Market me indecision hai, trend reverse ho sakta hai.",
       quiz_data: [
         { question: "Green candle ka matlab kya hota hai?", options: ["Price Open se upar Close hua (Buyers)", "Price gira", "Market closed"], correct: 0 }
       ]
@@ -45,7 +50,7 @@ const ALL_CATEGORY_CHAPTERS: { [key: string]: any[] } = {
       id: "l-4",
       lesson_number: 4,
       title: "Risk Management: 1% Rule & Stop Loss",
-      content: "Kabhi bhi ek single trade me apni total capital ka 1-2% se jyada risk mat lein. Stop loss lagana har trade me anivarya (mandatory) hai.",
+      content: "Kabhi bhi ek single trade me apni total capital ka 1-2% se jyada risk mat lein. Stop loss lagana har trade me anivarya (mandatory) hai.\n\n• Agar aapka capital ₹1,00,000 hai, to kisi bhi ek trade me loss ₹1,000 se ₹2,000 se jyada nahi hona chahiye.\n• Risk-to-Reward ratio hamesha kam se kam 1:2 hona chahiye.",
       quiz_data: [
         { question: "Ek trade me maximum kitna risk lena chahiye?", options: ["1% se 2%", "50%", "100%"], correct: 0 }
       ]
@@ -54,7 +59,7 @@ const ALL_CATEGORY_CHAPTERS: { [key: string]: any[] } = {
       id: "l-5",
       lesson_number: 5,
       title: "Futures & Options (F&O) Reality Check",
-      content: "SEBI ke mutabik 90%+ retail F&O traders loss karte hain. Options tabhi trade karein jab aapke paas complete hedging aur data analysis ho.",
+      content: "SEBI ke mutabik 90%+ retail F&O traders loss karte hain. Options tabhi trade karein jab aapke paas complete hedging aur data analysis ho.\n\n• Naked Option buying me time decay (Theta) har second buyer ka paisa galata hai.\n• Bina deep knowledge ke Hero-Zero ya lottery trading se bachein.",
       quiz_data: [
         { question: "SEBI report ke mutabik kitne % retail F&O traders loss karte hain?", options: ["90% se jyada", "10%", "5%"], correct: 0 }
       ]
@@ -127,17 +132,24 @@ export default function LearnPage() {
   const [showTest, setShowTest] = useState(false);
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedAns, setSelectedAns] = useState<number | null>(null);
-  const [rating, setRating] = useState<number>(0);
-  const [hoveredStar, setHoveredStar] = useState<number>(0);
-  const [ratingSubmitted, setRatingSubmitted] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
+  const [quizPassed, setQuizPassed] = useState(false);
   const [dbChapters, setDbChapters] = useState<any[]>(ALL_CATEGORY_CHAPTERS["0 Se Seekho"]);
   const [loading, setLoading] = useState(false);
-  const [completedLessons, setCompletedLessons] = useState<number[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
   const BEGINNER_TAB = "0 Se Seekho";
 
+  // Load saved completed chapters on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("fwa_learn_completed_lessons");
+      if (saved) {
+        setCompletedLessons(JSON.parse(saved));
+      }
+    } catch (e) {}
+  }, []);
+
+  // Fetch chapters for active tab
   useEffect(() => {
     const fetchChapters = async () => {
       setLoading(true);
@@ -150,7 +162,7 @@ export default function LearnPage() {
             .select("*")
             .eq(activeTab === BEGINNER_TAB ? "segment" : "category", activeTab === BEGINNER_TAB ? "zero-to-hero" : activeTab)
             .order("lesson_number", { ascending: true });
-          
+
           if (!error && data && data.length > 0) {
             setDbChapters(data);
             setLoading(false);
@@ -174,32 +186,70 @@ export default function LearnPage() {
     quiz: selectedChapter?.quiz_data || selectedChapter?.quiz || []
   };
 
-  const handleAnswer = (index: number) => {
-    setSelectedAns(index);
+  // Chapter Navigation Calculations
+  const currentIndex = dbChapters.findIndex(
+    ch => (ch.id && selectedChapter?.id && ch.id === selectedChapter.id) ||
+          ch.lesson_number === selectedChapter?.lesson_number
+  );
+  const prevChapter = currentIndex > 0 ? dbChapters[currentIndex - 1] : null;
+  const nextChapter = currentIndex >= 0 && currentIndex < dbChapters.length - 1 ? dbChapters[currentIndex + 1] : null;
+
+  const goToChapter = (chapter: any) => {
+    setSelectedChapter(chapter);
+    setShowTest(false);
+    setSelectedAns(null);
+    setCurrentQ(0);
+    setQuizPassed(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({ title: 'StockScan Learning', text: `Check out this amazing chapter on ${activeChapterContent.title}!`, url: window.location.href });
-    } else {
-      alert("Chapter link copied to clipboard!");
+  const getChapterKey = (ch: any) => ch.id || `${activeTab}-${ch.lesson_number}`;
+
+  // Handle Quiz Answer Selection
+  const handleAnswer = (index: number) => {
+    setSelectedAns(index);
+    const isCorrect = index === activeChapterContent.quiz[currentQ]?.correct;
+
+    // If correct and it's the last question (or only question)
+    if (isCorrect && currentQ === activeChapterContent.quiz.length - 1) {
+      const chapterKey = getChapterKey(selectedChapter);
+      setCompletedLessons(prev => {
+        const next = prev.includes(chapterKey) ? prev : [...prev, chapterKey];
+        try {
+          localStorage.setItem("fwa_learn_completed_lessons", JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+
+      setQuizPassed(true);
+      try {
+        confetti({ particleCount: 75, spread: 80, origin: { y: 0.6 } });
+      } catch (e) {}
     }
   };
+
+  // Completed count for current category
+  const categoryCompletedCount = dbChapters.filter(ch =>
+    completedLessons.includes(getChapterKey(ch))
+  ).length;
+  const progressPercent = dbChapters.length > 0
+    ? Math.round((categoryCompletedCount / dbChapters.length) * 100)
+    : 0;
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-slate-200 p-4 md:p-8 font-sans pb-24">
       {/* Header */}
       <div className="mb-8 border-b border-slate-800 pb-4">
         <h1 className="text-2xl font-bold text-white flex items-center gap-3 mb-2">
-          <BookOpen className="w-6 h-6 text-amber-400" /> Academy & Testing
+          <BookOpen className="w-6 h-6 text-amber-400" /> Academy &amp; Testing
         </h1>
         <p className="text-sm text-slate-400">
-          Master concepts of NISM/SEBI Exams, Options Secrets (Greeks & IV Crush), Stocks, Mutual Funds with interactive tools and chapter tests.
+          Share Market Basics, NISM/SEBI Exams aur Options Secrets sikhein aur quiz pass karke agle lesson me badhein.
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto hide-scrollbar gap-2 mb-8 pb-2">
+      <div className="flex overflow-x-auto hide-scrollbar gap-2 mb-6 pb-2">
         {[
           BEGINNER_TAB,
           "NISM & SEBI Exams",
@@ -212,10 +262,17 @@ export default function LearnPage() {
         ].map((tab) => (
           <button
             key={tab}
-            onClick={() => { setActiveTab(tab); setSelectedChapter(null); setShowTest(false); setSelectedAns(null); setRatingSubmitted(false); setRating(0); setIsLiked(false); }}
+            onClick={() => {
+              setActiveTab(tab);
+              setSelectedChapter(null);
+              setShowTest(false);
+              setSelectedAns(null);
+              setCurrentQ(0);
+              setQuizPassed(false);
+            }}
             className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
-              activeTab === tab 
-                ? "bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/20" 
+              activeTab === tab
+                ? "bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/20"
                 : "bg-slate-800 text-slate-400 hover:bg-slate-700"
             }`}
           >
@@ -224,15 +281,15 @@ export default function LearnPage() {
         ))}
       </div>
 
-      {/* RBI/SEBI Hardcoded Warning */}
+      {/* SEBI Hardcoded Warning */}
       <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-6 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
         <p className="text-xs text-red-200">
-          <strong>SEBI Guideline:</strong> 9 out of 10 individual traders in equity Futures and Options Segment, incurred net losses. On an average, loss makers registered net trading loss close to ₹ 50,000. Trading F&O requires heavy risk management.
+          <strong>SEBI Guideline:</strong> 9 out of 10 individual traders in equity Futures and Options Segment incurred net losses. Risk management aur chapter quiz pass karke hi aage badhein.
         </p>
       </div>
 
-      {/* NISM & SEBI Career Hub Visual */}
+      {/* NISM Career Roadmap Visual */}
       {activeTab === "NISM & SEBI Exams" && !selectedChapter && (
         <div className="mb-8">
           <NismCareerRoadmap />
@@ -246,101 +303,200 @@ export default function LearnPage() {
         </div>
       )}
 
-      {/* Added Visuals for Specific Tabs */}
-      {(activeTab === "Options" || activeTab === "Investment Reality") && !selectedChapter && (
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FnoRiskVisual />
-          <LossStatistics />
-        </div>
-      )}
-
-      {activeTab === "Investment Reality" && !selectedChapter && (
-        <div className="mb-8">
-          <WealthRealitySimulator />
-        </div>
-      )}
-
-      {activeTab === "Comparisons" && !selectedChapter && (
-        <div className="mb-8 space-y-6">
-          <AssetCompareTable />
-          <InvestmentCompare 
-            assetA={{ name: "Options Trading", returns: "Highly Variable", risk: "Very High", liquidity: "High" }} 
-            assetB={{ name: "Equity Investing", returns: "12-15% Avg", risk: "Moderate", liquidity: "High" }} 
-          />
-        </div>
-      )}
-
       {/* Chapter List OR Content Area */}
       {!selectedChapter ? (
-        <div className="bg-[#111827] rounded-xl border border-slate-800 p-6">
-          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><List className="w-5 h-5 text-blue-400"/> {activeTab} - Chapters</h2>
+        <div className="bg-[#111827] rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <List className="w-5 h-5 text-blue-400" /> {activeTab} - Chapters
+            </h2>
+
+            {/* Category Progress Stats */}
+            <div className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+              <Trophy size={14} className="text-amber-400" />
+              <span className="text-slate-400">Pragati:</span>
+              <span className="font-bold text-amber-400">
+                {categoryCompletedCount} / {dbChapters.length} Passed ({progressPercent}%)
+              </span>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          {/* Chapters List */}
           <div className="space-y-3">
             {loading ? (
               <p className="text-sm text-slate-500 animate-pulse">Loading modules...</p>
             ) : dbChapters.length === 0 ? (
               <p className="text-sm text-slate-500">No chapters available for this category yet.</p>
             ) : (
-              dbChapters.map((ch, idx) => (
-                <div 
-                  key={ch.id || idx}
-                  onClick={() => { setSelectedChapter(ch); setShowTest(false); setSelectedAns(null); setCurrentQ(0); setRatingSubmitted(false); setRating(0); setIsLiked(false); }}
-                  className="flex items-center justify-between p-4 bg-[#0B0F19] border border-slate-800 rounded-xl hover:border-blue-500/50 cursor-pointer transition"
-                >
-                  <div className="flex items-center gap-4">
-                    <span className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-amber-400">
-                      {ch.lesson_number || idx + 1}
-                    </span>
-                    <div>
-                      <h4 className="font-bold text-white text-sm">{ch.title}</h4>
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{ch.content}</p>
+              dbChapters.map((ch, idx) => {
+                const isCompleted = completedLessons.includes(getChapterKey(ch));
+
+                return (
+                  <div
+                    key={ch.id || idx}
+                    onClick={() => goToChapter(ch)}
+                    className={`flex items-center justify-between p-4 bg-[#0B0F19] border rounded-xl hover:border-amber-500/60 cursor-pointer transition-all ${
+                      isCompleted ? "border-emerald-500/40 bg-emerald-950/10" : "border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <span
+                        className={`w-9 h-9 rounded-full border flex items-center justify-center font-bold text-xs shrink-0 ${
+                          isCompleted
+                            ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
+                            : "bg-slate-800 border-slate-700 text-amber-400"
+                        }`}
+                      >
+                        {isCompleted ? <Check size={16} /> : ch.lesson_number || idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-bold text-white text-sm truncate">{ch.title}</h4>
+                          {isCompleted && (
+                            <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              ✓ Padh Liya
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{ch.content}</p>
+                      </div>
                     </div>
+                    <ChevronRight className="w-5 h-5 text-slate-500 shrink-0 ml-2" />
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-500" />
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
       ) : (
         /* Selected Chapter Content */
-        <div className="bg-[#111827] rounded-xl border border-slate-800 p-6 space-y-6">
-          <button 
-            onClick={() => setSelectedChapter(null)}
-            className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 mb-2"
-          >
-            ← Back to All Chapters
-          </button>
+        <div className="bg-[#111827] rounded-2xl border border-slate-800 p-5 sm:p-7 space-y-6 animate-in fade-in-50">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setSelectedChapter(null)}
+              className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1"
+            >
+              ← Sabhi Chapters ki List
+            </button>
 
-          <h2 className="text-2xl font-black text-white">{activeChapterContent.title}</h2>
+            <span className="text-xs font-bold text-slate-400 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
+              Lesson {selectedChapter?.lesson_number} of {dbChapters.length}
+            </span>
+          </div>
 
-          <div className="bg-[#0B0F19] p-6 rounded-xl border border-slate-800 text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+          <h2 className="text-xl sm:text-2xl font-black text-white">
+            {activeChapterContent.title}
+          </h2>
+
+          <div className="bg-[#0B0F19] p-5 sm:p-6 rounded-2xl border border-slate-800 text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
             {activeChapterContent.content}
+          </div>
+
+          {/* Chapter Bottom Navigation (Prev / Next) */}
+          <div className="flex items-center justify-between gap-3 pt-2">
+            {prevChapter ? (
+              <button
+                onClick={() => goToChapter(prevChapter)}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all"
+              >
+                <ArrowLeft size={14} /> Lesson {prevChapter.lesson_number}
+              </button>
+            ) : <div />}
+
+            {nextChapter && (
+              <button
+                onClick={() => goToChapter(nextChapter)}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all"
+              >
+                Lesson {nextChapter.lesson_number} <ArrowRight size={14} />
+              </button>
+            )}
           </div>
 
           {/* Test / Quiz Button */}
           {activeChapterContent.quiz && activeChapterContent.quiz.length > 0 && (
-            <div className="pt-4 border-t border-slate-800">
+            <div className="pt-4 border-t border-slate-800 space-y-4">
               {!showTest ? (
                 <button
-                  onClick={() => setShowTest(true)}
-                  className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20"
+                  onClick={() => {
+                    setShowTest(true);
+                    setCurrentQ(0);
+                    setSelectedAns(null);
+                    setQuizPassed(false);
+                  }}
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
                 >
                   <HelpCircle className="w-4 h-4" /> Start Chapter Test (Practical Quiz)
                 </button>
+              ) : quizPassed ? (
+                /* QUIZ PASSED CELEBRATION BOX */
+                <div className="bg-emerald-500/15 border border-emerald-500/40 p-6 rounded-2xl text-center space-y-4 animate-in zoom-in-95">
+                  <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-2xl">
+                    🏆
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white">
+                      Shaabaash! Aapne Chapter {selectedChapter?.lesson_number} Pass Kar Liya!
+                    </h3>
+                    <p className="text-xs text-emerald-300 mt-1">
+                      Sahi uttar! Yeh lesson aapki learning profile me complete mark ho gaya hai.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                    {nextChapter ? (
+                      <button
+                        onClick={() => goToChapter(nextChapter)}
+                        className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                      >
+                        🚀 Agla Chapter Padhein: Lesson {nextChapter.lesson_number} →
+                      </button>
+                    ) : (
+                      <div className="text-xs font-bold text-amber-400 bg-amber-500/10 px-4 py-2.5 rounded-xl border border-amber-500/30">
+                        🎉 Badhaai ho! Is category ke sabhi chapters complete ho gaye!
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setSelectedChapter(null);
+                        setShowTest(false);
+                      }}
+                      className="w-full sm:w-auto px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-all"
+                    >
+                      ← Sabhi Chapters ki List
+                    </button>
+                  </div>
+                </div>
               ) : (
-                /* Quiz Area */
-                <div className="bg-[#0B0F19] p-6 rounded-xl border border-amber-500/30 space-y-4">
-                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider">
-                    Question {currentQ + 1} of {activeChapterContent.quiz.length}
-                  </h3>
-                  <p className="text-base font-bold text-white">
+                /* QUIZ QUESTION AREA */
+                <div className="bg-[#0B0F19] p-5 sm:p-6 rounded-2xl border border-amber-500/30 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+                      Question {currentQ + 1} of {activeChapterContent.quiz.length}
+                    </h3>
+                    <span className="text-[10px] text-slate-500">
+                      Sahi option chunein
+                    </span>
+                  </div>
+
+                  <p className="text-sm sm:text-base font-bold text-white">
                     {activeChapterContent.quiz[currentQ]?.question}
                   </p>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {activeChapterContent.quiz[currentQ]?.options.map((opt: string, optIdx: number) => {
                       const isSelected = selectedAns === optIdx;
                       const isCorrect = optIdx === activeChapterContent.quiz[currentQ]?.correct;
+
                       return (
                         <button
                           key={optIdx}
@@ -356,21 +512,42 @@ export default function LearnPage() {
                           }`}
                         >
                           <span>{opt}</span>
-                          {selectedAns !== null && isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-                          {selectedAns !== null && isSelected && !isCorrect && <XCircle className="w-4 h-4 text-rose-400" />}
+                          {selectedAns !== null && isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                          {selectedAns !== null && isSelected && !isCorrect && <XCircle className="w-4 h-4 text-rose-400 shrink-0" />}
                         </button>
                       );
                     })}
                   </div>
 
-                  {selectedAns !== null && currentQ < activeChapterContent.quiz.length - 1 && (
-                    <button
-                      onClick={() => { setCurrentQ(currentQ + 1); setSelectedAns(null); }}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg mt-2"
-                    >
-                      Next Question →
-                    </button>
+                  {/* Feedback or Retry */}
+                  {selectedAns !== null && selectedAns !== activeChapterContent.quiz[currentQ]?.correct && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-2">
+                      <span className="text-xs text-rose-300 font-semibold">
+                        ❌ Galat uttar! Kripya dobara prayas karein.
+                      </span>
+                      <button
+                        onClick={() => setSelectedAns(null)}
+                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold flex items-center gap-1"
+                      >
+                        <RotateCcw size={12} /> Retry
+                      </button>
+                    </div>
                   )}
+
+                  {/* Multi-question Next */}
+                  {selectedAns !== null &&
+                    selectedAns === activeChapterContent.quiz[currentQ]?.correct &&
+                    currentQ < activeChapterContent.quiz.length - 1 && (
+                      <button
+                        onClick={() => {
+                          setCurrentQ(currentQ + 1);
+                          setSelectedAns(null);
+                        }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl mt-2 flex items-center gap-1.5"
+                      >
+                        Agla Question →
+                      </button>
+                    )}
                 </div>
               )}
             </div>

@@ -7,7 +7,7 @@ import { useFamilyStore } from '@/lib/store/familyStore';
 import Link from 'next/link';
 import {
   ChevronLeft, Plus, Phone, MessageCircle, Heart, Crown,
-  Users, Calendar, Sparkles, X, UserCheck
+  Users, Calendar, Sparkles, X, UserCheck, Edit2, Trash2, AlertTriangle
 } from 'lucide-react';
 import { Member } from '@/types';
 
@@ -36,11 +36,20 @@ const RELATION_OPTIONS = [
 ];
 
 export default function FamilyTreePage() {
-  const { members, addMember, family } = useFamilyStore();
+  const { members, addMember, updateMember, deleteMember, family } = useFamilyStore();
 
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [defaultRelation, setDefaultRelation] = useState('');
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+
+  // Edit state
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRelation, setEditRelation] = useState('');
+  const [editDob, setEditDob] = useState('');
+  const [editRole, setEditRole] = useState<'member' | 'owner'>('member');
 
   // Form state
   const [formName, setFormName] = useState('');
@@ -48,6 +57,43 @@ export default function FamilyTreePage() {
   const [formPhone, setFormPhone] = useState('');
   const [formDob, setFormDob] = useState('');
   const [formRole, setFormRole] = useState<'member' | 'owner'>('member');
+
+  const handleOpenEdit = (m: Member) => {
+    setEditingMember(m);
+    setEditName(m.name || '');
+    setEditPhone(m.phone || '');
+    setEditRelation(m.relationship || '');
+    setEditDob(m.dob || '');
+    setEditRole(m.role || 'member');
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingMember) return;
+    if (!editName.trim()) return alert('Naam likhna zaroori hai');
+    if (!editRelation) return alert('Rishta chunna zaroori hai');
+
+    updateMember(editingMember.id, {
+      name: editName.trim(),
+      phone: editPhone.trim() || undefined,
+      relationship: editRelation,
+      dob: editDob || undefined,
+      role: editRole,
+      initials: editName.trim().charAt(0).toUpperCase(),
+    });
+
+    setEditingMember(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!memberToDelete) return;
+    if (members.length <= 1) {
+      alert('Parivar me kam se kam ek sadasya hona anivarya hai.');
+      setMemberToDelete(null);
+      return;
+    }
+    deleteMember(memberToDelete.id);
+    setMemberToDelete(null);
+  };
 
   const openAddForRelation = (rel: string) => {
     setDefaultRelation(rel);
@@ -645,6 +691,30 @@ export default function FamilyTreePage() {
               >
                 ₹ Aapsi Hisab-Kitab Kholein
               </Link>
+
+              {/* Edit & Delete Member Options */}
+              <div className="col-span-2 flex items-center gap-2 pt-2 border-t border-paper-dim">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleOpenEdit(selectedMember);
+                    setSelectedMember(null);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-xl text-xs font-bold border border-blue-200 transition-all"
+                >
+                  <Edit2 size={13} /> Edit Karein
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMemberToDelete(selectedMember);
+                    setSelectedMember(null);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 rounded-xl text-xs font-bold border border-rose-200 transition-all"
+                >
+                  <Trash2 size={13} /> Hatayein
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -747,6 +817,142 @@ export default function FamilyTreePage() {
                   ✓ Tree Me Jodein
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ========================================================= */}
+      {/* EDIT MEMBER MODAL                                         */}
+      {/* ========================================================= */}
+      {editingMember && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full sm:max-w-md bg-paper rounded-t-3xl sm:rounded-2xl border border-paper-dim shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-5">
+            <div className="flex items-center justify-between border-b border-paper-dim pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center">
+                  <Edit2 size={16} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-ink">Sadasya Edit Karein</h3>
+                  <p className="text-[11px] text-ink-muted">{editingMember.name} ki details badlein</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingMember(null)}
+                className="w-8 h-8 rounded-full bg-paper-dim flex items-center justify-center text-ink-muted hover:text-ink"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-ink-muted mb-1">
+                  Naam <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim border border-paper-dim rounded-xl text-sm text-ink focus:outline-none focus:border-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-muted mb-1">
+                  Rishta (Mukhiya ke sath) <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={editRelation}
+                  onChange={e => setEditRelation(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim border border-paper-dim rounded-xl text-sm text-ink focus:outline-none focus:border-gold"
+                >
+                  <option value="">— Rishta Chunen —</option>
+                  {RELATION_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-muted mb-1">
+                  Mobile Number
+                </label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim border border-paper-dim rounded-xl text-sm text-ink focus:outline-none focus:border-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-muted mb-1">
+                  Janam Tithi (DOB)
+                </label>
+                <input
+                  type="date"
+                  value={editDob}
+                  onChange={e => setEditDob(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim border border-paper-dim rounded-xl text-sm text-ink focus:outline-none focus:border-gold"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingMember(null)}
+                  className="flex-1 py-2.5 border border-paper-dim rounded-xl text-sm font-semibold text-ink-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-xs hover:bg-blue-700 transition-all"
+                >
+                  ✓ Changes Save Karein
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* DELETE CONFIRMATION MODAL                                 */}
+      {/* ========================================================= */}
+      {memberToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-paper rounded-2xl border border-paper-dim shadow-2xl p-5 space-y-4 animate-in zoom-in-95">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-ink">Sadasya Ko Hatayein?</h3>
+              <p className="text-xs text-ink-muted">
+                Kya aap sach me <strong>{memberToDelete.name}</strong> ({memberToDelete.relationship || 'Sadasya'}) ko parivar tree se hatana chahte hain?
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setMemberToDelete(null)}
+                className="flex-1 py-2.5 border border-paper-dim rounded-xl text-xs font-semibold text-ink-muted hover:bg-paper-dim"
+              >
+                Raho Do
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 flex items-center justify-center gap-1"
+              >
+                <Trash2 size={13} /> Haan, Hatayein
+              </button>
             </div>
           </div>
         </div>

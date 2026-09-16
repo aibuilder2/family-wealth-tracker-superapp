@@ -1,14 +1,16 @@
 import React from 'react';
 import { Member } from '@/types';
 import { Avatar } from '@/components/ui/Avatar';
-import { ChevronRight, Phone } from 'lucide-react';
+import { ChevronRight, Phone, Edit2, Trash2 } from 'lucide-react';
 
 interface MemberCardProps {
   member: Member;
   onClick?: () => void;
+  onEdit?: (m: Member) => void;
+  onDelete?: (m: Member) => void;
 }
 
-export function MemberCard({ member, onClick }: MemberCardProps) {
+export function MemberCard({ member, onClick, onEdit, onDelete }: MemberCardProps) {
   const isMukhiya = member.role === 'owner' || (member.relationship && member.relationship.toLowerCase().includes('mukhiya'));
 
   return (
@@ -47,7 +49,30 @@ export function MemberCard({ member, onClick }: MemberCardProps) {
         </div>
       </div>
 
-      <ChevronRight size={16} className="text-ink-muted group-hover:text-gold transition-colors" />
+      {/* Action Buttons: Edit & Delete */}
+      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        {onEdit && (
+          <button
+            type="button"
+            onClick={() => onEdit(member)}
+            className="w-8 h-8 rounded-lg bg-paper-dim hover:bg-gold/20 hover:text-gold text-ink-muted flex items-center justify-center transition-all"
+            title="Edit Sadasya"
+          >
+            <Edit2 size={14} />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(member)}
+            className="w-8 h-8 rounded-lg bg-paper-dim hover:bg-rose-100 hover:text-rose-600 text-ink-muted flex items-center justify-center transition-all"
+            title="Sadasya Hatayein"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+        <ChevronRight size={16} className="text-ink-muted group-hover:text-gold transition-colors ml-0.5" />
+      </div>
     </div>
   );
 }

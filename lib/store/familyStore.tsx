@@ -1017,6 +1017,8 @@ interface FamilyContextType {
   addReminder: (rem: Omit<Reminder, 'id' | 'family_id'>) => void;
   addAsset: (asset: Omit<Asset, 'id' | 'family_id'>) => void;
   addMember: (member: Omit<Member, 'id' | 'family_id'>) => void;
+  updateMember: (memberId: string, updates: Partial<Member>) => void;
+  deleteMember: (memberId: string) => void;
   updateMemberPermissions: (memberId: string, perms: Partial<Member['permissions']>) => void;
   markStaffAttendance: (staffId: string, day: number, status: 'present' | 'absent' | 'half_day' | 'leave') => void;
   addStaffPayment: (staffId: string, amount: number, type: 'salary' | 'advance' | 'bonus') => void;
@@ -1563,6 +1565,30 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
     if (supabase) {
       supabase.from('family_members').insert(newM).then();
+    }
+  };
+
+  const updateMember = (memberId: string, updates: Partial<Member>) => {
+    const updated = members.map(m => m.id === memberId ? { ...m, ...updates } : m);
+    setMembers(updated);
+    try {
+      localStorage.setItem(getStorageKey('members'), JSON.stringify(updated));
+      localStorage.setItem(getStorageKey('has_initialized'), 'true');
+    } catch (e) {}
+    if (supabase) {
+      supabase.from('family_members').update(updates).eq('id', memberId).then();
+    }
+  };
+
+  const deleteMember = (memberId: string) => {
+    const updated = members.filter(m => m.id !== memberId);
+    setMembers(updated);
+    try {
+      localStorage.setItem(getStorageKey('members'), JSON.stringify(updated));
+      localStorage.setItem(getStorageKey('has_initialized'), 'true');
+    } catch (e) {}
+    if (supabase) {
+      supabase.from('family_members').delete().eq('id', memberId).then();
     }
   };
 
@@ -3085,6 +3111,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addReminder,
         addAsset,
         addMember,
+        updateMember,
+        deleteMember,
         updateMemberPermissions,
         markStaffAttendance,
         addStaffPayment,

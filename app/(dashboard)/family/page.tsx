@@ -6,7 +6,11 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { MemberCard } from '@/components/family/MemberCard';
 import { FamilyTreeView } from '@/components/family/FamilyTreeView';
 import Link from 'next/link';
-import { HeartPulse, Key, Sparkles, Plus, X, User, Phone, Users, Share2 } from 'lucide-react';
+import {
+  HeartPulse, Key, Sparkles, Plus, X, User, Phone, Users, Share2,
+  Edit2, Trash2, AlertTriangle, Check
+} from 'lucide-react';
+import { Member } from '@/types';
 
 const RELATIONSHIPS = [
   'Self / Mukhiya', 'Patni (Wife)', 'Pati (Husband)',
@@ -18,20 +22,68 @@ const RELATIONSHIPS = [
   'Chacha (Uncle)', 'Chachi (Aunt)',
   'Mama (Maternal Uncle)', 'Maami (Maternal Aunt)',
   'Bhatija (Nephew)', 'Bhatiji (Niece)',
+  'Bahu (Daughter-in-law)', 'Damad (Son-in-law)',
+  'Pota (Grandson)', 'Poti (Granddaughter)',
   'Dost (Friend)', 'Anyaa (Other)',
 ];
 
 export default function FamilyPage() {
-  const { family, members, addMember } = useFamilyStore();
+  const { family, members, addMember, updateMember, deleteMember } = useFamilyStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
 
-  // Form state
+  // Add Form state
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [relationship, setRelationship] = useState('');
   const [dob, setDob] = useState('');
   const [role, setRole] = useState<'owner' | 'member'>('member');
   const [saving, setSaving] = useState(false);
+
+  // Edit Form state
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRelationship, setEditRelationship] = useState('');
+  const [editDob, setEditDob] = useState('');
+  const [editRole, setEditRole] = useState<'owner' | 'member'>('member');
+
+  const handleOpenEdit = (m: Member) => {
+    setEditingMember(m);
+    setEditName(m.name || '');
+    setEditPhone(m.phone || '');
+    setEditRelationship(m.relationship || '');
+    setEditDob(m.dob || '');
+    setEditRole(m.role || 'member');
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingMember) return;
+    if (!editName.trim()) return alert('Naam zaroori hai');
+    if (!editRelationship) return alert('Rishta chunna zaroori hai');
+
+    updateMember(editingMember.id, {
+      name: editName.trim(),
+      phone: editPhone.trim() || undefined,
+      relationship: editRelationship,
+      dob: editDob || undefined,
+      role: editRole,
+      initials: editName.trim().charAt(0).toUpperCase(),
+    });
+
+    setEditingMember(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!memberToDelete) return;
+    if (members.length <= 1) {
+      alert('Parivar me kam se kam ek sadasya hona anivarya hai.');
+      setMemberToDelete(null);
+      return;
+    }
+    deleteMember(memberToDelete.id);
+    setMemberToDelete(null);
+  };
 
   const handleSave = () => {
     if (!name.trim()) return alert('Naam zaroori hai');
@@ -52,7 +104,7 @@ export default function FamilyPage() {
         can_view_medical: true,
         can_view_staff: false,
         can_view_cases: false,
-        is_admin: false,
+        is_admin: role === 'owner',
       }
     });
     setSaving(false);
@@ -67,10 +119,10 @@ export default function FamilyPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-12">
       <ScreenHeader
         title="Family"
-        subtitle="Parivar ke sabhi members"
+        subtitle="Parivar ke sabhi sadasya, hisab aur rishte"
         action={
           <button
             onClick={() => setShowAddModal(true)}
@@ -86,7 +138,12 @@ export default function FamilyPage() {
       <div className="px-4">
         <div className="rounded-xl bg-paper border border-paper-dim overflow-hidden divide-y divide-paper-dim shadow-sm">
           {members.map((m) => (
-            <MemberCard key={m.id} member={m} />
+            <MemberCard
+              key={m.id}
+              member={m}
+              onEdit={(mem) => handleOpenEdit(mem)}
+              onDelete={(mem) => setMemberToDelete(mem)}
+            />
           ))}
         </div>
       </div>
@@ -185,7 +242,6 @@ export default function FamilyPage() {
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full sm:max-w-md bg-paper rounded-t-3xl sm:rounded-2xl border border-paper-dim shadow-2xl max-h-[90vh] overflow-y-auto">
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-paper-dim sticky top-0 bg-paper z-10">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center">
@@ -202,7 +258,6 @@ export default function FamilyPage() {
             </div>
 
             <div className="px-5 py-4 space-y-4">
-              {/* Name */}
               <div>
                 <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wide">
                   Naam <span className="text-red-400">*</span>
@@ -219,7 +274,6 @@ export default function FamilyPage() {
                 </div>
               </div>
 
-              {/* Relationship */}
               <div>
                 <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wide">
                   Rishta <span className="text-red-400">*</span>
@@ -236,7 +290,6 @@ export default function FamilyPage() {
                 </select>
               </div>
 
-              {/* Phone */}
               <div>
                 <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wide">
                   Mobile Number
@@ -253,7 +306,6 @@ export default function FamilyPage() {
                 </div>
               </div>
 
-              {/* Date of Birth */}
               <div>
                 <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wide">
                   Janam Tithi (Date of Birth)
@@ -266,7 +318,6 @@ export default function FamilyPage() {
                 />
               </div>
 
-              {/* Role */}
               <div>
                 <label className="block text-xs font-semibold text-ink-muted mb-2 uppercase tracking-wide">
                   Permission Role
@@ -291,20 +342,6 @@ export default function FamilyPage() {
                 </div>
               </div>
 
-              {/* WhatsApp Invite Option */}
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">
-                <p className="text-xs font-semibold text-emerald-700 mb-2">📲 WhatsApp se bhi invite kar sakte ho</p>
-                <button
-                  type="button"
-                  onClick={handleWhatsAppInvite}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-500 text-white py-2 rounded-lg text-sm font-semibold hover:bg-emerald-600 transition-all"
-                >
-                  <Share2 size={14} />
-                  WhatsApp Invite Bhejo (Code: {family.invite_code})
-                </button>
-              </div>
-
-              {/* Action Buttons */}
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -322,6 +359,159 @@ export default function FamilyPage() {
                   {saving ? 'Save ho raha hai...' : '✓ Jod Do'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== EDIT MEMBER MODAL ===== */}
+      {editingMember && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full sm:max-w-md bg-paper rounded-t-3xl sm:rounded-2xl border border-paper-dim shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-paper-dim sticky top-0 bg-paper z-10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center">
+                  <Edit2 size={16} />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-ink">Sadasya Edit Karein</h2>
+                  <p className="text-[11px] text-ink-muted">{editingMember.name} ki details badlein</p>
+                </div>
+              </div>
+              <button onClick={() => setEditingMember(null)} className="w-8 h-8 rounded-full bg-paper-dim flex items-center justify-center">
+                <X size={16} className="text-ink-muted" />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wide">
+                  Naam <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-paper-dim border border-paper-dim rounded-xl text-sm text-ink focus:outline-none focus:border-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wide">
+                  Rishta <span className="text-red-400">*</span>
+                </label>
+                <select
+                  value={editRelationship}
+                  onChange={e => setEditRelationship(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-paper-dim border border-paper-dim rounded-xl text-sm text-ink focus:outline-none focus:border-gold"
+                >
+                  <option value="">— Rishta chunen —</option>
+                  {RELATIONSHIPS.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wide">
+                  Mobile Number
+                </label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full px-3 py-2.5 bg-paper-dim border border-paper-dim rounded-xl text-sm text-ink focus:outline-none focus:border-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wide">
+                  Janam Tithi (Date of Birth)
+                </label>
+                <input
+                  type="date"
+                  value={editDob}
+                  onChange={e => setEditDob(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-paper-dim border border-paper-dim rounded-xl text-sm text-ink focus:outline-none focus:border-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink-muted mb-2 uppercase tracking-wide">
+                  Role
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditRole('member')}
+                    className={`p-3 rounded-xl border text-left transition-all ${editRole === 'member' ? 'border-gold bg-gold/10' : 'border-paper-dim bg-paper-dim/50'}`}
+                  >
+                    <div className="text-sm font-bold text-ink">Sadasya</div>
+                    <div className="text-[11px] text-ink-muted">Member Access</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditRole('owner')}
+                    className={`p-3 rounded-xl border text-left transition-all ${editRole === 'owner' ? 'border-gold bg-gold/10' : 'border-paper-dim bg-paper-dim/50'}`}
+                  >
+                    <div className="text-sm font-bold text-ink">Admin</div>
+                    <div className="text-[11px] text-ink-muted">Full Admin Access</div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingMember(null)}
+                  className="flex-1 py-3 border border-paper-dim rounded-xl text-sm font-semibold text-ink-muted hover:bg-paper-dim transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all active:scale-95"
+                >
+                  ✓ Changes Save Karein
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== DELETE MEMBER CONFIRMATION MODAL ===== */}
+      {memberToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-paper rounded-2xl border border-paper-dim shadow-2xl p-5 space-y-4 animate-in zoom-in-95">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertTriangle size={24} />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-ink">Sadasya Ko Hatayein?</h3>
+              <p className="text-xs text-ink-muted">
+                Kya aap sach me <strong>{memberToDelete.name}</strong> ({memberToDelete.relationship || 'Sadasya'}) ko parivar se hatana chahte hain?
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setMemberToDelete(null)}
+                className="flex-1 py-2.5 border border-paper-dim rounded-xl text-xs font-semibold text-ink-muted hover:bg-paper-dim"
+              >
+                Raho Do
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 flex items-center justify-center gap-1"
+              >
+                <Trash2 size={13} /> Haan, Hatayein
+              </button>
             </div>
           </div>
         </div>
