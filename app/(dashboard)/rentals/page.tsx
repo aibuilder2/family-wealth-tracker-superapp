@@ -453,12 +453,23 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddPropModal(true)}
-          className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-amber-500/20 shrink-0"
-        >
-          <Plus className="w-4 h-4" /> + Add Property / Shop / House
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            onClick={() => {
+              resetTenantForm();
+              setShowAddTenantModal(true);
+            }}
+            className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/30 active:scale-95 transition-all"
+          >
+            <Users className="w-4 h-4" /> + Naya Kirayedaar (Tenant) Jodein
+          </button>
+          <button
+            onClick={() => setShowAddPropModal(true)}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl flex items-center gap-2 transition-all"
+          >
+            <Plus className="w-4 h-4" /> + Nayi Property / Dukan
+          </button>
+        </div>
       </div>
 
       {/* Top 4 KPI Cards */}
@@ -1233,14 +1244,17 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
       {/* MODAL 2: ADD / EDIT TENANT MODAL (COMPLETE PROFILE & AGREEMENT)            */}
       {/* ========================================================================= */}
       {(showAddTenantModal || showEditTenantModal) && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 overflow-y-auto">
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-2xl space-y-5 my-auto max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-2xl space-y-5 my-auto max-h-[92vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4">
               <div>
-                <h3 className="text-lg font-black text-white">
-                  {showEditTenantModal ? "Edit Tenant Profile & Agreement" : `Add Tenant to ${activeProperty?.title}`}
+                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-emerald-400" />
+                  {showEditTenantModal ? "Kirayedaar Profile & Agreement Edit Karein" : "Naya Kirayedaar (Tenant) Jodein"}
                 </h3>
-                <p className="text-xs text-slate-400">किरायेदार का नाम, पता, एडवांस, साइकल डेट्स व नियम</p>
+                <p className="text-xs text-slate-400">
+                  Kirayedaar ka naam, mobile, sthayi pata, advance deposit, cycle dates (e.g. 5 se 4), agreement aur damage deduction niyam.
+                </p>
               </div>
               <button
                 onClick={() => {
@@ -1254,9 +1268,31 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
             </div>
 
             <form onSubmit={showEditTenantModal ? handleSaveEditedTenant : handleCreateTenant} className="space-y-4">
+              {/* Property Selector */}
+              {!showEditTenantModal && rentalProperties.length > 1 && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl">
+                  <label className="text-xs font-bold text-amber-300 block mb-1">
+                    🏠 Kis Property / Dukan / Flat ke liye Kirayedaar jod rahe hain?
+                  </label>
+                  <select
+                    value={selectedPropId}
+                    onChange={(e) => setSelectedPropId(e.target.value)}
+                    className="w-full p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                  >
+                    {rentalProperties.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.title} ({p.property_type.replace('_', ' ')}) — {p.address}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Personal Details */}
               <div className="space-y-3">
-                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">1. Kirayedaar ki Details (व्यक्तिगत जानकारी)</span>
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+                  1. Kirayedaar Ki Details (व्यक्तिगत जानकारी)
+                </span>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-bold text-slate-400">Kirayedaar ka Poora Naam *</label>
@@ -1266,7 +1302,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                       placeholder="e.g. Rahul Sharma"
                       value={newTenantName}
                       onChange={(e) => setNewTenantName(e.target.value)}
-                      className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                      className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
                     />
                   </div>
                   <div>
@@ -1756,7 +1792,12 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
       {showAddPropModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-lg space-y-4 my-auto max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-black text-white">Add New Property / Shop / House</h3>
+            <div>
+              <h3 className="text-lg font-black text-white">🏠 Nayi Property / Dukan / Flat Jodein</h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Aapki property ki jankari yahan add karein. Kirayedaar (Tenant) ko add karne ke liye upar diye gaye <strong>"+ Naya Kirayedaar Jodein"</strong> button ka upyog karein.
+              </p>
+            </div>
             <form onSubmit={handleCreateProperty} className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-400">Property / Shop Title *</label>
@@ -1799,22 +1840,26 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-400">Landlord / Owner Name</label>
+                  <label className="text-xs font-bold text-slate-400">Makan Malik / Owner Name (Optional)</label>
                   <input
                     type="text"
+                    placeholder="e.g. Aapka Naam"
                     value={newPropLandlordName}
                     onChange={(e) => setNewPropLandlordName(e.target.value)}
                     className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
                   />
+                  <span className="text-[10px] text-slate-500">Rent slip par print karne ke liye</span>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-400">Landlord Phone</label>
+                  <label className="text-xs font-bold text-slate-400">Owner Contact No. (Optional)</label>
                   <input
                     type="text"
+                    placeholder="e.g. +91 98765 43210"
                     value={newPropLandlordPhone}
                     onChange={(e) => setNewPropLandlordPhone(e.target.value)}
                     className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
                   />
+                  <span className="text-[10px] text-slate-500">Rent slip par aayega</span>
                 </div>
               </div>
 
