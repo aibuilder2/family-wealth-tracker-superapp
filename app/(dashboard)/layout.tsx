@@ -18,7 +18,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen flex items-center justify-center p-0 sm:p-6 bg-[#E7E1D2]">
-      <div className="w-full sm:max-w-[430px] h-screen sm:h-[840px] bg-navy sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col sm:border-[8px] sm:border-[#0B1B28] relative">
+      <div className="w-full sm:max-w-[430px] h-[100dvh] sm:h-[840px] bg-navy sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col sm:border-[8px] sm:border-[#0B1B28] relative">
         
         {/* Guest Demo Banner if not logged in */}
         {!isLoggedIn && (

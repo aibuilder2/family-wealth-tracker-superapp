@@ -43,7 +43,7 @@ export function BottomNav() {
 
   return (
     <>
-      <nav className="flex items-center justify-around px-2 py-2 bg-paper border-t border-paper-dim shrink-0 z-20">
+      <nav className="sticky bottom-0 left-0 right-0 w-full flex items-center justify-around px-2 py-2 bg-paper/95 backdrop-blur-md border-t border-paper-dim shrink-0 z-40 touch-manipulation select-none pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
         {mainTabs.map((tab) => {
           const isActive = pathname === tab.href;
           const Icon = tab.icon;
@@ -52,14 +52,14 @@ export function BottomNav() {
             <Link
               key={tab.key}
               href={tab.href}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 transition-all rounded-lg hover:bg-paper-dim/40"
+              className="flex flex-col items-center gap-0.5 px-3 py-1 transition-all rounded-xl active:scale-95 hover:bg-paper-dim/40 cursor-pointer"
             >
               <Icon
-                size={19}
+                size={20}
                 className={cn('transition-colors', isActive ? 'text-gold' : 'text-ink-muted')}
-                strokeWidth={isActive ? 2.4 : 2}
+                strokeWidth={isActive ? 2.5 : 2}
               />
-              <span className={cn('text-[10px] font-medium font-sans', isActive ? 'text-gold font-semibold' : 'text-ink-muted')}>
+              <span className={cn('text-[10px] font-medium font-sans tracking-tight', isActive ? 'text-gold font-bold' : 'text-ink-muted')}>
                 {tab.label}
               </span>
             </Link>
@@ -69,9 +69,9 @@ export function BottomNav() {
         <button
           type="button"
           onClick={() => setIsMoreOpen(true)}
-          className="flex flex-col items-center gap-0.5 px-3 py-1 transition-all rounded-lg hover:bg-paper-dim/40"
+          className="flex flex-col items-center gap-0.5 px-3 py-1 transition-all rounded-xl active:scale-95 hover:bg-paper-dim/40 cursor-pointer"
         >
-          <Menu size={19} className="text-ink-muted" strokeWidth={2} />
+          <Menu size={20} className="text-ink-muted" strokeWidth={2} />
           <span className="text-[10px] font-medium font-sans text-ink-muted">More</span>
         </button>
       </nav>

@@ -89,6 +89,13 @@ export default function WealthPage() {
   const [depositBankName, setDepositBankName] = useState('State Bank of India (SBI)');
   const [depositCustomLabel, setDepositCustomLabel] = useState('');
   const [depositAmountVal, setDepositAmountVal] = useState('5000');
+  const [depositIsOld, setDepositIsOld] = useState<'new' | 'old'>('new');
+  const [depositPrevBalance, setDepositPrevBalance] = useState('');
+  const [depositStartDateVal, setDepositStartDateVal] = useState('');
+  const [depositExpectedMaturityAmount, setDepositExpectedMaturityAmount] = useState('');
+
+  // Others Kharcha Category State
+  const [quickOthersCategory, setQuickOthersCategory] = useState('Bijli / Maintenance Bill');
   const [depositInterestRateVal, setDepositInterestRateVal] = useState('7.1');
   const [depositTenureMonths, setDepositTenureMonths] = useState('12');
   const [depositMaturityDateVal, setDepositMaturityDateVal] = useState('');
@@ -97,7 +104,7 @@ export default function WealthPage() {
   const [depositFundedByRent, setDepositFundedByRent] = useState(false);
 
   // Quick Passbook Kharcha Entry Modal (Ration / Staff Payment)
-  const [quickKharchaType, setQuickKharchaType] = useState<'ration' | 'staff' | null>(null);
+  const [quickKharchaType, setQuickKharchaType] = useState<'ration' | 'staff' | 'others' | null>(null);
   const [quickKharchaAmount, setQuickKharchaAmount] = useState('5000');
   const [quickKharchaNote, setQuickKharchaNote] = useState('Mahine ka Rashan & Kirana Saman');
   const [quickKharchaStaffId, setQuickKharchaStaffId] = useState('');
@@ -340,6 +347,10 @@ export default function WealthPage() {
     setDepositInterestRateVal(preferredType === 'sip' ? '14.5' : '7.1');
     setDepositTenureMonths('12');
     setDepositFundedByRent(false);
+    setDepositIsOld('new');
+    setDepositPrevBalance('');
+    setDepositStartDateVal('');
+    setDepositExpectedMaturityAmount('');
     setIsDepositModalOpen(true);
   };
 
@@ -351,6 +362,21 @@ export default function WealthPage() {
     const owner = members.find(m => m.id === depositOwnerMemberId);
     const label = depositCustomLabel.trim() || `${depositBankName} ${depositType.toUpperCase()} (${owner?.name || 'Self'})`;
 
+    // Calculate total starting value: If old deposit, include previous balance
+    const prevBal = depositIsOld === 'old' ? parseFloat(depositPrevBalance) || 0 : 0;
+    const finalVal = prevBal > 0 ? prevBal + (depositType === 'fd' ? 0 : amount) : amount;
+
+    let notesText = '';
+    if (depositIsOld === 'old') {
+      notesText = `Puraana Khata. Pehle se jama: ₹${prevBal.toLocaleString('en-IN')} ${depositStartDateVal ? `(Shuru: ${depositStartDateVal})` : ''}`;
+    }
+    if (depositFundedByRent) {
+      notesText = (notesText ? notesText + ' · ' : '') + 'Kiraye ke funds se jama';
+    }
+    if (depositExpectedMaturityAmount) {
+      notesText = (notesText ? notesText + ' · ' : '') + `Maturity par: ₹${parseFloat(depositExpectedMaturityAmount).toLocaleString('en-IN')}`;
+    }
+
     // Add to assets
     addAsset({
       category: 'liquid',
@@ -358,12 +384,13 @@ export default function WealthPage() {
       asset_subtype: depositType,
       institution: depositBankName,
       label,
-      value: amount,
+      value: finalVal,
+      purchase_price: prevBal > 0 ? prevBal : undefined,
       interest_rate: depositInterestRateVal ? parseFloat(depositInterestRateVal) : undefined,
       maturity_date: depositMaturityDateVal || undefined,
       member_id: depositOwnerMemberId,
       joint_member_ids: depositJointMemberIds.length > 0 ? depositJointMemberIds : undefined,
-      notes: depositFundedByRent ? 'Kiraye ke funds se jama' : undefined,
+      notes: notesText || undefined,
       color: depositType === 'fd' ? '#B98B2A' : depositType === 'rd' ? '#2563EB' : '#059669'
     });
 
@@ -412,6 +439,19 @@ export default function WealthPage() {
       if (!quickKharchaStaffId) return alert('Kripya staff worker chunein');
       addStaffPayment(quickKharchaStaffId, amount, 'salary');
       alert(`✅ Staff worker ki salary ₹${amount.toLocaleString('en-IN')} safalta-purvak jud gayi!`);
+    } else if (quickKharchaType === 'others') {
+      addTransaction({
+        member_id: targetMemberId,
+        type: 'expense',
+        amount,
+        category: quickOthersCategory || 'Gharelu Anya Kharcha',
+        category_type: 'main_ghar',
+        mode: 'offline',
+        scope: 'ghar',
+        note: quickKharchaNote || quickOthersCategory || 'Anya Gharelu Kharcha',
+        txn_date: today
+      });
+      alert(`✅ ₹${amount.toLocaleString('en-IN')} (${quickOthersCategory}) kharch me jud gaya!`);
     }
 
     try { confetti({ particleCount: 40, spread: 40 }); } catch (e) {}
@@ -462,14 +502,25 @@ export default function WealthPage() {
   // Selected Member Object
   const selectedMemberObj = members.find(m => m.id === memberFilter);
 
-  // Filter regular assets for selected tab and member
+  // Filter regular assets for selected tab and member (Eliminating duplicate property cards)
   const filteredAssets = assets.filter((a) => {
+    // 1. Prevent duplicate property card if property exists in rentalProperties
+    if (a.type === 'property' || a.type === 'land') {
+      const matchesRental = (rentalProperties || []).some(
+        p => p.id === a.id || p.title.toLowerCase().trim() === a.label.toLowerCase().trim()
+      );
+      if (matchesRental) return false;
+    }
+
+    // 2. Tab filter
     if (activeTab === 'fdrd') {
       const isDeposit = a.type === 'bank_deposit' || a.asset_subtype === 'fd' || a.asset_subtype === 'rd' || a.asset_subtype === 'sip' || a.label.toLowerCase().includes('fd') || a.label.toLowerCase().includes('rd') || a.label.toLowerCase().includes('deposit');
       if (!isDeposit) return false;
     } else if (activeTab !== 'all' && a.category !== activeTab) {
       return false;
     }
+
+    // 3. Member filter
     if (memberFilter !== 'all') {
       const isPrimary = a.member_id === memberFilter;
       const isJoint = a.joint_member_ids && a.joint_member_ids.includes(memberFilter);
@@ -499,7 +550,15 @@ export default function WealthPage() {
     .reduce((sum, a) => sum + Number(a.value || 0), 0);
 
   const selectedMemberFixedWealth = assets
-    .filter(a => (memberFilter === 'all' ? true : (a.member_id === memberFilter || a.joint_member_ids?.includes(memberFilter))) && a.category === 'fixed')
+    .filter(a => {
+      if (memberFilter !== 'all' && a.member_id !== memberFilter && !a.joint_member_ids?.includes(memberFilter)) return false;
+      if (a.category !== 'fixed') return false;
+      // Do not double count if this asset is a property already counted in rentalProperties
+      if ((a.type === 'property' || a.type === 'land') && (rentalProperties || []).some(p => p.id === a.id || p.title.toLowerCase().trim() === a.label.toLowerCase().trim())) {
+        return false;
+      }
+      return true;
+    })
     .reduce((sum, a) => sum + Number(a.value || 0), 0) + (memberFilter === 'all' ? totalRentalPropertiesValuation : memberRentalValuation);
 
   const selectedMemberTotalNetWorth = selectedMemberLiquidWealth + selectedMemberFixedWealth;
@@ -852,43 +911,79 @@ export default function WealthPage() {
                 >
                   <UserCheck size={12} /> + Staff Vetan
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickKharchaType('others');
+                    setQuickKharchaAmount('2000');
+                    setQuickOthersCategory('Bijli / Maintenance Bill');
+                    setQuickKharchaNote('Bijli & Property Maintenance Bill');
+                  }}
+                  className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[10px] font-bold transition flex items-center gap-1 shadow"
+                >
+                  <Plus size={12} /> + Anya Kharch (Others)
+                </button>
               </div>
             </div>
 
             {/* Income vs Outflow Summary Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-800 text-xs">
-              <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                <span className="text-[10px] text-slate-400 block">📥 Aaya Hua Kiraya</span>
-                <span className="font-mono font-black text-emerald-400 text-sm">
-                  +₹{Math.round(memberGrossMonthlyRent).toLocaleString('en-IN')}
-                </span>
-                <span className="text-[9px] text-slate-500 block mt-0.5">{memberRentalProperties.length} Properties</span>
-              </div>
+            {(() => {
+              const totalRent = memberGrossMonthlyRent || 0;
+              const totalFDRD = assets.filter(a => (a.member_id === selectedMemberObj.id || a.joint_member_ids?.includes(selectedMemberObj.id)) && (a.asset_subtype === 'fd' || a.asset_subtype === 'rd' || a.asset_subtype === 'sip')).reduce((s, a) => s + Number(a.value || 0), 0);
+              const totalRationStaffKharch = transactions.filter(t => t.member_id === selectedMemberObj.id && (t.category?.toLowerCase().includes('ration') || t.category?.toLowerCase().includes('staff') || t.category?.toLowerCase().includes('grocer'))).reduce((s, t) => s + Number(t.amount || 0), 0);
+              const totalOthersKharch = transactions.filter(t => t.member_id === selectedMemberObj.id && !t.category?.toLowerCase().includes('ration') && !t.category?.toLowerCase().includes('staff') && !t.category?.toLowerCase().includes('grocer') && t.type === 'expense').reduce((s, t) => s + Number(t.amount || 0), 0);
+              
+              // Total Outflows funded from rent this month
+              const totalExpensesFromRent = totalRationStaffKharch + totalOthersKharch;
+              // Remaining Cash in Hand from this rent
+              const cashInHandFromRent = Math.max(0, totalRent - memberDivertedOut) + memberDivertedIn - Math.min(totalRent, totalExpensesFromRent);
 
-              <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                <span className="text-[10px] text-slate-400 block">🏦 FD / RD Jama</span>
-                <span className="font-mono font-black text-blue-400 text-sm">
-                  ₹{Math.round(assets.filter(a => (a.member_id === selectedMemberObj.id || a.joint_member_ids?.includes(selectedMemberObj.id)) && (a.asset_subtype === 'fd' || a.asset_subtype === 'rd' || a.asset_subtype === 'sip')).reduce((s, a) => s + Number(a.value || 0), 0)).toLocaleString('en-IN')}
-                </span>
-                <span className="text-[9px] text-blue-300 block mt-0.5">Bachat & Investments</span>
-              </div>
+              return (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 border-t border-slate-800 text-xs">
+                    <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                      <span className="text-[10px] text-slate-400 block">📥 Aaya Hua Kiraya</span>
+                      <span className="font-mono font-black text-emerald-400 text-sm">
+                        +₹{Math.round(totalRent).toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-[9px] text-slate-500 block mt-0.5">{memberRentalProperties.length} Properties</span>
+                    </div>
 
-              <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                <span className="text-[10px] text-slate-400 block">🛒 Ration & Staff Kharch</span>
-                <span className="font-mono font-black text-amber-400 text-sm">
-                  -₹{Math.round(transactions.filter(t => t.member_id === selectedMemberObj.id && (t.category?.toLowerCase().includes('ration') || t.category?.toLowerCase().includes('staff') || t.category?.toLowerCase().includes('grocer'))).reduce((s, t) => s + Number(t.amount || 0), 0)).toLocaleString('en-IN')}
-                </span>
-                <span className="text-[9px] text-amber-300 block mt-0.5">Gharelu Kharcha</span>
-              </div>
+                    <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                      <span className="text-[10px] text-slate-400 block">🏦 FD / RD Jama</span>
+                      <span className="font-mono font-black text-blue-400 text-sm">
+                        ₹{Math.round(totalFDRD).toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-[9px] text-blue-300 block mt-0.5">Bachat & Investments</span>
+                    </div>
 
-              <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
-                <span className="text-[10px] text-slate-400 block">💰 Net Bacha Kiraya</span>
-                <span className="font-mono font-black text-emerald-300 text-sm">
-                  ₹{Math.round(memberNetMonthlyRent).toLocaleString('en-IN')} / mo
-                </span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">In Hand Balance</span>
-              </div>
-            </div>
+                    <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                      <span className="text-[10px] text-slate-400 block">🛒 Ration & Staff Kharch</span>
+                      <span className="font-mono font-black text-amber-400 text-sm">
+                        -₹{Math.round(totalRationStaffKharch).toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-[9px] text-amber-300 block mt-0.5">Ration + Vetan</span>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                      <span className="text-[10px] text-slate-400 block">⚡ Anya Kharcha</span>
+                      <span className="font-mono font-black text-rose-400 text-sm">
+                        -₹{Math.round(totalOthersKharch).toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-[9px] text-rose-300 block mt-0.5">Bijli, Bills, Anya</span>
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1 p-2.5 bg-emerald-950/40 rounded-xl border border-emerald-500/30">
+                      <span className="text-[10px] text-emerald-300 font-bold block">💰 Cash in Hand</span>
+                      <span className="font-mono font-black text-emerald-300 text-base">
+                        ₹{Math.round(cashInHandFromRent).toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-[9px] text-emerald-400/90 block mt-0.5 font-bold">Bacha Hua Balance</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -1170,6 +1265,81 @@ export default function WealthPage() {
             </div>
 
             <form onSubmit={handleSaveDepositSubmit} className="space-y-3.5">
+              {/* Old vs New Account Switcher */}
+              <div className="p-2.5 bg-paper-dim rounded-2xl border border-paper-dim flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-ink block">Yeh Khata Naya Hai Ya Puraana?</span>
+                  <span className="text-[10px] text-ink-muted block">Puraana hai to pehle se jama balance add kar sakte hain</span>
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setDepositIsOld('new')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      depositIsOld === 'new'
+                        ? 'bg-emerald-700 text-paper shadow-sm'
+                        : 'bg-paper text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    🆕 Nayi Shuruat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDepositIsOld('old')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      depositIsOld === 'old'
+                        ? 'bg-amber-600 text-paper shadow-sm'
+                        : 'bg-paper text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    📜 Puraani Chal Rahi
+                  </button>
+                </div>
+              </div>
+
+              {/* If Old Account: Opening Balance and Start Date Inputs */}
+              {depositIsOld === 'old' && (
+                <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 space-y-2.5">
+                  <span className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                    📜 Puraane Khate Ka Pichla Hisab (Opening Balance):
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div>
+                      <label className="text-[10px] font-bold text-amber-900 uppercase block mb-0.5">Pehle Se Kitna Jama Hai? (₹)</label>
+                      <input
+                        type="number"
+                        value={depositPrevBalance}
+                        onChange={(e) => setDepositPrevBalance(e.target.value)}
+                        placeholder="e.g. 150000"
+                        className="w-full p-2 bg-paper border border-amber-300 rounded-xl text-xs font-mono font-bold text-amber-900"
+                        required={depositIsOld === 'old'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-amber-900 uppercase block mb-0.5">Khata Shuru Ki Taarikh</label>
+                      <input
+                        type="date"
+                        value={depositStartDateVal}
+                        onChange={(e) => setDepositStartDateVal(e.target.value)}
+                        className="w-full p-2 bg-paper border border-amber-300 rounded-xl text-xs font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-amber-900 uppercase block mb-0.5">Maturity Par Expected Rashi (₹)</label>
+                      <input
+                        type="number"
+                        value={depositExpectedMaturityAmount}
+                        onChange={(e) => setDepositExpectedMaturityAmount(e.target.value)}
+                        placeholder="e.g. 250000"
+                        className="w-full p-2 bg-paper border border-amber-300 rounded-xl text-xs font-mono font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Type Switcher: FD vs RD vs SIP */}
               <div>
                 <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
@@ -1436,6 +1606,36 @@ export default function WealthPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {quickKharchaType === 'others' && (
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Kharcha Category</label>
+                  <select
+                    value={quickOthersCategory}
+                    onChange={(e) => setQuickOthersCategory(e.target.value)}
+                    className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold text-ink"
+                  >
+                    <option value="Bijli / Maintenance Bill">⚡ Bijli & Property Maintenance Bill</option>
+                    <option value="Dawa / Hospital Bill">💊 Dawa & Health / Doctor Bill</option>
+                    <option value="Bachon Ki Padhai / Fees">🎒 Bachon Ki Padhai & School Fees</option>
+                    <option value="Gadi Petrol / Diesel">🚗 Gaadi Petrol / Diesel / Service</option>
+                    <option value="Anya Gharelu Kharcha">📦 Anya Gharelu Kharcha</option>
+                  </select>
+                </div>
+              )}
+
+              {quickKharchaType === 'others' && (
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Vivran / Notes</label>
+                  <input
+                    type="text"
+                    value={quickKharchaNote}
+                    onChange={(e) => setQuickKharchaNote(e.target.value)}
+                    placeholder="e.g. Bijli bill bhara"
+                    className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold"
+                  />
                 </div>
               )}
 
