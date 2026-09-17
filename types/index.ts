@@ -1301,6 +1301,11 @@ export interface KitchenDailyOrder {
   total_amount: number;
   payment_status: 'paid' | 'pending_cod' | 'khata';
   source?: 'whatsapp' | 'call_walkin' | 'tiffin_subscription' | 'other';
+  order_type?: 'delivery' | 'pickup';
+  subtotal?: number;
+  gst_amount?: number;
+  delivery_charge?: number;
+  special_notes?: string;
   notes?: string;
 }
 
@@ -1335,6 +1340,12 @@ export interface KitchenBusinessProfile {
   upi_id?: string;
   address_city: string;
   fssai_number?: string;
+  enable_gst?: boolean;
+  gst_percentage?: number; // e.g. 5 for 5% food GST or 0
+  default_delivery_charge?: number; // e.g. 30
+  pickup_available?: boolean;
+  delivery_available?: boolean;
+  image_menu_url?: string;
   recipes_bom: KitchenBOMRecipe[];
   menu_items: KitchenMenuItem[];
   tiffin_subscribers: KitchenCustomerTiffin[];

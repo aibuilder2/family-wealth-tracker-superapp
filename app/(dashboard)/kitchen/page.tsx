@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import React, { useState, useMemo } from 'react';
 import { useFamilyStore } from '@/lib/store/familyStore';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -29,7 +31,13 @@ import {
   Flame,
   Check,
   CreditCard,
-  Edit2
+  Edit2,
+  ExternalLink,
+  Copy,
+  Camera,
+  ShoppingBag as ShoppingBagIcon,
+  Bike,
+  Store
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -90,6 +98,18 @@ export default function KitchenBusinessPage() {
   const [isNewExpenseOpen, setIsNewExpenseOpen] = useState(false);
   const [isDrawingOpen, setIsDrawingOpen] = useState(false);
   const [menuCopied, setMenuCopied] = useState(false);
+  const [digitalLinkCopied, setDigitalLinkCopied] = useState(false);
+  const [isPOSCartOpen, setIsPOSCartOpen] = useState(false);
+  const [isPhotoScannerOpen, setIsPhotoScannerOpen] = useState(false);
+  const [posCart, setPosCart] = useState<{ [itemId: string]: number }>({});
+  const [posDeliveryType, setPosDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
+  const [posCustomerName, setPosCustomerName] = useState('');
+  const [posCustomerPhone, setPosCustomerPhone] = useState('');
+  const [posAddress, setPosAddress] = useState('');
+  const [posNotes, setPosNotes] = useState('');
+  const [posApplyGst, setPosApplyGst] = useState(false);
+  const [posGstPercent, setPosGstPercent] = useState(5);
+  const [posPaymentMode, setPosPaymentMode] = useState<'paid' | 'pending_cod' | 'khata'>('paid');
 
   // New Kitchen Form State
   const [kitchenName, setKitchenName] = useState('');
@@ -528,6 +548,90 @@ export default function KitchenBusinessPage() {
     return text;
   };
 
+  const handleCopyDigitalMenuLink = () => {
+    if (!activeKitchen) return;
+    const url = typeof window !== 'undefined'
+      ? `${window.location.origin}/menu?k=${activeKitchen.id}`
+      : `/menu?k=${activeKitchen.id}`;
+    navigator.clipboard.writeText(url);
+    setDigitalLinkCopied(true);
+    setTimeout(() => setDigitalLinkCopied(false), 2500);
+  };
+
+  const handlePOSAddToCart = (itemId: string) => {
+    setPosCart(prev => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
+  };
+
+  const handlePOSDecreaseQty = (itemId: string) => {
+    setPosCart(prev => {
+      const current = prev[itemId] || 0;
+      if (current <= 1) {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      }
+      return { ...prev, [itemId]: current - 1 };
+    });
+  };
+
+  const handlePOSSubmitOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeKitchen) return;
+    const selectedEntries = Object.entries(posCart).filter(([_, qty]) => qty > 0);
+    if (selectedEntries.length === 0) {
+      alert('Kripya kam se kam 1 item chunein.');
+      return;
+    }
+    if (!posCustomerName.trim()) {
+      alert('Grahak ka naam likhna zaroori hai.');
+      return;
+    }
+
+    const itemsSummary = selectedEntries.map(([id, qty]) => {
+      const item = (activeKitchen.menu_items || []).find(m => m.id === id);
+      return `${qty}x ${item ? item.item_name : 'Item'}`;
+    }).join(', ');
+
+    const subtotal = selectedEntries.reduce((sum, [id, qty]) => {
+      const item = (activeKitchen.menu_items || []).find(m => m.id === id);
+      return sum + (item ? item.price * qty : 0);
+    }, 0);
+
+    const gst = posApplyGst ? Math.round(subtotal * (posGstPercent / 100) * 100) / 100 : 0;
+    const delivery = posDeliveryType === 'delivery' ? (activeKitchen.default_delivery_charge ?? 30) : 0;
+    const grandTotal = subtotal + gst + delivery;
+    const totalPlates = selectedEntries.reduce((sum, [_, q]) => sum + q, 0);
+
+    const orderNum = `ORD-${Date.now().toString().slice(-4)}`;
+
+    addKitchenDailyOrder(activeKitchen.id, {
+      order_number: orderNum,
+      date: todayStr,
+      time_slot: 'lunch',
+      customer_name: posCustomerName.trim(),
+      customer_phone: posCustomerPhone.trim() || undefined,
+      delivery_address: posDeliveryType === 'delivery' ? (posAddress.trim() || undefined) : 'Self Pickup',
+      items_summary: itemsSummary,
+      plate_count: totalPlates,
+      total_amount: grandTotal,
+      payment_status: posPaymentMode,
+      source: 'call_walkin',
+      order_type: posDeliveryType,
+      subtotal: subtotal,
+      gst_amount: gst,
+      delivery_charge: delivery,
+      special_notes: posNotes.trim() || undefined,
+      notes: 'Counter POS order'
+    });
+
+    setIsPOSCartOpen(false);
+    setPosCart({});
+    setPosCustomerName('');
+    setPosCustomerPhone('');
+    setPosAddress('');
+    setPosNotes('');
+    confetti({ particleCount: 50, spread: 70 });
+  };
   const handleCopyMenu = () => {
     const text = generateWhatsAppMenuText();
     navigator.clipboard.writeText(text);
@@ -643,6 +747,33 @@ export default function KitchenBusinessPage() {
                   <DollarSign size={16} />
                   💰 Parivar Me Munafa Bhejein
                 </Button>
+
+                <Button
+                  onClick={() => setIsPOSCartOpen(true)}
+                  className="bg-gold hover:bg-gold/90 text-white flex items-center gap-1.5 shadow-sm text-xs sm:text-sm"
+                >
+                  <ShoppingBagIcon size={16} />
+                  🛒 POS / Counter Quick Order
+                </Button>
+
+                <Link
+                  href={`/menu?k=${activeKitchen?.id}`}
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-blue-500 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                >
+                  <ExternalLink size={15} />
+                  🌐 Live Digital Menu
+                </Link>
+
+                <Button
+                  variant="outline"
+                  onClick={handleCopyDigitalMenuLink}
+                  className="border-paper-dim text-ink text-xs sm:text-sm flex items-center gap-1.5"
+                >
+                  {digitalLinkCopied ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                  {digitalLinkCopied ? 'Link Copied!' : '📋 Menu Link Copy'}
+                </Button>
+
                 <Button
                   variant="outline"
                   onClick={handleOpenWhatsAppMenu}
@@ -1249,6 +1380,14 @@ export default function KitchenBusinessPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsPhotoScannerOpen(true)}
+                    className="border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 text-xs flex items-center gap-1.5 font-semibold"
+                  >
+                    <Camera size={15} />
+                    📸 Photo Se Menu Banayein (AI Vision)
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={handleCopyMenu}
@@ -2276,6 +2415,269 @@ export default function KitchenBusinessPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL: POS MULTI-ITEM QUICK COUNTER ORDER */}
+      {isPOSCartOpen && activeKitchen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-paper border border-paper-dim w-full max-w-2xl rounded-3xl p-5 shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-paper-dim pb-3">
+              <div className="flex items-center gap-2">
+                <ShoppingBagIcon size={20} className="text-gold" />
+                <div>
+                  <h3 className="text-base font-bold text-ink">🛒 POS / Counter Quick Multi-Item Order</h3>
+                  <p className="text-xs text-ink-muted">Call ya counter par sunte-sunte turant 20-30 items me se chunein</p>
+                </div>
+              </div>
+              <button onClick={() => setIsPOSCartOpen(false)} className="text-ink-muted hover:text-ink text-sm">✕</button>
+            </div>
+
+            <form onSubmit={handlePOSSubmitOrder} className="overflow-y-auto space-y-4 text-xs sm:text-sm flex-1 pr-1">
+              {/* Items Picker Grid */}
+              <div className="space-y-2">
+                <div className="font-bold text-ink flex items-center justify-between">
+                  <span>Menu Se Items Chunein (+ / -)</span>
+                  <span className="text-xs text-gold font-normal">
+                    {Object.values(posCart).reduce((a, b) => a + b, 0)} Items Selected
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 bg-paper-sub rounded-2xl border border-paper-dim">
+                  {(activeKitchen.menu_items || []).map(item => {
+                    const qty = posCart[item.id] || 0;
+                    return (
+                      <div key={item.id} className="p-2 bg-paper rounded-xl border border-paper-dim flex items-center justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-ink line-clamp-1">{item.item_name}</div>
+                          <div className="text-[11px] text-emerald-700 font-semibold">₹{item.price}</div>
+                        </div>
+
+                        {qty === 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => handlePOSAddToCart(item.id)}
+                            className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 rounded-lg text-xs font-bold"
+                          >
+                            + Add
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 rounded-lg px-1.5 py-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handlePOSDecreaseQty(item.id)}
+                              className="w-5 h-5 bg-emerald-600 text-white rounded font-bold flex items-center justify-center"
+                            >
+                              -
+                            </button>
+                            <span className="font-bold text-emerald-900 text-xs px-1">{qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => handlePOSAddToCart(item.id)}
+                              className="w-5 h-5 bg-emerald-600 text-white rounded font-bold flex items-center justify-center"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Delivery Type & Details */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPosDeliveryType('delivery')}
+                  className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-semibold ${
+                    posDeliveryType === 'delivery'
+                      ? 'bg-gold/15 border-gold text-gold'
+                      : 'bg-paper-sub border-paper-dim text-ink-muted'
+                  }`}
+                >
+                  <Bike size={16} />
+                  Ghar / Office Delivery (+₹{activeKitchen.default_delivery_charge ?? 30})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPosDeliveryType('pickup')}
+                  className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-semibold ${
+                    posDeliveryType === 'pickup'
+                      ? 'bg-gold/15 border-gold text-gold'
+                      : 'bg-paper-sub border-paper-dim text-ink-muted'
+                  }`}
+                >
+                  <Store size={16} />
+                  Counter Takeaway / Pickup (₹0)
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-ink font-medium mb-1">Grahak Ka Naam *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Ramesh Patel"
+                    value={posCustomerName}
+                    onChange={e => setPosCustomerName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-paper-sub border border-paper-dim text-ink focus:outline-none focus:border-gold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-ink font-medium mb-1">Mobile No.</label>
+                  <input
+                    type="tel"
+                    placeholder="9876543210"
+                    value={posCustomerPhone}
+                    onChange={e => setPosCustomerPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-paper-sub border border-paper-dim text-ink focus:outline-none focus:border-gold"
+                  />
+                </div>
+              </div>
+
+              {posDeliveryType === 'delivery' && (
+                <div>
+                  <label className="block text-ink font-medium mb-1">Delivery Address</label>
+                  <input
+                    type="text"
+                    placeholder="Ghar / Office Pata"
+                    value={posAddress}
+                    onChange={e => setPosAddress(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-paper-sub border border-paper-dim text-ink focus:outline-none focus:border-gold"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-ink font-medium mb-1">Special Cooking Notes</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Kam mirchi, butter tawa roti, jaldi bhejna"
+                  value={posNotes}
+                  onChange={e => setPosNotes(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-paper-sub border border-paper-dim text-ink focus:outline-none focus:border-gold"
+                />
+              </div>
+
+              {/* Tax, Delivery & Payment Status */}
+              <div className="bg-paper-sub p-3 rounded-2xl border border-paper-dim space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={posApplyGst}
+                      onChange={e => setPosApplyGst(e.target.checked)}
+                      className="w-4 h-4 rounded text-gold focus:ring-gold"
+                    />
+                    <span className="font-semibold text-ink">Food GST Lagayein (5%)</span>
+                  </label>
+                  <span className="text-ink font-mono font-medium">
+                    {posApplyGst ? '5% Tax Added' : 'Plain / No Tax (0%)'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-paper-dim">
+                  <div>
+                    <label className="block text-ink-muted text-[11px] mb-1">Payment Status</label>
+                    <select
+                      value={posPaymentMode}
+                      onChange={e => setPosPaymentMode(e.target.value as any)}
+                      className="w-full px-2 py-1.5 rounded-xl bg-paper border border-paper-dim text-xs font-semibold focus:outline-none"
+                    >
+                      <option value="paid">✓ Paid (Chukta)</option>
+                      <option value="pending_cod">⏳ Pending COD</option>
+                      <option value="khata">📝 Khata (Udhar)</option>
+                    </select>
+                  </div>
+                  <div className="text-right flex flex-col justify-end">
+                    <span className="text-[11px] text-ink-muted">Grand Total:</span>
+                    <span className="text-base font-extrabold text-emerald-700">
+                      ₹{(() => {
+                        const sub = Object.entries(posCart).reduce((sum, [id, qty]) => {
+                          const item = (activeKitchen.menu_items || []).find(m => m.id === id);
+                          return sum + (item ? item.price * qty : 0);
+                        }, 0);
+                        const gst = posApplyGst ? sub * 0.05 : 0;
+                        const del = posDeliveryType === 'delivery' ? (activeKitchen.default_delivery_charge ?? 30) : 0;
+                        return (sub + gst + del).toFixed(2);
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-paper-dim">
+                <Button type="button" variant="outline" onClick={() => setIsPOSCartOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                  Order Save & Record Karein
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PHOTO SE DIGITAL MENU BANAYEIN (AI VISION SCANNER) */}
+      {isPhotoScannerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-paper border border-paper-dim w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-paper-dim pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                  <Camera size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-ink">📸 Photo Se Digital Menu Banayein</h3>
+                  <p className="text-xs text-purple-700 font-medium">AI Vision Menu Scanner</p>
+                </div>
+              </div>
+              <button onClick={() => setIsPhotoScannerOpen(false)} className="text-ink-muted hover:text-ink text-sm">✕</button>
+            </div>
+
+            <div className="space-y-3 text-xs sm:text-sm">
+              <div className="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-200 space-y-2 text-ink">
+                <div className="font-bold flex items-center gap-1.5 text-purple-900">
+                  <Sparkles size={16} /> Yeh Feature Kaise Kaam Karta Hai?
+                </div>
+                <p className="text-xs text-purple-800 leading-relaxed">
+                  Aapke dukan ya kitchen ke printed menu card, pamphlet ya board ki photo kheench kar upload karne par, hamara AI automatically:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-xs text-purple-900 font-medium">
+                  <li>Sabhi 20-30 dishes ke naam read kar lega</li>
+                  <li>Unki sahi category (Thali, Sabji, Roti, Nasta) me divide karega</li>
+                  <li>Unki prices aur vivran nikal kar live digital menu me add kar dega!</li>
+                </ul>
+              </div>
+
+              <div className="border-2 border-dashed border-purple-300 rounded-2xl p-6 text-center space-y-2 bg-paper-sub hover:bg-purple-50/30 transition-colors cursor-pointer">
+                <Camera size={32} className="mx-auto text-purple-500" />
+                <div className="font-semibold text-ink text-xs sm:text-sm">
+                  Menu Card Ki Photo Upload Karein
+                </div>
+                <p className="text-[11px] text-ink-muted">
+                  PNG, JPG ya PDF file chunein (Mobile camera se photo le sakte hain)
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => alert('AI Vision Scanner pipeline ready hai. Photo upload processing upcoming update me auto-extract karega!')}
+                  className="border-purple-400 text-purple-700 text-xs mt-1"
+                >
+                  Photo Select Karein
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-paper-dim">
+                <Button type="button" onClick={() => setIsPhotoScannerOpen(false)} className="bg-purple-700 hover:bg-purple-800 text-white font-semibold text-xs">
+                  Theek Hai (Got It)
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
