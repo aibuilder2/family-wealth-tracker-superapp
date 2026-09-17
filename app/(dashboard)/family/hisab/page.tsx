@@ -99,7 +99,19 @@ export default function FamilyMemberHisabPage() {
     const numAmt = Number(settleAmount);
     if (!numAmt || numAmt <= 0 || selectedPartnerId === 'all') return;
 
-    settleMemberLedger(currentUserId, selectedPartnerId, numAmt, settleNote);
+    // Correct Accounting Direction:
+    // If partnerNetBalance > 0, partner owes me (Lena Hai). When settling, Partner pays Me:
+    // from_member_id = selectedPartnerId, to_member_id = currentUserId
+    // If partnerNetBalance <= 0, I owe partner (Dena Hai). When settling, I pay Partner:
+    // from_member_id = currentUserId, to_member_id = selectedPartnerId
+    const isPartnerOwesMe = partnerNetBalance > 0;
+    const payerId = isPartnerOwesMe ? selectedPartnerId : currentUserId;
+    const receiverId = isPartnerOwesMe ? currentUserId : selectedPartnerId;
+    const defaultNote = isPartnerOwesMe
+      ? `${activePartner?.name || 'Sadasya'} ne bharpai kiya`
+      : 'Maine hisab chukaya';
+
+    settleMemberLedger(payerId, receiverId, numAmt, settleNote || defaultNote);
     try { confetti({ particleCount: 70, spread: 60 }); } catch (e) {}
 
     setIsSettleOpen(false);

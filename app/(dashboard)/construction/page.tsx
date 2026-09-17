@@ -25,7 +25,11 @@ export default function ConstructionPage() {
     deleteConstructionMaterial,
     addThekedarContract,
     addThekedarRABill,
-    addLaborHaziraLog
+    addLaborHaziraLog,
+    deleteThekedarContract,
+    deleteThekedarRABill,
+    toggleThekedarRABillPaid,
+    deleteLaborHaziraLog
   } = useFamilyStore();
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>(constructionProjects[0]?.id || '');
@@ -804,9 +808,31 @@ export default function ConstructionPage() {
                         </div>
 
                         {c.bills?.map(b => (
-                          <div key={b.id} className="flex items-center justify-between py-1 border-t border-slate-700/50 text-[11px]">
-                            <span className="text-slate-300">{b.ra_bill_no}: <strong className="text-slate-100">{b.stage_name}</strong></span>
-                            <span className="font-bold text-emerald-400">₹{Number(b.bill_amount).toLocaleString('en-IN')}</span>
+                          <div key={b.id} className="flex items-center justify-between py-1.5 border-t border-slate-700/50 text-[11px] gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => toggleThekedarRABillPaid(activeProject.id, c.id, b.id)}
+                                className={'px-1.5 py-0.5 rounded text-[10px] font-bold ' + (b.is_paid ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40')}
+                                title="Click to toggle Paid / Pending"
+                              >
+                                {b.is_paid ? '✓ Paid' : '⏳ Pending'}
+                              </button>
+                              <span className="text-slate-300">{b.ra_bill_no}: <strong className="text-slate-100">{b.stage_name}</strong></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-emerald-400">₹{Number(b.bill_amount).toLocaleString('en-IN')}</span>
+                              <button
+                                onClick={() => {
+                                  if (confirm('Yeh RA Bill hatayein?')) {
+                                    deleteThekedarRABill(activeProject.id, c.id, b.id);
+                                  }
+                                }}
+                                className="text-slate-500 hover:text-red-400 text-xs"
+                                title="Bill Hatayein"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -853,6 +879,16 @@ export default function ConstructionPage() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-white">{l.date}</span>
+                          <button
+                            onClick={() => {
+                              if (confirm('Is din ka labor hazira log hatayein?')) {
+                                deleteLaborHaziraLog(activeProject.id, l.id);
+                              }
+                            }}
+                            className="text-slate-500 hover:text-red-400 text-xs ml-auto sm:hidden"
+                          >
+                            ✕
+                          </button>
                           {l.supervisor_name && (
                             <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
                               Sup: {l.supervisor_name}

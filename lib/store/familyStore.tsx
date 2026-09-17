@@ -1164,6 +1164,21 @@ interface FamilyContextType {
   recordCropHarvest: (landId: string, harvestData: { yield_quintals: number; rate: number; bonus: number; addToIncome: boolean }) => void;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'family_id'>) => void;
   addVehicleServiceLog: (vehicleId: string, log: Omit<VehicleServiceLog, 'id'>) => void;
+  deleteGoldLoan: (pledgeId: string) => void;
+  deleteFleetVehicle: (vehicleId: string) => void;
+  deleteFleetTrip: (vehicleId: string, tripId: string) => void;
+  deleteAgriLand: (landId: string) => void;
+  deleteAgriExpense: (landId: string, expenseId: string) => void;
+  addStaff: (staff: Omit<HouseholdStaff, 'id' | 'family_id' | 'advance_balance' | 'attendance_this_month'>) => void;
+  deleteStaff: (staffId: string) => void;
+  deleteThekedarContract: (projectId: string, contractId: string) => void;
+  deleteThekedarRABill: (projectId: string, contractId: string, billId: string) => void;
+  toggleThekedarRABillPaid: (projectId: string, contractId: string, billId: string) => void;
+  deleteLaborHaziraLog: (projectId: string, logId: string) => void;
+  deleteFundingSource: (projectId: string, sourceId: string) => void;
+  deleteBusinessFirm: (firmId: string) => void;
+  deleteUdharContact: (contactId: string) => void;
+  deleteEpisodeDoctorVisit: (episodeId: string, visitId: string) => void;
 
   // Computed
   totalWealth: number;
@@ -1500,6 +1515,18 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         if (sbl) setBankLoans(JSON.parse(sbl).filter((b: any) => !isDemoRecord(b.id)));
         const smed = localStorage.getItem(key('medical_episodes'));
         if (smed) setMedicalEpisodes(JSON.parse(smed).filter((e: any) => !isDemoRecord(e.id)));
+        const sst = localStorage.getItem(key('staff'));
+        if (sst) setStaff(JSON.parse(sst).filter((s: any) => !isDemoRecord(s.id)));
+        const sag = localStorage.getItem(key('agri_lands'));
+        if (sag) setAgriculturalLands(JSON.parse(sag).filter((a: any) => !isDemoRecord(a.id)));
+        const sud = localStorage.getItem(key('udhar'));
+        if (sud) setUdharContacts(JSON.parse(sud).filter((u: any) => !isDemoRecord(u.id)));
+        const sml = localStorage.getItem(key('member_ledgers'));
+        if (sml) setMemberLedgers(JSON.parse(sml).filter((m: any) => !isDemoRecord(m.id)));
+        const scs = localStorage.getItem(key('cases'));
+        if (scs) setCourtCases(JSON.parse(scs).filter((c: any) => !isDemoRecord(c.id)));
+        const sveh = localStorage.getItem(key('vehicles'));
+        if (sveh) setVehicles(JSON.parse(sveh).filter((v: any) => !isDemoRecord(v.id)));
         setCurrentUserId(cleanMemId);
         setIsDemoMode(false);
       } catch (e) {}
@@ -1764,20 +1791,33 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const addStaff = (staffData: Omit<HouseholdStaff, 'id' | 'family_id' | 'advance_balance' | 'attendance_this_month'>) => {
+    const newStaff: HouseholdStaff = {
+      ...staffData,
+      id: 'st-' + Date.now(),
+      family_id: family.id,
+      advance_balance: 0,
+      attendance_this_month: {}
+    };
+    saveStaff(prev => [newStaff, ...prev]);
+  };
+
+  const deleteStaff = (staffId: string) => {
+    saveStaff(prev => prev.filter(s => s.id !== staffId));
+  };
+
   const markStaffAttendance = (staffId: string, day: number, status: 'present' | 'absent' | 'half_day' | 'leave') => {
-    const updated = staff.map(st => {
+    saveStaff(prev => prev.map(st => {
       if (st.id === staffId) {
         const att = { ...(st.attendance_this_month || {}), [day]: status };
         return { ...st, attendance_this_month: att };
       }
       return st;
-    });
-    setStaff(updated);
-    try { localStorage.setItem(getStorageKey('staff'), JSON.stringify(updated)); } catch (e) {}
+    }));
   };
 
   const addStaffPayment = (staffId: string, amount: number, type: 'salary' | 'advance' | 'bonus') => {
-    setStaff(staff.map(st => {
+    saveStaff(prev => prev.map(st => {
       if (st.id === staffId) {
         if (type === 'advance') {
           return { ...st, advance_balance: st.advance_balance + amount };
@@ -1789,6 +1829,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       return st;
     }));
 
+    const stObj = staff.find(s => s.id === staffId);
     addTransaction({
       member_id: currentUserId,
       type: 'expense',
@@ -1797,7 +1838,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       category_type: 'main_ghar',
       mode: 'online',
       scope: 'ghar',
-      note: 'Staff payment (' + type + ')',
+      note: (stObj?.name || 'Staff') + ' Payment (' + type.toUpperCase() + ')',
       txn_date: new Date().toISOString().split('T')[0],
     });
   };
@@ -1894,11 +1935,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       id: 'ag-' + Date.now(),
       family_id: family.id
     };
-    setAgriculturalLands([...agriculturalLands, newLand]);
+    saveAgriculturalLands(prev => [...prev, newLand]);
+  };
+
+  const deleteAgriLand = (landId: string) => {
+    saveAgriculturalLands(prev => prev.filter(l => l.id !== landId));
   };
 
   const addAgriExpense = (landId: string, expense: Omit<AgricultureExpense, 'id'>) => {
-    setAgriculturalLands(agriculturalLands.map(l => {
+    saveAgriculturalLands(prev => prev.map(l => {
       if (l.id === landId && l.active_cycle) {
         const newExp: AgricultureExpense = { ...expense, id: 'ae-' + Date.now() };
         const updatedExpenses = [...(l.active_cycle.expenses || []), newExp];
@@ -1918,8 +1963,28 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const deleteAgriExpense = (landId: string, expenseId: string) => {
+    saveAgriculturalLands(prev => prev.map(l => {
+      if (l.id === landId && l.active_cycle) {
+        const updatedExpenses = (l.active_cycle.expenses || []).filter(e => e.id !== expenseId);
+        const totalExp = updatedExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+        const net = (l.active_cycle.total_income || 0) - totalExp;
+        return {
+          ...l,
+          active_cycle: {
+            ...l.active_cycle,
+            expenses: updatedExpenses,
+            total_expense: totalExp,
+            net_profit: net
+          }
+        };
+      }
+      return l;
+    }));
+  };
+
   const recordCropHarvest = (landId: string, harvestData: { yield_quintals: number; rate: number; bonus: number; addToIncome: boolean }) => {
-    setAgriculturalLands(agriculturalLands.map(l => {
+    saveAgriculturalLands(prev => prev.map(l => {
       if (l.id === landId && l.active_cycle) {
         const cropIncome = harvestData.yield_quintals * harvestData.rate;
         const totalInc = cropIncome + harvestData.bonus;
@@ -2004,7 +2069,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       created_at: new Date().toISOString().split('T')[0]
     };
 
-    setUdharContacts([newContact, ...udharContacts]);
+    saveUdharContacts(prev => [newContact, ...prev]);
 
     // Record initial transaction
     addTransaction({
@@ -2021,8 +2086,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const deleteUdharContact = (contactId: string) => {
+    saveUdharContacts(prev => prev.filter(c => c.id !== contactId));
+  };
+
   const recordUdharSettlement = (contactId: string, settlement: { amount: number; mode: UdharSettlementMode; note: string }) => {
-    setUdharContacts(udharContacts.map(c => {
+    saveUdharContacts(prev => prev.map(c => {
       if (c.id === contactId) {
         const newSettlement: UdharSettlement = {
           id: 'us-' + Date.now(),
@@ -2040,7 +2109,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           ...c,
           remaining_balance: newBal,
           status: newStatus,
-          settlements: [newSettlement, ...c.settlements]
+          settlements: [newSettlement, ...(c.settlements || [])]
         };
       }
       return c;
@@ -2136,7 +2205,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Pro-rate new EMI across participating members based on their share_percentage
-      const newSplits = l.member_splits.map(split => ({
+      const newSplits = (l.member_splits || []).map(split => ({
         ...split,
         monthly_emi_share: Math.round((newEmi * split.share_percentage) / 100)
       }));
@@ -2279,6 +2348,16 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const deleteEpisodeDoctorVisit = (episodeId: string, visitId: string) => {
+    saveMedicalEpisodes(prev => prev.map(ep => {
+      if (ep.id !== episodeId) return ep;
+      return {
+        ...ep,
+        doctor_consultations: (ep.doctor_consultations || []).filter(v => v.id !== visitId)
+      };
+    }));
+  };
+
   const addEpisodeDoctorVisit = (episodeId: string, visit: Omit<MedicalEpisodeDoctorVisit, 'id'>) => {
     const newVisit: MedicalEpisodeDoctorVisit = {
       ...visit,
@@ -2321,11 +2400,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       total_drawings_paid: 0,
       drawings: []
     };
-    setBusinessFirms([...businessFirms, newFirm]);
+    saveBusinessFirms(prev => [...prev, newFirm]);
+  };
+
+  const deleteBusinessFirm = (firmId: string) => {
+    saveBusinessFirms(prev => prev.filter(f => f.id !== firmId));
   };
 
   const recordFirmDrawingToFamily = (firmId: string, drawing: { amount: number; drawing_type: 'partner_salary' | 'profit_dividend' | 'director_remuneration'; credited_to_member_id: string; note: string }) => {
-    setBusinessFirms(businessFirms.map(f => {
+    saveBusinessFirms(prev => prev.map(f => {
       if (f.id === firmId) {
         const newD: FirmDrawing = {
           id: 'fd-' + Date.now(),
@@ -2336,7 +2419,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           credited_to_member_id: drawing.credited_to_member_id,
           note: drawing.note
         };
-        const updatedDrawings = [newD, ...f.drawings];
+        const updatedDrawings = [newD, ...(f.drawings || [])];
         const newDrawingsTotal = f.total_drawings_paid + drawing.amount;
         const newBalance = Math.max(0, f.current_firm_balance - drawing.amount);
         return {
@@ -2377,14 +2460,18 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       lifetime_net_profit: 0,
       trips: []
     };
-    setFleetVehicles([newVeh, ...fleetVehicles]);
+    saveFleetVehicles(prev => [newVeh, ...prev]);
+  };
+
+  const deleteFleetVehicle = (vehicleId: string) => {
+    saveFleetVehicles(prev => prev.filter(v => v.id !== vehicleId));
   };
 
   const addFleetTrip = (vehicleId: string, tData: Omit<FleetTrip, 'id' | 'fleet_vehicle_id' | 'total_trip_expense' | 'net_trip_profit'>) => {
     const totalExp = Number(tData.diesel_cost || 0) + Number(tData.toll_fastag_cost || 0) + Number(tData.driver_bhata || 0) + Number(tData.conductor_bhata || 0) + Number(tData.chalan_cost || 0) + Number(tData.other_repair_cost || 0);
     const netProf = Number(tData.gross_revenue || 0) - totalExp;
 
-    setFleetVehicles(fleetVehicles.map(v => {
+    saveFleetVehicles(prev => prev.map(v => {
       if (v.id === vehicleId) {
         const newTrip: FleetTrip = {
           ...tData,
@@ -2393,7 +2480,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           total_trip_expense: totalExp,
           net_trip_profit: netProf
         };
-        const updatedTrips = [newTrip, ...v.trips];
+        const updatedTrips = [newTrip, ...(v.trips || [])];
         const lifeRev = v.lifetime_revenue + tData.gross_revenue;
         const lifeExp = v.lifetime_expenses + totalExp;
         return {
@@ -2407,7 +2494,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       return v;
     }));
 
-    // Record net trip revenue in family transactions
+    // Record gross revenue as business income
     addTransaction({
       member_id: currentUserId,
       type: 'income',
@@ -2419,6 +2506,42 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       note: 'Transport Business (' + tData.trip_title + ')',
       txn_date: tData.start_date || new Date().toISOString().split('T')[0]
     });
+
+    // Record operating trip expenses (diesel, toll, bhata) in family expense ledger to balance cashflow
+    if (totalExp > 0) {
+      addTransaction({
+        member_id: currentUserId,
+        type: 'expense',
+        amount: totalExp,
+        category: 'Vehicle Fuel & Maintenance',
+        category_type: 'main_ghar',
+        mode: 'online',
+        scope: 'ghar',
+        note: 'Trip Expenses: Diesel, Toll, Bhata (' + tData.trip_title + ')',
+        txn_date: tData.start_date || new Date().toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const deleteFleetTrip = (vehicleId: string, tripId: string) => {
+    saveFleetVehicles(prev => prev.map(v => {
+      if (v.id === vehicleId) {
+        const targetTrip = (v.trips || []).find(t => t.id === tripId);
+        const tripRev = targetTrip ? Number(targetTrip.gross_revenue || 0) : 0;
+        const tripExp = targetTrip ? Number(targetTrip.total_trip_expense || 0) : 0;
+        const updatedTrips = (v.trips || []).filter(t => t.id !== tripId);
+        const lifeRev = Math.max(0, v.lifetime_revenue - tripRev);
+        const lifeExp = Math.max(0, v.lifetime_expenses - tripExp);
+        return {
+          ...v,
+          trips: updatedTrips,
+          lifetime_revenue: lifeRev,
+          lifetime_expenses: lifeExp,
+          lifetime_net_profit: lifeRev - lifeExp
+        };
+      }
+      return v;
+    }));
   };
 
   const recordLawyerFeePayment = (caseId: string, payment: { amount: number; payment_type: LawyerPaymentType; note: string }) => {
@@ -2479,6 +2602,66 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(getStorageKey('gold_loans'), JSON.stringify(cleanList));
       localStorage.setItem(getStorageKey('has_initialized'), 'true');
     } catch (e) {}
+  };
+
+  const saveFleetVehicles = (updater: CommercialFleetVehicle[] | ((prev: CommercialFleetVehicle[]) => CommercialFleetVehicle[])) => {
+    setFleetVehicles(prev => {
+      const currentList = Array.isArray(updater) ? updater : updater(prev);
+      const cleanList = currentList.filter((v: any) => !isDemoRecord(v.id));
+      try {
+        localStorage.setItem(getStorageKey('fleet'), JSON.stringify(cleanList));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return cleanList;
+    });
+  };
+
+  const saveAgriculturalLands = (updater: AgriculturalLand[] | ((prev: AgriculturalLand[]) => AgriculturalLand[])) => {
+    setAgriculturalLands(prev => {
+      const currentList = Array.isArray(updater) ? updater : updater(prev);
+      const cleanList = currentList.filter((l: any) => !isDemoRecord(l.id));
+      try {
+        localStorage.setItem(getStorageKey('agri_lands'), JSON.stringify(cleanList));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return cleanList;
+    });
+  };
+
+  const saveBusinessFirms = (updater: BusinessFirm[] | ((prev: BusinessFirm[]) => BusinessFirm[])) => {
+    setBusinessFirms(prev => {
+      const currentList = Array.isArray(updater) ? updater : updater(prev);
+      const cleanList = currentList.filter((f: any) => !isDemoRecord(f.id));
+      try {
+        localStorage.setItem(getStorageKey('firms'), JSON.stringify(cleanList));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return cleanList;
+    });
+  };
+
+  const saveStaff = (updater: HouseholdStaff[] | ((prev: HouseholdStaff[]) => HouseholdStaff[])) => {
+    setStaff(prev => {
+      const currentList = Array.isArray(updater) ? updater : updater(prev);
+      const cleanList = currentList.filter((s: any) => !isDemoRecord(s.id));
+      try {
+        localStorage.setItem(getStorageKey('staff'), JSON.stringify(cleanList));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return cleanList;
+    });
+  };
+
+  const saveUdharContacts = (updater: UdharContact[] | ((prev: UdharContact[]) => UdharContact[])) => {
+    setUdharContacts(prev => {
+      const currentList = Array.isArray(updater) ? updater : updater(prev);
+      const cleanList = currentList.filter((u: any) => !isDemoRecord(u.id));
+      try {
+        localStorage.setItem(getStorageKey('udhar'), JSON.stringify(cleanList));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return cleanList;
+    });
   };
 
   const addRentalProperty = (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>): RentalProperty => {
@@ -3080,7 +3263,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     if (target) {
       addTransaction({
         member_id: currentUserId,
-        type: 'udhar_taken',
+        type: 'income',
         amount: target.loan_amount_given,
         category: 'Gold Loan Principal Repaid',
         category_type: 'main_ghar',
@@ -3090,6 +3273,11 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         txn_date: new Date().toISOString().split('T')[0]
       });
     }
+  };
+
+  const deleteGoldLoan = (pledgeId: string) => {
+    const updated = goldLoans.filter(p => p.id !== pledgeId);
+    saveGoldLoans(updated);
   };
 
   const updateGoldLoanStatus = (pledgeId: string, status: GoldLoanStatus) => {
@@ -3356,6 +3544,20 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const deleteFundingSource = (projectId: string, sourceId: string) => {
+    setBusinessSetupProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          funding_sources: (p.funding_sources || []).filter(s => s.id !== sourceId)
+        };
+      });
+      try { localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
   const recordProjectRepayment = (projectId: string, repayment: Omit<ProjectRepayment, 'id' | 'project_id'>) => {
     const newRepay: ProjectRepayment = {
       ...repayment,
@@ -3540,6 +3742,69 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const deleteThekedarContract = (projectId: string, contractId: string) => {
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          contractors: (p.contractors || []).filter(c => c.id !== contractId)
+        };
+      });
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const deleteThekedarRABill = (projectId: string, contractId: string, billId: string) => {
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          contractors: (p.contractors || []).map(c => {
+            if (c.id !== contractId) return c;
+            const updatedBills = (c.bills || []).filter(b => b.id !== billId);
+            const updatedPaid = updatedBills.filter(b => b.is_paid).reduce((sum, b) => sum + Number(b.bill_amount || 0), 0);
+            return {
+              ...c,
+              bills: updatedBills,
+              total_paid: updatedPaid
+            };
+          })
+        };
+      });
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const toggleThekedarRABillPaid = (projectId: string, contractId: string, billId: string) => {
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          contractors: (p.contractors || []).map(c => {
+            if (c.id !== contractId) return c;
+            const updatedBills = (c.bills || []).map(b => {
+              if (b.id !== billId) return b;
+              return { ...b, is_paid: !b.is_paid };
+            });
+            const updatedPaid = updatedBills.filter(b => b.is_paid).reduce((sum, b) => sum + Number(b.bill_amount || 0), 0);
+            return {
+              ...c,
+              bills: updatedBills,
+              total_paid: updatedPaid
+            };
+          })
+        };
+      });
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
   const addLaborHaziraLog = (projectId: string, log: Omit<LaborHaziraRecord, 'id' | 'project_id'>) => {
     const newLog: LaborHaziraRecord = {
       ...log,
@@ -3552,6 +3817,20 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         return {
           ...p,
           daily_labor_logs: [newLog, ...(p.daily_labor_logs || [])]
+        };
+      });
+      try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const deleteLaborHaziraLog = (projectId: string, logId: string) => {
+    setConstructionProjects(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          daily_labor_logs: (p.daily_labor_logs || []).filter(l => l.id !== logId)
         };
       });
       try { localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify(updated.filter(p => !isDemoRecord(p.id)))); } catch (e) {}
@@ -3695,8 +3974,23 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         updateMember,
         deleteMember,
         updateMemberPermissions,
+        addStaff,
+        deleteStaff,
         markStaffAttendance,
         addStaffPayment,
+        deleteGoldLoan,
+        deleteFleetVehicle,
+        deleteFleetTrip,
+        deleteAgriLand,
+        deleteAgriExpense,
+        deleteThekedarContract,
+        deleteThekedarRABill,
+        toggleThekedarRABillPaid,
+        deleteLaborHaziraLog,
+        deleteFundingSource,
+        deleteBusinessFirm,
+        deleteUdharContact,
+        deleteEpisodeDoctorVisit,
         addCourtCase,
         addCourtHearing,
         toggleMedicalVerification,

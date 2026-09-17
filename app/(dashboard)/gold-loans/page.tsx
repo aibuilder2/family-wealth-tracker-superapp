@@ -31,7 +31,7 @@ import {
 import { GoldLoanPledge, GoldPurityKarat, GoldLoanStatus } from '@/types';
 
 export default function GoldLoansPage() {
-  const { goldLoans, addGoldLoan, recordGoldInterestPayment, settleAndReleaseGoldLoan, updateGoldLoanStatus } = useFamilyStore();
+  const { goldLoans, addGoldLoan, recordGoldInterestPayment, settleAndReleaseGoldLoan, updateGoldLoanStatus, deleteGoldLoan } = useFamilyStore();
 
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'settled' | 'overdue'>('all');
   const [searchTerm, setSearchTerm] = useState('');

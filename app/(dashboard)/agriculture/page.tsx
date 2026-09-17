@@ -9,7 +9,7 @@ import { Sprout, Plus, TrendingUp, HandCoins, Phone, ShieldCheck, Check, Sparkle
 import confetti from 'canvas-confetti';
 
 export default function AgriculturePage() {
-  const { agriculturalLands, addAgriLand, addAgriExpense, recordCropHarvest } = useFamilyStore();
+  const { agriculturalLands, addAgriLand, addAgriExpense, recordCropHarvest, deleteAgriLand, deleteAgriExpense } = useFamilyStore();
   const [selectedLandId, setSelectedLandId] = useState<string>(agriculturalLands[0]?.id || '');
   
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
@@ -117,7 +117,7 @@ export default function AgriculturePage() {
         ))}
       </div>
 
-      {activeLand && (
+      {activeLand ? (
         <div className="px-4 space-y-3">
           <div className="p-4 bg-paper rounded-2xl border border-paper-dim shadow-sm space-y-3">
             <div className="flex justify-between items-start">
@@ -127,9 +127,23 @@ export default function AgriculturePage() {
                 </span>
                 <h3 className="text-sm font-bold text-ink font-serif mt-0.5">{activeLand.title}</h3>
               </div>
-              <span className={'text-[10px] font-bold px-2 py-0.5 rounded uppercase ' + (activeLand.farming_type === 'khud' ? 'bg-green/10 text-green' : 'bg-gold/10 text-gold')}>
-                {activeLand.farming_type === 'khud' ? '🌾 Khud ki Kheti' : activeLand.farming_type === 'theka' ? '🤝 Theka' : '⚖️ Adhiya'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={'text-[10px] font-bold px-2 py-0.5 rounded uppercase ' + (activeLand.farming_type === 'khud' ? 'bg-green/10 text-green' : 'bg-gold/10 text-gold')}>
+                  {activeLand.farming_type === 'khud' ? '🌾 Khud ki Kheti' : activeLand.farming_type === 'theka' ? '🤝 Theka' : '⚖️ Adhiya'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(activeLand.title + ' ko hatayein?')) {
+                      deleteAgriLand(activeLand.id);
+                    }
+                  }}
+                  className="text-[10px] text-ink-muted hover:text-coral"
+                  title="Zameen hatayein"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-paper-dim text-xs">
@@ -224,6 +238,17 @@ export default function AgriculturePage() {
               ) : null}
             </div>
           )}
+        </div>
+      ) : (
+        <div className="mx-4 p-8 text-center bg-paper rounded-2xl border border-paper-dim shadow-sm space-y-3">
+          <Sprout size={36} className="mx-auto text-ink-muted opacity-50" />
+          <h3 className="text-sm font-bold text-ink">Koi Krishi Bhoomi / Kheti Record Nahi Hai</h3>
+          <p className="text-xs text-ink-muted max-w-sm mx-auto">
+            Apni kheti ki zameen, theka/adhiya hisab aur fasal mandi bikri ko yahan jodein.
+          </p>
+          <Button onClick={() => setIsAddLandOpen(true)} size="sm" className="bg-navy text-paper">
+            + Nayi Zameen / Khet Jodein
+          </Button>
         </div>
       )}
 

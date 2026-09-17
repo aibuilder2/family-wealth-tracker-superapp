@@ -10,7 +10,7 @@ import confetti from 'canvas-confetti';
 import { CommercialVehicleType, FleetBusinessType } from '@/types';
 
 export default function CommercialFleetPage() {
-  const { fleetVehicles, addFleetVehicle, addFleetTrip } = useFamilyStore();
+  const { fleetVehicles, addFleetVehicle, addFleetTrip, deleteFleetVehicle, deleteFleetTrip } = useFamilyStore();
   const [selectedFleetId, setSelectedFleetId] = useState<string>(fleetVehicles[0]?.id || '');
   const [activeTab, setActiveTab] = useState<'trips' | 'roi' | 'docs'>('trips');
 
@@ -186,6 +186,19 @@ export default function CommercialFleetPage() {
           {/* Active Vehicle Info Header */}
           <div className="p-4 bg-paper rounded-2xl border border-paper-dim shadow-sm space-y-2">
             <div className="flex justify-between items-start">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (confirm('Kya aap is commercial vehicle aur iske sabhi trips ko hatana chahte hain?')) {
+                    deleteFleetVehicle(activeVeh.id);
+                  }
+                }}
+                className="text-xs text-ink-muted hover:text-coral p-1 rounded-lg transition-colors"
+                title="Gaadi Hatayein"
+              >
+                ✕ Hatayein
+              </button>
+            </div>
               <div>
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-gold/10 text-gold">
                   {activeVeh.business_model.replace('_', ' ')}
