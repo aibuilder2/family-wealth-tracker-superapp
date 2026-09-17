@@ -1111,6 +1111,8 @@ interface FamilyContextType {
 
   addFleetVehicle: (vehicle: Omit<CommercialFleetVehicle, 'id' | 'family_id' | 'trips' | 'lifetime_revenue' | 'lifetime_expenses' | 'lifetime_net_profit' | 'total_acquisition_cost' | 'current_depreciated_value'>) => void;
   addFleetTrip: (vehicleId: string, trip: Omit<FleetTrip, 'id' | 'fleet_vehicle_id' | 'total_trip_expense' | 'net_trip_profit'>) => void;
+  recordFleetDrawingToFamily: (vehicleId: string, drawing: { amount: number; credited_to_member_id: string; note: string }) => void;
+  recordAgriDrawingToFamily: (landId: string, drawing: { amount: number; credited_to_member_id: string; note: string }) => void;
   recordLawyerFeePayment: (caseId: string, payment: { amount: number; payment_type: LawyerPaymentType; note: string }) => void;
 
   addUdharContact: (udhar: Omit<UdharContact, 'id' | 'family_id' | 'settlements' | 'created_at'>) => void;
@@ -2433,18 +2435,37 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }));
 
     const firmObj = businessFirms.find(f => f.id === firmId);
-    // Add to personal family income
-    addTransaction({
-      member_id: drawing.credited_to_member_id || currentUserId,
-      type: 'income',
-      amount: drawing.amount,
-      category: 'Business Profit / Drawings',
-      category_type: 'main_ghar',
-      mode: 'online',
-      scope: 'ghar',
-      note: (firmObj?.firm_name || 'Firm') + ' se Profit / Salary Payout (' + drawing.note + ')',
-      txn_date: new Date().toISOString().split('T')[0]
-    });
+    const firmName = firmObj?.firm_name || 'Firm';
+
+    if (drawing.credited_to_member_id === 'all_members') {
+      const activeMembers = members.length > 0 ? members : [{ id: currentUserId, name: 'Self' }];
+      const splitAmt = Math.round(drawing.amount / activeMembers.length);
+      activeMembers.forEach(m => {
+        addTransaction({
+          member_id: m.id,
+          type: 'income',
+          amount: splitAmt,
+          category: 'Business Profit / Drawings',
+          category_type: 'main_ghar',
+          mode: 'online',
+          scope: 'ghar',
+          note: `${firmName} se Sabhi Sadasyon me Munafa Batwara (${drawing.note}) - ${m.name}`,
+          txn_date: new Date().toISOString().split('T')[0]
+        });
+      });
+    } else {
+      addTransaction({
+        member_id: drawing.credited_to_member_id || currentUserId,
+        type: 'income',
+        amount: drawing.amount,
+        category: 'Business Profit / Drawings',
+        category_type: 'main_ghar',
+        mode: 'online',
+        scope: 'ghar',
+        note: firmName + ' se Profit / Salary Payout (' + drawing.note + ')',
+        txn_date: new Date().toISOString().split('T')[0]
+      });
+    }
   };
 
   const addFleetVehicle = (vData: Omit<CommercialFleetVehicle, 'id' | 'family_id' | 'trips' | 'lifetime_revenue' | 'lifetime_expenses' | 'lifetime_net_profit' | 'total_acquisition_cost' | 'current_depreciated_value'>) => {
@@ -2494,31 +2515,119 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       return v;
     }));
 
-    // Record gross revenue as business income
-    addTransaction({
-      member_id: currentUserId,
-      type: 'income',
-      amount: tData.gross_revenue,
-      category: 'Commercial Transport',
-      category_type: 'main_ghar',
-      mode: 'online',
-      scope: 'ghar',
-      note: 'Transport Business (' + tData.trip_title + ')',
-      txn_date: tData.start_date || new Date().toISOString().split('T')[0]
-    });
+    // BUSINESS ISOLATION:
+    // Commercial fleet revenue and operating expenses stay strictly inside the Fleet Vehicle's own P&L.
+    // Money is only transferred to family ledger when user explicitly initiates a drawing/payout!
+  };
 
-    // Record operating trip expenses (diesel, toll, bhata) in family expense ledger to balance cashflow
-    if (totalExp > 0) {
+  const recordFleetDrawingToFamily = (vehicleId: string, drawing: { amount: number; credited_to_member_id: string; note: string }) => {
+    saveFleetVehicles(prev => prev.map(v => {
+      if (v.id === vehicleId) {
+        const newD: any = {
+          id: 'fld-' + Date.now(),
+          vehicle_id: vehicleId,
+          date: new Date().toISOString().split('T')[0],
+          amount: drawing.amount,
+          credited_to_member_id: drawing.credited_to_member_id,
+          note: drawing.note
+        };
+        const updatedDrawings = [newD, ...(v.drawings || [])];
+        const newDrawingsTotal = (v.total_drawings_paid || 0) + drawing.amount;
+        return {
+          ...v,
+          drawings: updatedDrawings,
+          total_drawings_paid: newDrawingsTotal
+        };
+      }
+      return v;
+    }));
+
+    const veh = fleetVehicles.find(v => v.id === vehicleId);
+    const vehName = veh?.title_model || 'Transport Business';
+
+    if (drawing.credited_to_member_id === 'all_members') {
+      const activeMembers = members.length > 0 ? members : [{ id: currentUserId, name: 'Self' }];
+      const splitAmt = Math.round(drawing.amount / activeMembers.length);
+      activeMembers.forEach(m => {
+        addTransaction({
+          member_id: m.id,
+          type: 'income',
+          amount: splitAmt,
+          category: 'Business Profit / Drawings',
+          category_type: 'main_ghar',
+          mode: 'online',
+          scope: 'ghar',
+          note: `${vehName} Munafa Batwara (${drawing.note}) - ${m.name}`,
+          txn_date: new Date().toISOString().split('T')[0]
+        });
+      });
+    } else {
       addTransaction({
-        member_id: currentUserId,
-        type: 'expense',
-        amount: totalExp,
-        category: 'Vehicle Fuel & Maintenance',
+        member_id: drawing.credited_to_member_id || currentUserId,
+        type: 'income',
+        amount: drawing.amount,
+        category: 'Business Profit / Drawings',
         category_type: 'main_ghar',
         mode: 'online',
         scope: 'ghar',
-        note: 'Trip Expenses: Diesel, Toll, Bhata (' + tData.trip_title + ')',
-        txn_date: tData.start_date || new Date().toISOString().split('T')[0]
+        note: vehName + ' Transport Munafa Payout (' + drawing.note + ')',
+        txn_date: new Date().toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const recordAgriDrawingToFamily = (landId: string, drawing: { amount: number; credited_to_member_id: string; note: string }) => {
+    saveAgriculturalLands(prev => prev.map(l => {
+      if (l.id === landId) {
+        const newD: any = {
+          id: 'agd-' + Date.now(),
+          land_id: landId,
+          date: new Date().toISOString().split('T')[0],
+          amount: drawing.amount,
+          credited_to_member_id: drawing.credited_to_member_id,
+          note: drawing.note
+        };
+        const updatedDrawings = [newD, ...(l.drawings || [])];
+        const newDrawingsTotal = (l.total_drawings_paid || 0) + drawing.amount;
+        return {
+          ...l,
+          drawings: updatedDrawings,
+          total_drawings_paid: newDrawingsTotal
+        };
+      }
+      return l;
+    }));
+
+    const land = agriculturalLands.find(l => l.id === landId);
+    const landName = land?.title || 'Kheti Munafa';
+
+    if (drawing.credited_to_member_id === 'all_members') {
+      const activeMembers = members.length > 0 ? members : [{ id: currentUserId, name: 'Self' }];
+      const splitAmt = Math.round(drawing.amount / activeMembers.length);
+      activeMembers.forEach(m => {
+        addTransaction({
+          member_id: m.id,
+          type: 'income',
+          amount: splitAmt,
+          category: 'Agriculture',
+          category_type: 'main_ghar',
+          mode: 'online',
+          scope: 'ghar',
+          note: `${landName} Kheti Munafa Batwara (${drawing.note}) - ${m.name}`,
+          txn_date: new Date().toISOString().split('T')[0]
+        });
+      });
+    } else {
+      addTransaction({
+        member_id: drawing.credited_to_member_id || currentUserId,
+        type: 'income',
+        amount: drawing.amount,
+        category: 'Agriculture',
+        category_type: 'main_ghar',
+        mode: 'online',
+        scope: 'ghar',
+        note: landName + ' Kheti Munafa Payout (' + drawing.note + ')',
+        txn_date: new Date().toISOString().split('T')[0]
       });
     }
   };
@@ -4020,6 +4129,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         fleetVehicles,
         addFleetVehicle,
         addFleetTrip,
+        recordFleetDrawingToFamily,
+        recordAgriDrawingToFamily,
         businessFirms,
         addBusinessFirm,
         recordFirmDrawingToFamily,

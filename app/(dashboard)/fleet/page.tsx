@@ -10,13 +10,17 @@ import confetti from 'canvas-confetti';
 import { CommercialVehicleType, FleetBusinessType } from '@/types';
 
 export default function CommercialFleetPage() {
-  const { fleetVehicles, addFleetVehicle, addFleetTrip, deleteFleetVehicle, deleteFleetTrip } = useFamilyStore();
+  const { fleetVehicles, addFleetVehicle, addFleetTrip, deleteFleetVehicle, deleteFleetTrip, recordFleetDrawingToFamily, members, currentUserId } = useFamilyStore();
   const [selectedFleetId, setSelectedFleetId] = useState<string>(fleetVehicles[0]?.id || '');
   const [activeTab, setActiveTab] = useState<'trips' | 'roi' | 'docs'>('trips');
 
   // Modals
   const [isAddTripOpen, setIsAddTripOpen] = useState(false);
   const [isAddVehOpen, setIsAddVehOpen] = useState(false);
+  const [isFleetDrawingOpen, setIsFleetDrawingOpen] = useState(false);
+  const [fleetDrawAmount, setFleetDrawAmount] = useState('');
+  const [fleetDrawMemberId, setFleetDrawMemberId] = useState('all_members');
+  const [fleetDrawNote, setFleetDrawNote] = useState('Transport munafa payout');
 
   // New Trip form
   const [tripTitle, setTripTitle] = useState('');
@@ -49,6 +53,22 @@ export default function CommercialFleetPage() {
   const [vDriverPhone, setVDriverPhone] = useState('');
 
   const activeVeh = fleetVehicles.find(v => v.id === selectedFleetId) || fleetVehicles[0];
+
+  const handleFleetDrawingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(fleetDrawAmount);
+    if (!amt || amt <= 0 || !activeVeh) return;
+
+    recordFleetDrawingToFamily(activeVeh.id, {
+      amount: amt,
+      credited_to_member_id: fleetDrawMemberId,
+      note: fleetDrawNote
+    });
+
+    try { confetti({ particleCount: 50, spread: 60 }); } catch (e) {}
+    setIsFleetDrawingOpen(false);
+    setFleetDrawAmount('');
+  };
 
   const totalFleetRevenue = fleetVehicles.reduce((sum, v) => sum + Number(v.lifetime_revenue || 0), 0);
   const totalFleetProfit = fleetVehicles.reduce((sum, v) => sum + Number(v.lifetime_net_profit || 0), 0);
@@ -569,6 +589,69 @@ export default function CommercialFleetPage() {
           </div>
         </div>
       )}
+      {/* Fleet Profit Drawing / Payout Modal */}
+      {isFleetDrawingOpen && activeVeh && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-paper p-5 rounded-2xl border border-paper-dim shadow-xl space-y-3">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-green tracking-wider">Transport Profit Payout</span>
+              <h3 className="text-sm font-bold font-serif text-ink mt-0.5">{activeVeh.title_model}</h3>
+              <p className="text-xs text-ink-muted">
+                Available Munafa Balance: <Mono className="font-bold text-green">₹{(activeVeh.lifetime_net_profit - (activeVeh.total_drawings_paid || 0)).toLocaleString('en-IN')}</Mono>
+              </p>
+            </div>
+
+            <form onSubmit={handleFleetDrawingSubmit} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Transfer Raqam (₹ Amount)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 25000"
+                  value={fleetDrawAmount}
+                  onChange={(e) => setFleetDrawAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-paper-dim border border-paper-dim rounded-xl font-mono font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Kis Parivar Member Ke Account Me?</label>
+                <select
+                  value={fleetDrawMemberId}
+                  onChange={(e) => setFleetDrawMemberId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl font-medium"
+                >
+                  <option value="all_members">👥 Sabhi Parivar Sadasyon Me Barabar (Equal Split)</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.relationship || m.role})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Vivran / Note</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Tipper truck monthly profit transfer"
+                  value={fleetDrawNote}
+                  onChange={(e) => setFleetDrawNote(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsFleetDrawingOpen(false)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" className="flex-1 bg-green text-white font-bold">
+                  Transfer to Family
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

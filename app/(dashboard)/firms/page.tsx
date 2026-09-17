@@ -257,8 +257,9 @@ export default function BusinessFirmsPage() {
                 <select
                   value={targetMemberId}
                   onChange={(e) => setTargetMemberId(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl"
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl font-medium"
                 >
+                  <option value="all_members">👥 Sabhi Parivar Sadasyon Me Barabar (Equal Split)</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>{m.name} ({m.relationship || m.role})</option>
                   ))}

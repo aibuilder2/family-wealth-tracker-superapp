@@ -312,6 +312,17 @@ export interface AgriculturalLand {
   current_crop?: string;
   active_cycle?: CropCycle;
   past_cycles?: CropCycle[];
+  total_drawings_paid?: number;
+  drawings?: AgriDrawing[];
+}
+
+export interface AgriDrawing {
+  id: string;
+  land_id: string;
+  date: string;
+  amount: number;
+  credited_to_member_id: string; // memberId or 'all_members'
+  note: string;
 }
 
 // ==========================================
@@ -452,6 +463,17 @@ export interface CommercialFleetVehicle {
   lifetime_revenue: number;
   lifetime_expenses: number;
   lifetime_net_profit: number;
+  total_drawings_paid?: number;
+  drawings?: FleetDrawing[];
+}
+
+export interface FleetDrawing {
+  id: string;
+  vehicle_id: string;
+  date: string;
+  amount: number;
+  credited_to_member_id: string; // memberId or 'all_members'
+  note: string;
 }
 
 // ==========================================

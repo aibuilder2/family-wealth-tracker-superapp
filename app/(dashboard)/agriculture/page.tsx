@@ -9,11 +9,15 @@ import { Sprout, Plus, TrendingUp, HandCoins, Phone, ShieldCheck, Check, Sparkle
 import confetti from 'canvas-confetti';
 
 export default function AgriculturePage() {
-  const { agriculturalLands, addAgriLand, addAgriExpense, recordCropHarvest, deleteAgriLand, deleteAgriExpense } = useFamilyStore();
+  const { agriculturalLands, addAgriLand, addAgriExpense, recordCropHarvest, deleteAgriLand, deleteAgriExpense, recordAgriDrawingToFamily, members, currentUserId } = useFamilyStore();
   const [selectedLandId, setSelectedLandId] = useState<string>(agriculturalLands[0]?.id || '');
   
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isHarvestOpen, setIsHarvestOpen] = useState(false);
+  const [isAgriDrawingOpen, setIsAgriDrawingOpen] = useState(false);
+  const [agriDrawAmount, setAgriDrawAmount] = useState('');
+  const [agriDrawMemberId, setAgriDrawMemberId] = useState('all_members');
+  const [agriDrawNote, setAgriDrawNote] = useState('Kheti fasal munafa payout');
   const [isAddLandOpen, setIsAddLandOpen] = useState(false);
 
   const [expCat, setExpCat] = useState<'beej' | 'khaad' | 'pesticide' | 'diesel_water' | 'labor' | 'harvesting' | 'other'>('beej');
@@ -35,6 +39,22 @@ export default function AgriculturePage() {
   const [yearlyTheka, setYearlyTheka] = useState('');
 
   const activeLand = agriculturalLands.find(l => l.id === selectedLandId) || agriculturalLands[0];
+
+  const handleAgriDrawingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(agriDrawAmount);
+    if (!amt || amt <= 0 || !activeLand) return;
+
+    recordAgriDrawingToFamily(activeLand.id, {
+      amount: amt,
+      credited_to_member_id: agriDrawMemberId,
+      note: agriDrawNote
+    });
+
+    try { confetti({ particleCount: 50, spread: 60 }); } catch (e) {}
+    setIsAgriDrawingOpen(false);
+    setAgriDrawAmount('');
+  };
 
   const handleAddExpenseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -475,6 +495,69 @@ export default function AgriculturePage() {
           </div>
         </div>
       )}
+      {/* Agri Profit Drawing / Payout Modal */}
+      {isAgriDrawingOpen && activeLand && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-paper p-5 rounded-2xl border border-paper-dim shadow-xl space-y-3">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-green tracking-wider">Kheti Munafa Payout</span>
+              <h3 className="text-sm font-bold font-serif text-ink mt-0.5">{activeLand.title}</h3>
+              <p className="text-xs text-ink-muted">
+                Available Fasal Munafa: <Mono className="font-bold text-green">₹{(Math.max(0, (activeLand.active_cycle?.net_profit || 0) - (activeLand.total_drawings_paid || 0))).toLocaleString('en-IN')}</Mono>
+              </p>
+            </div>
+
+            <form onSubmit={handleAgriDrawingSubmit} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Transfer Raqam (₹ Amount)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 50000"
+                  value={agriDrawAmount}
+                  onChange={(e) => setAgriDrawAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-paper-dim border border-paper-dim rounded-xl font-mono font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Kis Parivar Member Ke Account Me?</label>
+                <select
+                  value={agriDrawMemberId}
+                  onChange={(e) => setAgriDrawMemberId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl font-medium"
+                >
+                  <option value="all_members">👥 Sabhi Parivar Sadasyon Me Barabar (Equal Split)</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.relationship || m.role})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Vivran / Note</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Gehu bikri munafa transfer"
+                  value={agriDrawNote}
+                  onChange={(e) => setAgriDrawNote(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsAgriDrawingOpen(false)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" className="flex-1 bg-green text-white font-bold">
+                  Transfer to Family
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
