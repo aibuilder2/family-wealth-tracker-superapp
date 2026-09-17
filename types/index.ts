@@ -1224,3 +1224,126 @@ export interface MedicalTreatmentEpisode {
   created_at: string;
 }
 
+
+
+// ==========================================
+// CLOUD KITCHEN, TIFFIN SERVICE & CATERING BOM TYPES
+// ==========================================
+export type KitchenBusinessType =
+  | 'tiffin_service'
+  | 'cloud_kitchen'
+  | 'plate_thali'
+  | 'nasta_snack'
+  | 'event_catering';
+
+export interface KitchenBOMIngredient {
+  id: string;
+  name: string; // e.g. "Wheat Atta", "Paneer", "Mustard Oil", "Packaging Dabba/Foil", "Gas"
+  quantity: number; // e.g. 100, 1
+  unit: 'gram' | 'kg' | 'ml' | 'litre' | 'piece' | 'portion';
+  rate_per_unit: number; // e.g. ₹40 per kg, ₹350 per kg, ₹4 per packaging box
+  cost: number; // computed per plate cost
+}
+
+export interface KitchenBOMRecipe {
+  id: string;
+  kitchen_id: string;
+  recipe_name: string; // e.g. "Special Veg Thali (4 Roti + Dal Tadka + Paneer Sabji + Jeera Rice + Salad)"
+  meal_type: 'thali_plate' | 'tiffin' | 'nasta_snack' | 'sweet_dessert' | 'beverage';
+  ingredients: KitchenBOMIngredient[];
+  total_cost_per_plate: number; // COGS (Laagat)
+  selling_price_per_plate: number; // Vikray Mulya
+  profit_per_plate: number; // Munafa
+  margin_percentage: number; // Gross Margin %
+  notes?: string;
+}
+
+export interface KitchenMenuItem {
+  id: string;
+  kitchen_id: string;
+  item_name: string;
+  category: 'thali' | 'sabji' | 'roti_bread' | 'rice' | 'nasta_snack' | 'dessert' | 'beverage';
+  price: number;
+  is_today_special?: boolean;
+  is_available: boolean;
+  description?: string;
+}
+
+export interface KitchenCustomerTiffin {
+  id: string;
+  kitchen_id: string;
+  customer_name: string;
+  phone: string;
+  delivery_address: string;
+  meal_plan: 'lunch_only' | 'dinner_only' | 'both_lunch_dinner';
+  billing_cycle: 'monthly' | 'per_meal';
+  monthly_rate: number;
+  price_per_meal?: number;
+  start_date: string;
+  total_tiffins_delivered: number; // meal tally counter
+  total_paid: number;
+  pending_dues: number;
+  status: 'active' | 'paused' | 'cancelled';
+  notes?: string;
+}
+
+export interface KitchenDailyOrder {
+  id: string;
+  kitchen_id: string;
+  order_number: string; // e.g. "ORD-101"
+  date: string;
+  time_slot: 'lunch' | 'dinner' | 'nasta' | 'party';
+  customer_name: string;
+  customer_phone?: string;
+  delivery_address?: string;
+  items_summary: string; // e.g. "2x Special Thali + 1x Gulab Jamun"
+  plate_count: number;
+  total_amount: number;
+  payment_status: 'paid' | 'pending_cod' | 'khata';
+  source?: 'whatsapp' | 'call_walkin' | 'tiffin_subscription' | 'other';
+  notes?: string;
+}
+
+export interface KitchenExpenseItem {
+  id: string;
+  kitchen_id: string;
+  date: string;
+  category: 'mandi_sabji' | 'dairy_milk_paneer' | 'grocery_ration' | 'gas_cylinder' | 'packaging_material' | 'delivery_fuel' | 'staff_helper' | 'other';
+  item_name: string;
+  amount: number;
+  vendor_name?: string;
+  payment_mode: 'cash' | 'upi' | 'credit_khata';
+  notes?: string;
+}
+
+export interface KitchenDrawing {
+  id: string;
+  kitchen_id: string;
+  date: string;
+  amount: number;
+  credited_to_member_id: string; // memberId or 'all_members'
+  note: string;
+}
+
+export interface KitchenBusinessProfile {
+  id: string;
+  family_id: string;
+  kitchen_name: string;
+  business_model: KitchenBusinessType;
+  owner_member_id?: string;
+  whatsapp_number: string;
+  upi_id?: string;
+  address_city: string;
+  fssai_number?: string;
+  recipes_bom: KitchenBOMRecipe[];
+  menu_items: KitchenMenuItem[];
+  tiffin_subscribers: KitchenCustomerTiffin[];
+  daily_orders: KitchenDailyOrder[];
+  expenses: KitchenExpenseItem[];
+  drawings: KitchenDrawing[];
+  lifetime_revenue: number;
+  lifetime_expenses: number;
+  lifetime_net_profit: number;
+  total_drawings_paid: number;
+  created_at?: string;
+}

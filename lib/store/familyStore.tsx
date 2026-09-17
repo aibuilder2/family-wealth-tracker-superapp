@@ -13,7 +13,8 @@ import {
   BusinessSetupProject, ProjectFundingSource, DisbursalTranche, PreOpExpense, ProjectRepayment, PreOpExpenseCategory, FundingSourceType,
   ConstructionProject, ConstructionMaterialLog, ThekedarContract, LaborHaziraRecord, ConstructionStage, MaterialCategory,
   BankLoan, BankLoanType, LoanMemberSplit, LoanInterestRevision,
-  MedicalTreatmentEpisode, MedicalEpisodeDoctorVisit, MedicalEpisodeExpenseItem, MedicalExpenseCategory
+  MedicalTreatmentEpisode, MedicalEpisodeDoctorVisit, MedicalEpisodeExpenseItem, MedicalExpenseCategory,
+  KitchenBusinessProfile, KitchenBOMRecipe, KitchenBOMIngredient, KitchenMenuItem, KitchenCustomerTiffin, KitchenDailyOrder, KitchenExpenseItem, KitchenDrawing, KitchenBusinessType
 } from '@/types';
 
 export const INITIAL_MEMBERS: Member[] = [
@@ -1113,6 +1114,25 @@ interface FamilyContextType {
   addFleetTrip: (vehicleId: string, trip: Omit<FleetTrip, 'id' | 'fleet_vehicle_id' | 'total_trip_expense' | 'net_trip_profit'>) => void;
   recordFleetDrawingToFamily: (vehicleId: string, drawing: { amount: number; credited_to_member_id: string; note: string }) => void;
   recordAgriDrawingToFamily: (landId: string, drawing: { amount: number; credited_to_member_id: string; note: string }) => void;
+  kitchenProfiles: KitchenBusinessProfile[];
+  addKitchenProfile: (profile: Omit<KitchenBusinessProfile, 'id' | 'family_id' | 'recipes_bom' | 'menu_items' | 'tiffin_subscribers' | 'daily_orders' | 'expenses' | 'drawings' | 'lifetime_revenue' | 'lifetime_expenses' | 'lifetime_net_profit' | 'total_drawings_paid' | 'created_at'>) => KitchenBusinessProfile;
+  updateKitchenProfile: (id: string, updates: Partial<KitchenBusinessProfile>) => void;
+  deleteKitchenProfile: (id: string) => void;
+  addKitchenRecipeBOM: (kitchenId: string, recipe: Omit<KitchenBOMRecipe, 'id' | 'kitchen_id'>) => void;
+  deleteKitchenRecipeBOM: (kitchenId: string, recipeId: string) => void;
+  addKitchenMenuItem: (kitchenId: string, item: Omit<KitchenMenuItem, 'id' | 'kitchen_id'>) => void;
+  updateKitchenMenuItem: (kitchenId: string, itemId: string, updates: Partial<KitchenMenuItem>) => void;
+  deleteKitchenMenuItem: (kitchenId: string, itemId: string) => void;
+  addKitchenTiffinSubscriber: (kitchenId: string, sub: Omit<KitchenCustomerTiffin, 'id' | 'kitchen_id' | 'total_tiffins_delivered' | 'total_paid' | 'pending_dues'>) => void;
+  recordTiffinDeliveryTally: (kitchenId: string, subId: string, increment?: number) => void;
+  recordTiffinPayment: (kitchenId: string, subId: string, amount: number, notes?: string) => void;
+  deleteKitchenTiffinSubscriber: (kitchenId: string, subId: string) => void;
+  addKitchenDailyOrder: (kitchenId: string, order: Omit<KitchenDailyOrder, 'id' | 'kitchen_id'>) => void;
+  updateKitchenOrderStatus: (kitchenId: string, orderId: string, status: 'paid' | 'pending_cod' | 'khata') => void;
+  deleteKitchenDailyOrder: (kitchenId: string, orderId: string) => void;
+  addKitchenExpense: (kitchenId: string, expense: Omit<KitchenExpenseItem, 'id' | 'kitchen_id'>) => void;
+  deleteKitchenExpense: (kitchenId: string, expenseId: string) => void;
+  recordKitchenDrawingToFamily: (kitchenId: string, drawing: { amount: number; credited_to_member_id: string; note: string }) => void;
   recordLawyerFeePayment: (caseId: string, payment: { amount: number; payment_type: LawyerPaymentType; note: string }) => void;
 
   addUdharContact: (udhar: Omit<UdharContact, 'id' | 'family_id' | 'settlements' | 'created_at'>) => void;
@@ -1272,6 +1292,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [businessSetupProjects, setBusinessSetupProjects] = useState<BusinessSetupProject[]>([]);
   const [constructionProjects, setConstructionProjects] = useState<ConstructionProject[]>([]);
+  const [kitchenProfiles, setKitchenProfiles] = useState<KitchenBusinessProfile[]>([]);
   const [bankLoans, setBankLoans] = useState<BankLoan[]>([]);
   const [medicalEpisodes, setMedicalEpisodes] = useState<MedicalTreatmentEpisode[]>(INITIAL_MEDICAL_EPISODES);
 
@@ -1529,6 +1550,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         if (scs) setCourtCases(JSON.parse(scs).filter((c: any) => !isDemoRecord(c.id)));
         const sveh = localStorage.getItem(key('vehicles'));
         if (sveh) setVehicles(JSON.parse(sveh).filter((v: any) => !isDemoRecord(v.id)));
+        const skit = localStorage.getItem(key('kitchen_profiles'));
+        if (skit) setKitchenProfiles(JSON.parse(skit).filter((k: any) => !isDemoRecord(k.id)));
         setCurrentUserId(cleanMemId);
         setIsDemoMode(false);
       } catch (e) {}
@@ -2773,6 +2796,18 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const saveKitchenProfiles = (updater: KitchenBusinessProfile[] | ((prev: KitchenBusinessProfile[]) => KitchenBusinessProfile[])) => {
+    setKitchenProfiles(prev => {
+      const currentList = Array.isArray(updater) ? updater : updater(prev);
+      const cleanList = currentList.filter((k: any) => !isDemoRecord(k.id));
+      try {
+        localStorage.setItem(getStorageKey('kitchen_profiles'), JSON.stringify(cleanList));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return cleanList;
+    });
+  };
+
   const addRentalProperty = (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>): RentalProperty => {
     const newProp: RentalProperty = {
       ...prop,
@@ -3947,6 +3982,336 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const addKitchenProfile = (kData: Omit<KitchenBusinessProfile, 'id' | 'family_id' | 'recipes_bom' | 'menu_items' | 'tiffin_subscribers' | 'daily_orders' | 'expenses' | 'drawings' | 'lifetime_revenue' | 'lifetime_expenses' | 'lifetime_net_profit' | 'total_drawings_paid' | 'created_at'>): KitchenBusinessProfile => {
+    const newProfile: KitchenBusinessProfile = {
+      ...kData,
+      id: `kitchen_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      family_id: family.id,
+      recipes_bom: [],
+      menu_items: [],
+      tiffin_subscribers: [],
+      daily_orders: [],
+      expenses: [],
+      drawings: [],
+      lifetime_revenue: 0,
+      lifetime_expenses: 0,
+      lifetime_net_profit: 0,
+      total_drawings_paid: 0,
+      created_at: new Date().toISOString()
+    };
+    saveKitchenProfiles(prev => [newProfile, ...prev]);
+    return newProfile;
+  };
+
+  const updateKitchenProfile = (id: string, updates: Partial<KitchenBusinessProfile>) => {
+    saveKitchenProfiles(prev => prev.map(k => k.id === id ? { ...k, ...updates } : k));
+  };
+
+  const deleteKitchenProfile = (id: string) => {
+    saveKitchenProfiles(prev => prev.filter(k => k.id !== id));
+  };
+
+  const addKitchenRecipeBOM = (kitchenId: string, recipe: Omit<KitchenBOMRecipe, 'id' | 'kitchen_id'>) => {
+    const newRecipe: KitchenBOMRecipe = {
+      ...recipe,
+      id: `recipe_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      kitchen_id: kitchenId
+    };
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      return {
+        ...k,
+        recipes_bom: [...(k.recipes_bom || []), newRecipe]
+      };
+    }));
+  };
+
+  const deleteKitchenRecipeBOM = (kitchenId: string, recipeId: string) => {
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      return {
+        ...k,
+        recipes_bom: (k.recipes_bom || []).filter((r: KitchenBOMRecipe) => r.id !== recipeId)
+      };
+    }));
+  };
+
+  const addKitchenMenuItem = (kitchenId: string, item: Omit<KitchenMenuItem, 'id' | 'kitchen_id'>) => {
+    const newItem: KitchenMenuItem = {
+      ...item,
+      id: `menu_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      kitchen_id: kitchenId
+    };
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      return {
+        ...k,
+        menu_items: [...(k.menu_items || []), newItem]
+      };
+    }));
+  };
+
+  const updateKitchenMenuItem = (kitchenId: string, itemId: string, updates: Partial<KitchenMenuItem>) => {
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      return {
+        ...k,
+        menu_items: (k.menu_items || []).map((m: KitchenMenuItem) => m.id === itemId ? { ...m, ...updates } : m)
+      };
+    }));
+  };
+
+  const deleteKitchenMenuItem = (kitchenId: string, itemId: string) => {
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      return {
+        ...k,
+        menu_items: (k.menu_items || []).filter((m: KitchenMenuItem) => m.id !== itemId)
+      };
+    }));
+  };
+
+  const addKitchenTiffinSubscriber = (kitchenId: string, sub: Omit<KitchenCustomerTiffin, 'id' | 'kitchen_id' | 'total_tiffins_delivered' | 'total_paid' | 'pending_dues'>) => {
+    const newSub: KitchenCustomerTiffin = {
+      ...sub,
+      id: `tiffin_sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      kitchen_id: kitchenId,
+      total_tiffins_delivered: 0,
+      total_paid: 0,
+      pending_dues: 0
+    };
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      return {
+        ...k,
+        tiffin_subscribers: [...(k.tiffin_subscribers || []), newSub]
+      };
+    }));
+  };
+
+  const recordTiffinDeliveryTally = (kitchenId: string, subId: string, increment: number = 1) => {
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      const updatedSubs = (k.tiffin_subscribers || []).map((sub: KitchenCustomerTiffin) => {
+        if (sub.id !== subId) return sub;
+        const newDelivered = (sub.total_tiffins_delivered || 0) + increment;
+        const ratePerMeal = sub.price_per_meal || (sub.monthly_rate > 0 ? Math.round(sub.monthly_rate / 60) : 70);
+        let dues = 0;
+        if (sub.billing_cycle === 'per_meal') {
+          dues = Math.max(0, (newDelivered * ratePerMeal) - (sub.total_paid || 0));
+        } else {
+          dues = Math.max(0, sub.monthly_rate - (sub.total_paid || 0));
+        }
+        return {
+          ...sub,
+          total_tiffins_delivered: newDelivered,
+          pending_dues: dues
+        };
+      });
+      return { ...k, tiffin_subscribers: updatedSubs };
+    }));
+  };
+
+  const recordTiffinPayment = (kitchenId: string, subId: string, amount: number, notes?: string) => {
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      let customerName = 'Tiffin Customer';
+      const updatedSubs = (k.tiffin_subscribers || []).map((sub: KitchenCustomerTiffin) => {
+        if (sub.id !== subId) return sub;
+        customerName = sub.customer_name;
+        const newPaid = (sub.total_paid || 0) + amount;
+        const ratePerMeal = sub.price_per_meal || (sub.monthly_rate > 0 ? Math.round(sub.monthly_rate / 60) : 70);
+        let dues = 0;
+        if (sub.billing_cycle === 'per_meal') {
+          dues = Math.max(0, ((sub.total_tiffins_delivered || 0) * ratePerMeal) - newPaid);
+        } else {
+          dues = Math.max(0, sub.monthly_rate - newPaid);
+        }
+        return {
+          ...sub,
+          total_paid: newPaid,
+          pending_dues: dues
+        };
+      });
+
+      const paymentOrder: KitchenDailyOrder = {
+        id: `kord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        kitchen_id: kitchenId,
+        order_number: `ORD-${Date.now().toString().slice(-4)}`,
+        date: new Date().toISOString().split('T')[0],
+        time_slot: 'lunch',
+        customer_name: customerName,
+        source: 'tiffin_subscription',
+        items_summary: `Tiffin Shulk Jama: ₹${amount}${notes ? ` (${notes})` : ''}`,
+        plate_count: 1,
+        total_amount: amount,
+        payment_status: 'paid',
+        notes: notes || 'Tiffin subscription fee'
+      };
+
+      const newRev = (k.lifetime_revenue || 0) + amount;
+      const newNet = (k.lifetime_net_profit || 0) + amount;
+
+      return {
+        ...k,
+        tiffin_subscribers: updatedSubs,
+        daily_orders: [paymentOrder, ...(k.daily_orders || [])],
+        lifetime_revenue: newRev,
+        lifetime_net_profit: newNet
+      };
+    }));
+  };
+
+  const deleteKitchenTiffinSubscriber = (kitchenId: string, subId: string) => {
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      return {
+        ...k,
+        tiffin_subscribers: (k.tiffin_subscribers || []).filter((s: KitchenCustomerTiffin) => s.id !== subId)
+      };
+    }));
+  };
+
+  const addKitchenDailyOrder = (kitchenId: string, order: Omit<KitchenDailyOrder, 'id' | 'kitchen_id'>) => {
+    const newOrder: KitchenDailyOrder = {
+      ...order,
+      id: `kord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      kitchen_id: kitchenId
+    };
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      const isPaid = newOrder.payment_status === 'paid';
+      const revAddition = isPaid ? newOrder.total_amount : 0;
+      return {
+        ...k,
+        daily_orders: [newOrder, ...(k.daily_orders || [])],
+        lifetime_revenue: (k.lifetime_revenue || 0) + revAddition,
+        lifetime_net_profit: (k.lifetime_net_profit || 0) + revAddition
+      };
+    }));
+  };
+
+  const updateKitchenOrderStatus = (kitchenId: string, orderId: string, status: 'paid' | 'pending_cod' | 'khata') => {
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      let revDelta = 0;
+      const updatedOrders = (k.daily_orders || []).map((o: KitchenDailyOrder) => {
+        if (o.id !== orderId) return o;
+        if (o.payment_status !== 'paid' && status === 'paid') {
+          revDelta += o.total_amount;
+        } else if (o.payment_status === 'paid' && status !== 'paid') {
+          revDelta -= o.total_amount;
+        }
+        return { ...o, payment_status: status };
+      });
+      return {
+        ...k,
+        daily_orders: updatedOrders,
+        lifetime_revenue: (k.lifetime_revenue || 0) + revDelta,
+        lifetime_net_profit: (k.lifetime_net_profit || 0) + revDelta
+      };
+    }));
+  };
+
+  const deleteKitchenDailyOrder = (kitchenId: string, orderId: string) => {
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      const orderToDelete = (k.daily_orders || []).find((o: KitchenDailyOrder) => o.id === orderId);
+      const revSubtract = (orderToDelete && orderToDelete.payment_status === 'paid') ? orderToDelete.total_amount : 0;
+      return {
+        ...k,
+        daily_orders: (k.daily_orders || []).filter((o: KitchenDailyOrder) => o.id !== orderId),
+        lifetime_revenue: Math.max(0, (k.lifetime_revenue || 0) - revSubtract),
+        lifetime_net_profit: (k.lifetime_net_profit || 0) - revSubtract
+      };
+    }));
+  };
+
+  const addKitchenExpense = (kitchenId: string, expense: Omit<KitchenExpenseItem, 'id' | 'kitchen_id'>) => {
+    const newExp: KitchenExpenseItem = {
+      ...expense,
+      id: `kexp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      kitchen_id: kitchenId
+    };
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      return {
+        ...k,
+        expenses: [newExp, ...(k.expenses || [])],
+        lifetime_expenses: (k.lifetime_expenses || 0) + newExp.amount,
+        lifetime_net_profit: (k.lifetime_net_profit || 0) - newExp.amount
+      };
+    }));
+  };
+
+  const deleteKitchenExpense = (kitchenId: string, expenseId: string) => {
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      const expToDelete = (k.expenses || []).find((e: KitchenExpenseItem) => e.id === expenseId);
+      const expAmount = expToDelete ? expToDelete.amount : 0;
+      return {
+        ...k,
+        expenses: (k.expenses || []).filter((e: KitchenExpenseItem) => e.id !== expenseId),
+        lifetime_expenses: Math.max(0, (k.lifetime_expenses || 0) - expAmount),
+        lifetime_net_profit: (k.lifetime_net_profit || 0) + expAmount
+      };
+    }));
+  };
+
+  const recordKitchenDrawingToFamily = (kitchenId: string, drawing: { amount: number; credited_to_member_id: string; note: string }) => {
+    const kitchen = kitchenProfiles.find(k => k.id === kitchenId);
+    const kitchenTitle = kitchen?.kitchen_name || 'Kitchen Business';
+
+    const newDrawing: KitchenDrawing = {
+      id: `kdraw_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      kitchen_id: kitchenId,
+      amount: drawing.amount,
+      credited_to_member_id: drawing.credited_to_member_id,
+      date: new Date().toISOString().split('T')[0],
+      note: drawing.note || ''
+    };
+
+    saveKitchenProfiles(prev => prev.map(k => {
+      if (k.id !== kitchenId) return k;
+      return {
+        ...k,
+        drawings: [newDrawing, ...(k.drawings || [])],
+        total_drawings_paid: (k.total_drawings_paid || 0) + drawing.amount
+      };
+    }));
+
+    if (drawing.credited_to_member_id === 'all_members') {
+      const activeMembers = members.length > 0 ? members : [{ id: currentUserId, name: 'Self' }];
+      const splitAmt = Math.round(drawing.amount / activeMembers.length);
+      activeMembers.forEach(m => {
+        addTransaction({
+          member_id: m.id,
+          type: 'income',
+          amount: splitAmt,
+          category: 'Business Profit / Drawings',
+          category_type: 'main_ghar',
+          mode: 'online',
+          scope: 'ghar',
+          note: `[${kitchenTitle}] Kitchen Munafa Batwara (${drawing.note || 'Parivar Labhansh'}) - ${m.name}`,
+          txn_date: new Date().toISOString().split('T')[0]
+        });
+      });
+    } else {
+      const targetMember = members.find(m => m.id === drawing.credited_to_member_id);
+      addTransaction({
+        member_id: drawing.credited_to_member_id,
+        type: 'income',
+        amount: drawing.amount,
+        category: 'Business Profit / Drawings',
+        category_type: 'main_ghar',
+        mode: 'online',
+        scope: 'ghar',
+        note: `[${kitchenTitle}] Kitchen Munafa Drawing - ${drawing.note || 'Parivar Me Jama'}${targetMember ? ` (${targetMember.name})` : ''}`,
+        txn_date: new Date().toISOString().split('T')[0]
+      });
+    }
+  };
+
   const openQuickAdd = (type: 'expense' | 'income' | 'udhar' = 'expense') => {
     setQuickAddType(type);
     setIsQuickAddOpen(true);
@@ -4188,6 +4553,25 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addThekedarContract,
         addThekedarRABill,
         addLaborHaziraLog,
+        kitchenProfiles,
+        addKitchenProfile,
+        updateKitchenProfile,
+        deleteKitchenProfile,
+        addKitchenRecipeBOM,
+        deleteKitchenRecipeBOM,
+        addKitchenMenuItem,
+        updateKitchenMenuItem,
+        deleteKitchenMenuItem,
+        addKitchenTiffinSubscriber,
+        recordTiffinDeliveryTally,
+        recordTiffinPayment,
+        deleteKitchenTiffinSubscriber,
+        addKitchenDailyOrder,
+        updateKitchenOrderStatus,
+        deleteKitchenDailyOrder,
+        addKitchenExpense,
+        deleteKitchenExpense,
+        recordKitchenDrawingToFamily,
         totalWealth,
         liquidWealth,
         fixedWealth,

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Wallet, PiggyBank, Calendar, Menu, FileText, Users, Scale, HeartPulse, Sparkles, Settings, Sprout, Car, Truck, Building2, Target, X, Coins, Compass, HardHat, Briefcase, Landmark, HandCoins } from 'lucide-react';
+import { Home, Wallet, PiggyBank, Calendar, Menu, FileText, Users, Scale, HeartPulse, Sparkles, Settings, Sprout, Car, Truck, Building2, Target, X, Coins, Compass, HardHat, Briefcase, Landmark, HandCoins, UtensilsCrossed } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 export function BottomNav() {
@@ -29,7 +29,8 @@ export function BottomNav() {
     { href: '/stocks', label: '📈 Stocks & AI Trading Hub', icon: Sparkles, desc: 'AI Top 5 Picks, F&O Heatmap, Academy & Paper Trading' },
     { href: '/rentals', label: '🏠 Rentals, PG & Hostel Manager', icon: Building2, desc: 'Flats, Shops, PG Rooms, Bed Matrix, Sub-meter & Mess' },
     { href: '/firms', label: '🏢 Business Firms & GST', icon: Building2, desc: 'Registered firms, GST, TDS & Family Drawings' },
-    { href: '/fleet', label: '🚛 Fleet & Transport Business', icon: Truck, desc: 'Trucks, School Bus, Cabs, Toll/Diesel & ROI' },
+        { href: '/kitchen', label: '🍲 Cloud Kitchen, Tiffin & Bhojanalaya', icon: UtensilsCrossed, desc: 'BOM recipe costing, daily orders, tiffin khata, WhatsApp catalog & drawings' },
+{ href: '/fleet', label: '🚛 Fleet & Transport Business', icon: Truck, desc: 'Trucks, School Bus, Cabs, Toll/Diesel & ROI' },
     { href: '/agriculture', label: '🌾 Krishi & Agri Land', icon: Sprout, desc: 'Kheti, Theka/Adhiya & Mandi Fasal' },
     { href: '/vehicles', label: '🚗 Personal Garage', icon: Car, desc: 'Car/Bike details, Service & PUC' },
     { href: '/vault', label: 'Documents Vault', icon: FileText, desc: 'Digital insurance & papers' },
