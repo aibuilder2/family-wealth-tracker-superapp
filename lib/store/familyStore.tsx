@@ -12,7 +12,8 @@ import {
   Trip, TripMember, TripExpense, TripPoolContribution, TripType, TripExpenseType, TripExpenseCategory,
   BusinessSetupProject, ProjectFundingSource, DisbursalTranche, PreOpExpense, ProjectRepayment, PreOpExpenseCategory, FundingSourceType,
   ConstructionProject, ConstructionMaterialLog, ThekedarContract, LaborHaziraRecord, ConstructionStage, MaterialCategory,
-  BankLoan, BankLoanType, LoanMemberSplit, LoanInterestRevision
+  BankLoan, BankLoanType, LoanMemberSplit, LoanInterestRevision,
+  MedicalTreatmentEpisode, MedicalEpisodeDoctorVisit, MedicalEpisodeExpenseItem, MedicalExpenseCategory
 } from '@/types';
 
 export const INITIAL_MEMBERS: Member[] = [
@@ -366,6 +367,110 @@ export const INITIAL_STAFF: HouseholdStaff[] = [
   }
 ];
 export const INITIAL_DOCUMENTS: DocumentItem[] = [];
+export const INITIAL_MEDICAL_EPISODES: MedicalTreatmentEpisode[] = [
+  {
+    id: 'med-ep-1',
+    family_id: 'fam-1',
+    member_id: 'm-sunita',
+    patient_name: 'Sunita Sharma',
+    title: 'Maternity, Checkups & Delivery Journey',
+    treatment_type: 'pregnancy_delivery',
+    start_date: '2025-11-10',
+    status: 'ongoing',
+    primary_hospital: 'Apollo Cradle Maternity Hospital',
+    primary_doctor: 'Dr. Sunita Agarwal (Senior Obstetrician)',
+    city: 'Delhi NCR',
+    has_health_insurance: true,
+    insurance_provider: 'Star Health Family Optima',
+    policy_number: 'SH-DEL-884210',
+    notes: '9-Month Complete Pregnancy care, regular sonography, diet and delivery planning.',
+    doctor_consultations: [
+      {
+        id: 'doc-1',
+        doctor_name: 'Dr. Sunita Agarwal',
+        specialization: 'Senior Gynecologist & Obstetrician',
+        hospital_clinic: 'Apollo Cradle, Sector 14',
+        city: 'Delhi NCR',
+        visit_date: '2026-01-15',
+        consultation_fee: 1200,
+        prescription_notes: 'Folic acid, Iron & Calcium tablets prescribed. BP normal (118/76).',
+        next_followup_date: '2026-02-15'
+      },
+      {
+        id: 'doc-2',
+        doctor_name: 'Dr. Vinay Mehra',
+        specialization: 'Fetal Medicine & Radiologist',
+        hospital_clinic: 'City Diagnostic Centre',
+        city: 'Delhi NCR',
+        visit_date: '2026-02-18',
+        consultation_fee: 1500,
+        prescription_notes: 'Second opinion anomaly scan normal. Baby growth optimal.'
+      }
+    ],
+    expense_items: [
+      {
+        id: 'exp-1',
+        date: '2026-01-15',
+        category: 'doctor_consultation',
+        title: 'Monthly OPD Checkup Fee',
+        doctor_name: 'Dr. Sunita Agarwal',
+        hospital_or_vendor: 'Apollo Cradle',
+        amount: 1200,
+        payment_mode: 'online_upi',
+        paid_by_member_id: 'm-head',
+        is_insurance_claimable: false
+      },
+      {
+        id: 'exp-2',
+        date: '2026-01-16',
+        category: 'diagnostics_tests',
+        title: 'Double Marker & Blood Routine Profile',
+        hospital_or_vendor: 'Dr. Lal PathLabs',
+        amount: 3850,
+        payment_mode: 'online_upi',
+        paid_by_member_id: 'm-head',
+        is_insurance_claimable: true,
+        insurance_settled_amount: 0
+      },
+      {
+        id: 'exp-3',
+        date: '2026-02-18',
+        category: 'diagnostics_tests',
+        title: 'TIFFA Anomaly Scan (Level 2 Ultrasound)',
+        hospital_or_vendor: 'City Diagnostic Centre',
+        amount: 4500,
+        payment_mode: 'card',
+        paid_by_member_id: 'm-head',
+        is_insurance_claimable: false
+      },
+      {
+        id: 'exp-4',
+        date: '2026-02-18',
+        category: 'travel_ambulance',
+        title: 'Hospital Visit Cab (Ola To & Fro)',
+        hospital_or_vendor: 'Ola Cabs',
+        amount: 850,
+        payment_mode: 'online_upi',
+        paid_by_member_id: 'm-head'
+      },
+      {
+        id: 'exp-5',
+        date: '2026-03-01',
+        category: 'pharmacy_medicines',
+        title: 'Trimester Supplements & Vitamins (1 Month)',
+        hospital_or_vendor: 'Apollo Pharmacy',
+        amount: 2150,
+        payment_mode: 'online_upi',
+        paid_by_member_id: 'm-head'
+      }
+    ],
+    total_expenses: 12550,
+    total_insurance_reimbursed: 0,
+    net_out_of_pocket: 12550,
+    created_at: '2025-11-10'
+  }
+];
+
 export const INITIAL_MEDICAL: MedicalRecord[] = [];
 
 export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
@@ -1015,6 +1120,15 @@ interface FamilyContextType {
   recordLoanInterestHike: (id: string, revision: { new_rate: number; effective_date: string; reason?: string }) => void;
   verifyLoanMemberOTP: (loanId: string, memberId: string, otp: string) => boolean;
 
+  medicalEpisodes: MedicalTreatmentEpisode[];
+  addMedicalEpisode: (episode: Omit<MedicalTreatmentEpisode, 'id' | 'family_id' | 'created_at' | 'total_expenses' | 'total_insurance_reimbursed' | 'net_out_of_pocket'>) => MedicalTreatmentEpisode;
+  updateMedicalEpisode: (id: string, updates: Partial<MedicalTreatmentEpisode>) => void;
+  deleteMedicalEpisode: (id: string) => void;
+  addEpisodeExpenseItem: (episodeId: string, expense: Omit<MedicalEpisodeExpenseItem, 'id'>) => void;
+  deleteEpisodeExpenseItem: (episodeId: string, expenseId: string) => void;
+  addEpisodeDoctorVisit: (episodeId: string, visit: Omit<MedicalEpisodeDoctorVisit, 'id'>) => void;
+
+
   activeMemberId: string | null;
   currentUserId: string;
   setCurrentUserId: (id: string) => void;
@@ -1136,6 +1250,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [businessSetupProjects, setBusinessSetupProjects] = useState<BusinessSetupProject[]>([]);
   const [constructionProjects, setConstructionProjects] = useState<ConstructionProject[]>([]);
   const [bankLoans, setBankLoans] = useState<BankLoan[]>([]);
+  const [medicalEpisodes, setMedicalEpisodes] = useState<MedicalTreatmentEpisode[]>(INITIAL_MEDICAL_EPISODES);
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
@@ -1267,6 +1382,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setBusinessSetupProjects([]);
     setConstructionProjects([]);
     setBankLoans([]);
+    setMedicalEpisodes([]);
     setIsDemoMode(false);
 
     if (authUser?.id) {
@@ -1286,6 +1402,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify([]));
         localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify([]));
         localStorage.setItem(getStorageKey('bank_loans'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('medical_episodes'), JSON.stringify([]));
       } catch (e) {}
     }
   };
@@ -1375,6 +1492,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         if (scp) setConstructionProjects(JSON.parse(scp).filter((c: any) => !isDemoRecord(c.id)));
         const sbl = localStorage.getItem(key('bank_loans'));
         if (sbl) setBankLoans(JSON.parse(sbl).filter((b: any) => !isDemoRecord(b.id)));
+        const smed = localStorage.getItem(key('medical_episodes'));
+        if (smed) setMedicalEpisodes(JSON.parse(smed).filter((e: any) => !isDemoRecord(e.id)));
         setCurrentUserId(cleanMemId);
         setIsDemoMode(false);
       } catch (e) {}
@@ -2037,6 +2156,133 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }));
     return true;
   };
+
+  const saveMedicalEpisodes = (updater: MedicalTreatmentEpisode[] | ((prev: MedicalTreatmentEpisode[]) => MedicalTreatmentEpisode[])) => {
+    setMedicalEpisodes(prev => {
+      const currentList = typeof updater === 'function' ? updater(prev) : updater;
+      const cleanList = currentList.filter(e => !isDemoRecord(e.id));
+      try {
+        localStorage.setItem(getStorageKey('medical_episodes'), JSON.stringify(cleanList));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return currentList;
+    });
+  };
+
+  const addMedicalEpisode = (epData: Omit<MedicalTreatmentEpisode, 'id' | 'family_id' | 'created_at' | 'total_expenses' | 'total_insurance_reimbursed' | 'net_out_of_pocket'>): MedicalTreatmentEpisode => {
+    const totalExp = (epData.expense_items || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const totalIns = (epData.expense_items || []).reduce((sum, item) => sum + Number(item.insurance_settled_amount || 0), 0);
+    const newEpisode: MedicalTreatmentEpisode = {
+      ...epData,
+      id: 'med-ep-' + Date.now(),
+      family_id: family.id,
+      doctor_consultations: epData.doctor_consultations || [],
+      expense_items: epData.expense_items || [],
+      total_expenses: totalExp,
+      total_insurance_reimbursed: totalIns,
+      net_out_of_pocket: Math.max(0, totalExp - totalIns),
+      created_at: new Date().toISOString()
+    };
+    saveMedicalEpisodes(prev => [newEpisode, ...prev]);
+    return newEpisode;
+  };
+
+  const updateMedicalEpisode = (id: string, updates: Partial<MedicalTreatmentEpisode>) => {
+    saveMedicalEpisodes(prev => prev.map(ep => {
+      if (ep.id !== id) return ep;
+      const merged = { ...ep, ...updates };
+      const totalExp = (merged.expense_items || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const totalIns = (merged.expense_items || []).reduce((sum, item) => sum + Number(item.insurance_settled_amount || 0), 0);
+      return {
+        ...merged,
+        total_expenses: totalExp,
+        total_insurance_reimbursed: totalIns,
+        net_out_of_pocket: Math.max(0, totalExp - totalIns)
+      };
+    }));
+  };
+
+  const deleteMedicalEpisode = (id: string) => {
+    saveMedicalEpisodes(prev => prev.filter(ep => ep.id !== id));
+  };
+
+  const addEpisodeExpenseItem = (episodeId: string, expense: Omit<MedicalEpisodeExpenseItem, 'id'>) => {
+    const newItem: MedicalEpisodeExpenseItem = {
+      ...expense,
+      id: 'med-exp-' + Date.now()
+    };
+    saveMedicalEpisodes(prev => prev.map(ep => {
+      if (ep.id !== episodeId) return ep;
+      const updatedExpenses = [newItem, ...(ep.expense_items || [])];
+      const totalExp = updatedExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const totalIns = updatedExpenses.reduce((sum, item) => sum + Number(item.insurance_settled_amount || 0), 0);
+      return {
+        ...ep,
+        expense_items: updatedExpenses,
+        total_expenses: totalExp,
+        total_insurance_reimbursed: totalIns,
+        net_out_of_pocket: Math.max(0, totalExp - totalIns)
+      };
+    }));
+
+    addTransaction({
+      member_id: expense.paid_by_member_id,
+      type: 'expense',
+      amount: expense.amount,
+      category: 'Medical',
+      category_type: 'personal',
+      mode: expense.payment_mode === 'cash' ? 'offline' : 'online',
+      scope: 'ghar',
+      note: `Medical Ilaj Kharcha: ${expense.title} (${expense.category.replace('_', ' ')})`,
+      txn_date: expense.date || new Date().toISOString().split('T')[0]
+    });
+  };
+
+  const deleteEpisodeExpenseItem = (episodeId: string, expenseId: string) => {
+    saveMedicalEpisodes(prev => prev.map(ep => {
+      if (ep.id !== episodeId) return ep;
+      const updatedExpenses = (ep.expense_items || []).filter(e => e.id !== expenseId);
+      const totalExp = updatedExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const totalIns = updatedExpenses.reduce((sum, item) => sum + Number(item.insurance_settled_amount || 0), 0);
+      return {
+        ...ep,
+        expense_items: updatedExpenses,
+        total_expenses: totalExp,
+        total_insurance_reimbursed: totalIns,
+        net_out_of_pocket: Math.max(0, totalExp - totalIns)
+      };
+    }));
+  };
+
+  const addEpisodeDoctorVisit = (episodeId: string, visit: Omit<MedicalEpisodeDoctorVisit, 'id'>) => {
+    const newVisit: MedicalEpisodeDoctorVisit = {
+      ...visit,
+      id: 'doc-v-' + Date.now()
+    };
+    saveMedicalEpisodes(prev => prev.map(ep => {
+      if (ep.id !== episodeId) return ep;
+      return {
+        ...ep,
+        doctor_consultations: [newVisit, ...(ep.doctor_consultations || [])]
+      };
+    }));
+
+    if (visit.consultation_fee && visit.consultation_fee > 0) {
+      addEpisodeExpenseItem(episodeId, {
+        date: visit.visit_date || new Date().toISOString().split('T')[0],
+        category: 'doctor_consultation',
+        title: `Doctor Consultation: ${visit.doctor_name} (${visit.specialization})`,
+        doctor_name: visit.doctor_name,
+        hospital_or_vendor: visit.hospital_clinic,
+        city: visit.city,
+        amount: visit.consultation_fee,
+        payment_mode: 'online_upi',
+        paid_by_member_id: currentUserId || members[0]?.id || 'm-head',
+        notes: visit.prescription_notes
+      });
+    }
+  };
+
   const addBusinessFirm = (fData: Omit<BusinessFirm, 'id' | 'family_id' | 'total_revenue' | 'total_expenses' | 'total_gst_collected' | 'total_tds_deducted' | 'current_firm_balance' | 'total_drawings_paid' | 'drawings'>) => {
     const newFirm: BusinessFirm = {
       ...fData,
@@ -3269,6 +3515,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         deleteBankLoan,
         recordLoanInterestHike,
         verifyLoanMemberOTP,
+        medicalEpisodes,
+        addMedicalEpisode,
+        updateMedicalEpisode,
+        deleteMedicalEpisode,
+        addEpisodeExpenseItem,
+        deleteEpisodeExpenseItem,
+        addEpisodeDoctorVisit,
         fleetVehicles,
         addFleetVehicle,
         addFleetTrip,

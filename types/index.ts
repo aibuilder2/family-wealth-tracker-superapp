@@ -1090,3 +1090,77 @@ export interface BankLoan {
   notes?: string;
   created_at: string;
 }
+
+// ==========================================
+// HOSPITAL & ONGOING MEDICAL TREATMENT EPISODES
+// ==========================================
+
+export type MedicalExpenseCategory = 
+  | 'doctor_consultation' // Multi-doctor OPD fees, specialist advice, second opinions
+  | 'diagnostics_tests'   // Ultrasound, Sonography, Blood tests, MRI, CT Scan, Biopsy
+  | 'pharmacy_medicines'  // Prescription medicines, injections, supplements
+  | 'hospital_admission'  // Bed/room rent, ICU, OT charges, delivery package, surgeon fee
+  | 'travel_ambulance'    // Taxi/Cab, Ambulance, Train/Flight tickets to other cities, Fuel
+  | 'stay_food_attendant' // Hotel, Dharamshala, attendant meals, hospital canteen
+  | 'physiotherapy_rehab' // Post-treatment therapy, home nursing
+  | 'other';
+
+export interface MedicalEpisodeDoctorVisit {
+  id: string;
+  doctor_name: string;        // e.g. "Dr. Sunita Agarwal"
+  specialization: string;     // e.g. "Senior Gynecologist & Obstetrician", "Interventional Cardiologist"
+  hospital_clinic: string;    // e.g. "Apollo Cradle, Delhi"
+  city?: string;              // e.g. "New Delhi", "Local City"
+  visit_date: string;
+  consultation_fee?: number;
+  prescription_notes?: string;
+  next_followup_date?: string;
+}
+
+export interface MedicalEpisodeExpenseItem {
+  id: string;
+  date: string;
+  category: MedicalExpenseCategory;
+  title: string;              // e.g. "3rd Trimester Anomaly Scan", "AIIMS Travel Train + Cab"
+  doctor_name?: string;
+  hospital_or_vendor?: string;// e.g. "Dr. Lal PathLabs", "Apollo Pharmacy", "Ola Cab"
+  city?: string;
+  amount: number;             // Total Bill Amount (₹)
+  payment_mode: 'cash' | 'online_upi' | 'card' | 'bank_transfer';
+  paid_by_member_id: string;  // Which family member paid this bill
+  is_insurance_claimable?: boolean;
+  insurance_claimed_amount?: number;
+  insurance_settled_amount?: number; // Reimbursed by TPA / Mediclaim
+  bill_receipt_no?: string;
+  notes?: string;
+}
+
+export interface MedicalTreatmentEpisode {
+  id: string;
+  family_id: string;
+  member_id: string;          // Patient family member (e.g. Priya)
+  patient_name?: string;
+  title: string;              // e.g. "Priya — Pregnancy & Maternity Journey" or "Papa — Heart Angioplasty & Followups"
+  treatment_type: 'pregnancy_delivery' | 'surgery_operation' | 'chronic_illness' | 'accidental_injury' | 'dental_ortho' | 'child_pediatric' | 'general_prolonged';
+  start_date: string;
+  end_date?: string;
+  status: 'ongoing' | 'completed' | 'followup_pending';
+  primary_hospital?: string;   // e.g. "Apollo Hospital"
+  primary_doctor?: string;     // e.g. "Dr. Sunita Agarwal"
+  city?: string;               // e.g. "Delhi NCR"
+  has_health_insurance: boolean;
+  insurance_provider?: string; // e.g. "Star Health", "HDFC ERGO", "Ayushman Bharat"
+  policy_number?: string;
+  notes?: string;
+
+  // Embedded Sub-Collections:
+  doctor_consultations: MedicalEpisodeDoctorVisit[];
+  expense_items: MedicalEpisodeExpenseItem[];
+
+  // Cumulative Totals
+  total_expenses: number;
+  total_insurance_reimbursed: number;
+  net_out_of_pocket: number; // Jeb se kul kitna kharch hua
+  created_at: string;
+}
+

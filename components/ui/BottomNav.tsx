@@ -36,7 +36,7 @@ export function BottomNav() {
     { href: '/family', label: 'Family & Tree', icon: Users, desc: 'Members & vansh hierarchy' },
     { href: '/staff', label: 'Household Staff', icon: Users, desc: 'Maid & Driver attendance/pay' },
     { href: '/cases', label: 'Court Case Tracker', icon: Scale, desc: 'Hearing dates & Wakil fees' },
-    { href: '/medical', label: 'Medical Records', icon: HeartPulse, desc: 'Blood group & emergency meds' },
+    { href: '/medical', label: '🏥 Medical & Hospital Episodes', icon: HeartPulse, desc: 'Pregnancy, surgery, multi-doctor visits, travel & bills' },
     { href: '/advisor', label: 'AI Advisor', icon: Sparkles, desc: 'Smart savings tips' },
     { href: '/settings/members', label: 'Permissions & Roles', icon: Settings, desc: 'Access control' },
   ];
