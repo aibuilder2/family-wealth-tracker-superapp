@@ -44,7 +44,8 @@ import {
   Navigation,
   Percent,
   RefreshCw,
-  Tag
+  Tag,
+  Split
 } from "lucide-react";
 import { RentalProperty, RentalPropertyType, HostelRoom, RentalTenant, RentalExpense } from "@/types";
 import Link from "next/link";
@@ -67,11 +68,21 @@ export default function RentalsPage() {
     vacateAndSettleTenant,
     collectRentPayment,
     addRentalExpense,
-    deleteRentalExpense
+    deleteRentalExpense,
+    addRentDiversion,
+    deleteRentDiversion
   } = useFamilyStore();
 
   const [selectedPropId, setSelectedPropId] = useState<string>(rentalProperties[0]?.id || "");
-  const [activeTab, setActiveTab] = useState<"tenants" | "past_tenants" | "rooms_beds" | "maintenance_expenses" | "agreement_rules" | "wealth_details" | "submeter">("tenants");
+  
+  // Rent Diversion / Batwara states
+  const [rentDivTargetMemberId, setRentDivTargetMemberId] = useState("");
+  const [rentDivSplitType, setRentDivSplitType] = useState<"percentage" | "fixed_amount">("fixed_amount");
+  const [rentDivSplitValue, setRentDivSplitValue] = useState<number>(5000);
+  const [rentDivPurpose, setRentDivPurpose] = useState("Ghar Kharcha");
+  const [rentDivPaymentMode, setRentDivPaymentMode] = useState<"bank_transfer" | "cash" | "upi">("bank_transfer");
+
+  const [activeTab, setActiveTab] = useState<"tenants" | "past_tenants" | "rooms_beds" | "maintenance_expenses" | "agreement_rules" | "wealth_details" | "submeter" | "diversions">("tenants");
 
   // Single Unified Modal State
   const [showUnifiedModal, setShowUnifiedModal] = useState(false);
@@ -114,6 +125,15 @@ export default function RentalsPage() {
   const [propOwnerPhone, setPropOwnerPhone] = useState("");
   const [propOwnerPan, setPropOwnerPan] = useState("");
   const [propOwnerUpi, setPropOwnerUpi] = useState("");
+  
+  // Rent Increase / Escalation States
+  const [propRentIncreaseType, setPropRentIncreaseType] = useState<'percentage' | 'fixed_amount'>('percentage');
+  const [propRentIncreaseValue, setPropRentIncreaseValue] = useState<number>(10);
+  const [propRentIncreaseFreq, setPropRentIncreaseFreq] = useState<'every_11_months' | 'annually' | 'every_2_years' | 'custom'>('every_11_months');
+  const [propNextRentIncreaseDate, setPropNextRentIncreaseDate] = useState<string>('');
+  const [propRentIncreaseTerms, setPropRentIncreaseTerms] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'list' | 'single'>('list');
+
   const [propDefaultRules, setPropDefaultRules] = useState(
     "1. Har mahine ki due date tak rent jama karein.\n2. Sub-letting ya kisi aur ko kiraye par dena mana hai.\n3. Notice period: Kam se kam 30 din pehle suchit karein.\n4. Kisi bhi samagri ya fittings me damage hone par bharpai security deposit se ki jayegi.\n5. Chhote repairs (bulb, washer) tenant karega, structural repairs owner karega."
   );
@@ -301,6 +321,11 @@ export default function RentalsPage() {
     setPropRegistryNo("");
     setPropOwnerMemberId(currentUserId || members[0]?.id || "m-head");
     setPropTargetRent(0);
+    setPropRentIncreaseType('percentage');
+    setPropRentIncreaseValue(10);
+    setPropRentIncreaseFreq('every_11_months');
+    setPropNextRentIncreaseDate('');
+    setPropRentIncreaseTerms('');
     setTenantName("");
     setTenantFatherSpouse("");
     setTenantPhone("");
@@ -365,6 +390,7 @@ export default function RentalsPage() {
       pincode: propPincode || undefined,
       gps_coordinates: propGpsCoordinates || undefined,
       owner_member_id: propOwnerMemberId,
+      member_id: propOwnerMemberId,
       owner_member_name: selectedOwner?.name || propOwnerName || "Makan Malik",
       property_size: Number(propSize || 0),
       size_unit: propSizeUnit,
@@ -381,6 +407,11 @@ export default function RentalsPage() {
       total_capacity_beds: propType === "pg_hostel" ? 6 : 1,
       has_hostel_model: propType === "pg_hostel",
       monthly_target_revenue: Number(propTargetRent || tenantRent || 0),
+      rent_increase_type: propRentIncreaseType,
+      rent_increase_value: Number(propRentIncreaseValue || 0),
+      rent_increase_frequency: propRentIncreaseFreq,
+      next_rent_increase_date: propNextRentIncreaseDate || undefined,
+      rent_increase_terms: propRentIncreaseTerms || undefined,
       security_deposit_holding: 0,
       default_rules: propDefaultRules,
       rooms: propType === "pg_hostel" ? [] : undefined
@@ -561,6 +592,11 @@ export default function RentalsPage() {
     setPropOwnerPhone((p.landlord_phone || "").replace("+91", "").trim());
     setPropOwnerPan(p.landlord_pan || "");
     setPropDefaultRules(p.default_rules || propDefaultRules);
+    setPropRentIncreaseType(p.rent_increase_type || 'percentage');
+    setPropRentIncreaseValue(p.rent_increase_value !== undefined ? p.rent_increase_value : 10);
+    setPropRentIncreaseFreq(p.rent_increase_frequency || 'every_11_months');
+    setPropNextRentIncreaseDate(p.next_rent_increase_date || '');
+    setPropRentIncreaseTerms(p.rent_increase_terms || '');
   };
 
   // Save Edited Property
@@ -846,43 +882,284 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
         </Link>
       </div>
 
-      {/* Property Selector Pills */}
-      <div className="flex overflow-x-auto hide-scrollbar gap-2 mb-6 pb-2">
-        {rentalProperties.map((prop) => (
+      
+      {/* Top View Mode: All Properties Portfolio List vs Single Property Detail */}
+      <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 border border-slate-800 rounded-2xl">
           <button
-            key={prop.id}
-            onClick={() => setSelectedPropId(prop.id)}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 border ${
-              selectedPropId === prop.id
-                ? "bg-amber-500 text-slate-950 border-amber-500 shadow-lg shadow-amber-500/20"
-                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+            type="button"
+            onClick={() => setViewMode("list")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              viewMode === "list"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "text-slate-400 hover:text-white"
             }`}
           >
-            <span>
-              {prop.property_type === "commercial_shop"
-                ? "🏪"
-                : prop.property_type === "warehouse_godown"
-                ? "📦"
-                : prop.has_hostel_model
-                ? "🏢"
-                : "🏠"}
-            </span>
-            <span>{prop.title}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/20 font-mono">
-              ₹{(prop.monthly_target_revenue || 0).toLocaleString("en-IN")}
-            </span>
+            <Building className="w-4 h-4" />
+            <span>📋 Sabhi Properties Ki List ({rentalProperties.length})</span>
           </button>
-        ))}
+
+          <button
+            type="button"
+            onClick={() => setViewMode("single")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              viewMode === "single"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <Home className="w-4 h-4" />
+            <span>🏠 Selected Property ({activeProperty?.title ? activeProperty.title.slice(0, 18) + '...' : 'Management'})</span>
+          </button>
+        </div>
 
         <button
           onClick={() => handleOpenUnifiedModal("both")}
-          className="px-3.5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-slate-900 border border-dashed border-slate-700 text-amber-400 hover:border-amber-500 hover:bg-slate-800 flex items-center gap-1.5 transition"
+          className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all"
         >
-          <Plus className="w-3.5 h-3.5" /> + Nayi Property / Kirayedaar Jodein
+          <Plus className="w-4 h-4" /> + Nayi Property Jodein
         </button>
       </div>
 
-      {activeProperty ? (
+      {/* VIEW MODE 1: ALL PROPERTIES PORTFOLIO & LIST */}
+      {viewMode === "list" && (
+        <div className="space-y-4 mb-8">
+          <div className="flex justify-between items-center px-1">
+            <div>
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <span>🏙️ Aapki Sabhi Properties Ka Portfolio & Valuation</span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Sabhi dukan, makan aur plot ki bazar kimat, monthly rent aur badhotri ka hisab.
+              </p>
+            </div>
+            <span className="text-xs text-amber-400 font-bold bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+              Kul Valuation: ₹{totalPortfolioValuation.toLocaleString("en-IN")}
+            </span>
+          </div>
+
+          {rentalProperties.length === 0 ? (
+            <div className="p-8 text-center bg-slate-900/60 border border-slate-800 rounded-3xl space-y-3">
+              <Building className="w-12 h-12 mx-auto text-slate-600" />
+              <p className="text-sm font-bold text-white">Abhi koi rental property add nahi hui hai.</p>
+              <button
+                onClick={() => handleOpenUnifiedModal("both")}
+                className="px-4 py-2 bg-amber-500 text-slate-950 rounded-xl text-xs font-bold shadow"
+              >
+                + Pehli Property Jodein
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {rentalProperties.map((p) => {
+                const owner = members.find(m => m.id === p.owner_member_id);
+                const isSelected = selectedPropId === p.id;
+                const activeCount = p.tenants?.filter(t => t.tenant_status === 'active').length || 0;
+
+                // Projected next rent if increase configured
+                let projectedNextRent = 0;
+                if (p.monthly_target_revenue && p.rent_increase_value) {
+                  if (p.rent_increase_type === 'fixed_amount') {
+                    projectedNextRent = p.monthly_target_revenue + p.rent_increase_value;
+                  } else {
+                    projectedNextRent = Math.round(p.monthly_target_revenue * (1 + p.rent_increase_value / 100));
+                  }
+                }
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`p-5 rounded-3xl bg-[#111827] border transition-all flex flex-col justify-between space-y-4 shadow-lg ${
+                      isSelected ? 'border-amber-500 shadow-amber-500/10' : 'border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      {/* Card Header */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl p-2 rounded-2xl bg-slate-800/80">
+                            {p.property_type === "commercial_shop"
+                              ? "🏪"
+                              : p.property_type === "warehouse_godown"
+                              ? "📦"
+                              : p.has_hostel_model
+                              ? "🏢"
+                              : "🏠"}
+                          </span>
+                          <div>
+                            <h4 className="text-sm font-black text-white leading-tight">{p.title}</h4>
+                            <span className="text-[10px] text-slate-400 capitalize">
+                              {p.property_type.replace("_", " ")} {p.property_size ? `· ${p.property_size} ${p.size_unit || 'sqft'}` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          👤 {p.owner_member_name || owner?.name || 'Papa'}
+                        </span>
+                      </div>
+
+                      {/* Valuation & Monthly Rent Box */}
+                      <div className="p-3 bg-slate-900/90 rounded-2xl border border-slate-800/80 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] text-slate-400 font-medium">Bazar Bhav (Market Value):</span>
+                          <span className="text-sm font-black text-emerald-400 font-mono">
+                            ₹{(p.estimated_market_value || 0).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+
+                        {p.purchase_price ? (
+                          <div className="flex justify-between items-center text-[10px] text-slate-400">
+                            <span>Kharid Lagat (Purchase):</span>
+                            <span className="font-mono text-slate-300">
+                              ₹{p.purchase_price.toLocaleString("en-IN")} {p.purchase_date ? `(${p.purchase_date})` : ''}
+                            </span>
+                          </div>
+                        ) : null}
+
+                        <div className="flex justify-between items-center pt-1 border-t border-slate-800">
+                          <span className="text-[10px] text-amber-300/90 font-bold">Monthly Target Rent:</span>
+                          <span className="text-xs font-black text-amber-300 font-mono">
+                            ₹{(p.monthly_target_revenue || 0).toLocaleString("en-IN")} / mo
+                          </span>
+                        </div>
+                      </div>
+
+                      
+                      {/* Rent Diversion / Batwara Badge if active */}
+                      {p.rent_diversions && p.rent_diversions.length > 0 && (
+                        <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl space-y-1">
+                          <span className="text-[10px] font-bold text-purple-300 flex items-center gap-1">
+                            <span>🔄 Kiraya Batwara (Diversions):</span>
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {p.rent_diversions.map(d => (
+                              <span key={d.id} className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 font-semibold">
+                                ➡️ {d.target_member_name}: {d.split_type === 'percentage' ? `${d.split_value}%` : `₹${d.split_value}`} ({d.purpose})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Rent Increase / Badhotri Schedule Box */}
+                      <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-bold text-emerald-300 flex items-center gap-1">
+                            <span>📈 Badhotri (Hike):</span>
+                          </span>
+                          <span className="font-bold text-white font-mono bg-emerald-500/20 px-1.5 py-0.2 rounded">
+                            {p.rent_increase_value 
+                              ? (p.rent_increase_type === 'fixed_amount' ? `+₹${p.rent_increase_value}` : `+${p.rent_increase_value}%`) 
+                              : '+10% (Renewal)'}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[9px] text-slate-400">
+                          <span>
+                            {p.rent_increase_frequency === 'annually' 
+                              ? 'Har 1 Saal' 
+                              : p.rent_increase_frequency === 'every_2_years' 
+                              ? 'Har 2 Saal' 
+                              : 'Har 11 Mahine'}
+                          </span>
+                          {p.next_rent_increase_date && (
+                            <span className="text-emerald-300 font-mono">
+                              Agli: {p.next_rent_increase_date}
+                            </span>
+                          )}
+                        </div>
+
+                        {projectedNextRent > 0 && (
+                          <div className="text-[9px] text-slate-300 pt-0.5 border-t border-emerald-500/20 flex justify-between">
+                            <span>Agla Expected Rent:</span>
+                            <span className="font-bold text-emerald-300 font-mono">₹{projectedNextRent.toLocaleString("en-IN")}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Location & Occupancy details */}
+                      <div className="text-[10px] text-slate-400 space-y-0.5">
+                        <p className="truncate">📍 {p.address}, {p.city}</p>
+                        <p className="text-slate-300 font-semibold">
+                          👥 {activeCount} Kirayedaar (Tenants) {activeCount === 0 ? '· (Khali / Vacant)' : ''}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Card Footer Actions */}
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPropId(p.id);
+                          setViewMode("single");
+                        }}
+                        className="flex-1 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition shadow flex items-center justify-center gap-1"
+                      >
+                        <span>📂 Khata Kholein</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openEditPropertyModal(p)}
+                        className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
+                        title="Edit Valuation & Rent Increase"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VIEW MODE 2: SINGLE PROPERTY MANAGEMENT (Selector Pills + Active Property Tabs) */}
+      {viewMode === "single" && (
+        <>
+          {/* Property Selector Pills */}
+          <div className="flex overflow-x-auto hide-scrollbar gap-2 mb-6 pb-2">
+            {rentalProperties.map((prop) => (
+              <button
+                key={prop.id}
+                onClick={() => setSelectedPropId(prop.id)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 border ${
+                  selectedPropId === prop.id
+                    ? "bg-amber-500 text-slate-950 border-amber-500 shadow-lg shadow-amber-500/20"
+                    : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                }`}
+              >
+                <span>
+                  {prop.property_type === "commercial_shop"
+                    ? "🏪"
+                    : prop.property_type === "warehouse_godown"
+                    ? "📦"
+                    : prop.has_hostel_model
+                    ? "🏢"
+                    : "🏠"}
+                </span>
+                <span>{prop.title}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/20 font-mono">
+                  ₹{(prop.monthly_target_revenue || 0).toLocaleString("en-IN")}
+                </span>
+              </button>
+            ))}
+
+            <button
+              onClick={() => handleOpenUnifiedModal("both")}
+              className="px-3.5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-slate-900 border border-dashed border-slate-700 text-amber-400 hover:border-amber-500 hover:bg-slate-800 flex items-center gap-1.5 transition"
+            >
+              <Plus className="w-3.5 h-3.5" /> + Nayi Property / Kirayedaar
+            </button>
+          </div>
+        </>
+      )}
+
+      {(viewMode === "single" && activeProperty) ? (
         <div className="space-y-6">
           {/* Active Property Banner with Member Owner & Size & Valuation */}
           <div className="bg-gradient-to-r from-blue-950/40 via-[#111827] to-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -2128,6 +2405,86 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                       </div>
                     </div>
                   </div>
+
+                  {/* Rent Increase / Badhotri Schedule (Escalation Policy) */}
+                  <div className="p-4 bg-gradient-to-r from-emerald-500/10 via-slate-900/60 to-transparent border border-emerald-500/30 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1 rounded-lg bg-emerald-500/20 text-emerald-300">📈</span>
+                        <h4 className="text-xs font-black text-emerald-300">
+                          Rent Increase / Badhotri Schedule (Escalation)
+                        </h4>
+                      </div>
+                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                        % ya Fixed ₹ Badhotri
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-300">Badhotri Ka Madhyam</label>
+                        <select
+                          value={propRentIncreaseType}
+                          onChange={(e) => setPropRentIncreaseType(e.target.value as any)}
+                          className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                        >
+                          <option value="percentage">% Percentage Badhotri (Default)</option>
+                          <option value="fixed_amount">₹ Fixed Amount Badhotri</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-300">
+                          {propRentIncreaseType === 'percentage' ? 'Kitna % Badhega?' : 'Kitna Fixed ₹ Badhega?'}
+                        </label>
+                        <input
+                          type="number"
+                          placeholder={propRentIncreaseType === 'percentage' ? 'e.g. 10 (10%)' : 'e.g. 1000 (₹1,000)'}
+                          value={propRentIncreaseValue === 0 ? "" : propRentIncreaseValue}
+                          onChange={(e) => setPropRentIncreaseValue(e.target.value === "" ? 0 : Number(e.target.value))}
+                          className="w-full mt-1 p-2.5 bg-[#111827] border border-emerald-500/40 rounded-xl text-emerald-300 font-bold text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-300">Kitne Samay Baad (Frequency)?</label>
+                        <select
+                          value={propRentIncreaseFreq}
+                          onChange={(e) => setPropRentIncreaseFreq(e.target.value as any)}
+                          className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                        >
+                          <option value="every_11_months">Har 11 Mahine (Renewal Par)</option>
+                          <option value="annually">Har 1 Saal (Salana)</option>
+                          <option value="every_2_years">Har 2 Saal</option>
+                          <option value="custom">Custom Tithi</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-slate-800">
+                      <div>
+                        <label className="text-xs font-bold text-slate-400">Agli Badhotri Ki Tareekh (Next Hike Date)</label>
+                        <input
+                          type="date"
+                          value={propNextRentIncreaseDate}
+                          onChange={(e) => setPropNextRentIncreaseDate(e.target.value)}
+                          className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-400">Terms / Notes (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Agreement renew hone par 10% rent badhaya jayega"
+                          value={propRentIncreaseTerms}
+                          onChange={(e) => setPropRentIncreaseTerms(e.target.value)}
+                          className="w-full mt-1 p-2.5 bg-[#111827] border border-slate-800 rounded-xl text-white text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
 
                   {/* Address, City, PIN Code & Free GPS Detection */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

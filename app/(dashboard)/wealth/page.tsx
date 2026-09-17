@@ -7,7 +7,7 @@ import { Mono } from '@/components/ui/Mono';
 import { Button } from '@/components/ui/Button';
 import { 
   TrendingUp, RefreshCw, Plus, Sparkles, Coins, Landmark, ArrowUpRight, ArrowDownRight, 
-  Search, CheckCircle2, Calculator, Calendar, Users, Percent, ShieldCheck, ArrowRight 
+  Search, CheckCircle2, Calculator, Calendar, Users, Percent, ShieldCheck, ArrowRight, Building2, Home, Edit3, Trash2, ArrowRightLeft, Building, Check, Split 
 } from 'lucide-react';
 import Link from 'next/link';
 import confetti from 'canvas-confetti';
@@ -21,9 +21,35 @@ interface SearchResult {
 }
 
 export default function WealthPage() {
-  const { assets, totalWealth, liquidWealth, fixedWealth, addAsset, members, currentUserId } = useFamilyStore();
+  const { assets, totalWealth, liquidWealth, fixedWealth, addAsset, updateAsset, deleteAsset, members, currentUserId, rentalProperties, updateRentalProperty, addRentDiversion, deleteRentDiversion } = useFamilyStore();
   const [activeTab, setActiveTab] = useState<'all' | 'liquid' | 'fixed'>('all');
+  
+  // Asset Edit & Delete States
+  const [editingAsset, setEditingAsset] = useState<any | null>(null);
+  const [editAssetLabel, setEditAssetLabel] = useState('');
+  const [editAssetVal, setEditAssetVal] = useState('');
+  const [editAssetMemberId, setEditAssetMemberId] = useState('');
+  const [editAssetJointIds, setEditAssetJointIds] = useState<string[]>([]);
+  const [editAssetCategory, setEditAssetCategory] = useState<'liquid' | 'fixed'>('liquid');
+
+  // Property Quick Owner Change State
+  const [reassignPropModal, setReassignPropModal] = useState<any | null>(null);
+  const [newPropOwnerId, setNewPropOwnerId] = useState('');
+
+  // Rent Diversion / Batwara Modal State
+  const [diversionPropModal, setDiversionPropModal] = useState<any | null>(null);
+  const [divTargetMemberId, setDivTargetMemberId] = useState(members[1]?.id || members[0]?.id || '');
+  const [divSplitType, setDivSplitType] = useState<'percentage' | 'fixed_amount'>('fixed_amount');
+  const [divSplitValue, setDivSplitValue] = useState<number>(5000);
+  const [divPurpose, setDivPurpose] = useState('Ghar Kharcha');
+  const [divPaymentMode, setDivPaymentMode] = useState<'bank_transfer' | 'cash' | 'upi'>('bank_transfer');
+
   const [memberFilter, setMemberFilter] = useState<'all' | string>('all');
+
+  const totalRentalPropertiesValuation = (rentalProperties || []).reduce((sum, p) => sum + Number(p.estimated_market_value || p.purchase_price || 0), 0);
+  const combinedFixedWealth = fixedWealth + totalRentalPropertiesValuation;
+  const combinedTotalWealth = totalWealth + totalRentalPropertiesValuation;
+
   
   // Market sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -194,6 +220,71 @@ export default function WealthPage() {
     }
   };
 
+  
+  const openEditAssetModal = (asset: any) => {
+    setEditingAsset(asset);
+    setEditAssetLabel(asset.label || '');
+    setEditAssetVal(String(asset.value || 0));
+    setEditAssetMemberId(asset.member_id || currentUserId || members[0]?.id || '');
+    setEditAssetJointIds(asset.joint_member_ids || []);
+    setEditAssetCategory(asset.category || 'liquid');
+  };
+
+  const handleSaveEditedAsset = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAsset) return;
+    updateAsset(editingAsset.id, {
+      label: editAssetLabel,
+      value: parseFloat(editAssetVal) || 0,
+      member_id: editAssetMemberId,
+      joint_member_ids: editAssetJointIds.length > 0 ? editAssetJointIds : undefined,
+      category: editAssetCategory
+    });
+    setEditingAsset(null);
+  };
+
+  const handleDeleteAssetClick = (assetId: string, label: string) => {
+    if (confirm(`Kya aap "${label}" asset ko hatana chahte hain?`)) {
+      deleteAsset(assetId);
+    }
+  };
+
+  const handleReassignPropertyOwner = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reassignPropModal || !newPropOwnerId) return;
+    const targetMember = members.find(m => m.id === newPropOwnerId);
+    if (!targetMember) return;
+
+    updateRentalProperty(reassignPropModal.id, {
+      owner_member_id: targetMember.id,
+      owner_member_name: targetMember.name,
+      member_id: targetMember.id,
+      landlord_name: targetMember.name
+    });
+    setReassignPropModal(null);
+  };
+
+  const handleAddDiversionRule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!diversionPropModal) return;
+    const target = members.find(m => m.id === divTargetMemberId);
+    if (!target) return;
+
+    addRentDiversion(diversionPropModal.id, {
+      target_member_id: target.id,
+      target_member_name: target.name,
+      split_type: divSplitType,
+      split_value: Number(divSplitValue) || 0,
+      purpose: divPurpose,
+      payment_mode: divPaymentMode,
+      is_active: true
+    });
+
+    // Reset diversion form
+    setDivSplitValue(5000);
+    setDivPurpose('Ghar Kharcha');
+  };
+
   const handleAddAssetSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseFloat(assetQty) || 0;
@@ -235,6 +326,10 @@ export default function WealthPage() {
     try { confetti({ particleCount: 50, spread: 50 }); } catch (e) {}
   };
 
+  // Selected Member Object
+  const selectedMemberObj = members.find(m => m.id === memberFilter);
+
+  // Filter regular assets for selected tab and member
   const filteredAssets = assets.filter((a) => {
     if (activeTab !== 'all' && a.category !== activeTab) return false;
     if (memberFilter !== 'all') {
@@ -244,6 +339,80 @@ export default function WealthPage() {
     }
     return true;
   });
+
+  // Filter Rental Properties belonging to selected member
+  const memberRentalProperties = memberFilter === 'all'
+    ? (rentalProperties || [])
+    : (rentalProperties || []).filter(p => 
+        p.owner_member_id === memberFilter || 
+        p.member_id === memberFilter || 
+        (selectedMemberObj && (p.owner_member_name?.toLowerCase() === selectedMemberObj.name.toLowerCase() || p.landlord_name?.toLowerCase() === selectedMemberObj.name.toLowerCase()))
+      );
+
+  // Member Rental Valuation
+  const memberRentalValuation = memberRentalProperties.reduce(
+    (sum, p) => sum + Number(p.estimated_market_value || p.purchase_price || 0), 
+    0
+  );
+
+  // Member Individual Wealth Breakdown
+  const selectedMemberLiquidWealth = assets
+    .filter(a => (memberFilter === 'all' ? true : (a.member_id === memberFilter || a.joint_member_ids?.includes(memberFilter))) && a.category === 'liquid')
+    .reduce((sum, a) => sum + Number(a.value || 0), 0);
+
+  const selectedMemberFixedWealth = assets
+    .filter(a => (memberFilter === 'all' ? true : (a.member_id === memberFilter || a.joint_member_ids?.includes(memberFilter))) && a.category === 'fixed')
+    .reduce((sum, a) => sum + Number(a.value || 0), 0) + (memberFilter === 'all' ? totalRentalPropertiesValuation : memberRentalValuation);
+
+  const selectedMemberTotalNetWorth = selectedMemberLiquidWealth + selectedMemberFixedWealth;
+
+  // Monthly Rental Revenue & Diversion Calculations for Member
+  const memberGrossMonthlyRent = memberRentalProperties.reduce(
+    (sum, p) => sum + Number(p.monthly_target_revenue || 0), 
+    0
+  );
+
+  // Outgoing Rent Diversions (from this member's properties to other family members)
+  let memberDivertedOut = 0;
+  const outgoingDiversions: { propertyTitle: string; toName: string; amount: number; purpose: string }[] = [];
+  memberRentalProperties.forEach(p => {
+    (p.rent_diversions || []).filter(r => r.is_active).forEach(r => {
+      const amt = r.split_type === 'percentage'
+        ? Math.round(((p.monthly_target_revenue || 0) * r.split_value) / 100)
+        : Number(r.split_value || 0);
+      memberDivertedOut += amt;
+      outgoingDiversions.push({
+        propertyTitle: p.title,
+        toName: r.target_member_name,
+        amount: amt,
+        purpose: r.purpose
+      });
+    });
+  });
+
+  // Incoming Rent Diversions (from other members' properties to this member)
+  let memberDivertedIn = 0;
+  const incomingDiversions: { propertyTitle: string; fromName: string; amount: number; purpose: string }[] = [];
+  if (memberFilter !== 'all') {
+    (rentalProperties || [])
+      .filter(p => p.owner_member_id !== memberFilter && p.member_id !== memberFilter)
+      .forEach(p => {
+        (p.rent_diversions || []).filter(r => r.is_active && r.target_member_id === memberFilter).forEach(r => {
+          const amt = r.split_type === 'percentage'
+            ? Math.round(((p.monthly_target_revenue || 0) * r.split_value) / 100)
+            : Number(r.split_value || 0);
+          memberDivertedIn += amt;
+          incomingDiversions.push({
+            propertyTitle: p.title,
+            fromName: p.owner_member_name || p.landlord_name || 'Family Member',
+            amount: amt,
+            purpose: r.purpose
+          });
+        });
+      });
+  }
+
+  const memberNetMonthlyRent = Math.max(0, memberGrossMonthlyRent - memberDivertedOut) + memberDivertedIn;
 
   // Calculate Total Portfolio Investment & Live Profit
   let totalInvestedAll = 0;
@@ -274,18 +443,25 @@ export default function WealthPage() {
         }
       />
 
-      {/* Main Total Wealth Card with Total P&L */}
+      {/* Main Total Wealth Card with Dynamic Member-Wise Breakdown */}
       <div className="px-4">
         <div className="p-5 rounded-3xl bg-navy text-paper shadow-xl border border-navy-light/60 space-y-3 relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[10px] uppercase font-bold text-gold-soft tracking-wider block">
-                Total Family Net Worth
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] uppercase font-bold text-gold-soft tracking-wider block">
+                  {memberFilter === 'all' ? 'Total Family Net Worth' : `👤 ${selectedMemberObj?.name || 'Member'} Ki Net Worth`}
+                </span>
+                {memberFilter !== 'all' && selectedMemberObj && (
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-gold/20 text-gold-soft font-bold border border-gold/30">
+                    {selectedMemberObj.relationship || selectedMemberObj.role}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-2xl font-serif text-gold-soft font-bold">₹</span>
                 <Mono className="text-2xl font-bold tracking-tight">
-                  {Math.round(totalWealth).toLocaleString('en-IN')}
+                  {Math.round(memberFilter === 'all' ? combinedTotalWealth : selectedMemberTotalNetWorth).toLocaleString('en-IN')}
                 </Mono>
               </div>
             </div>
@@ -302,19 +478,40 @@ export default function WealthPage() {
           </div>
 
           {/* Liquid vs Fixed Breakdown */}
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-paper/10 text-xs">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2 border-t border-paper/10 text-xs">
             <div>
-              <span className="text-[10px] text-paper-muted block">💧 Liquid Assets</span>
+              <span className="text-[10px] text-paper-muted block">💧 Liquid (Cash/FD/MF)</span>
               <Mono className="font-bold text-paper text-sm">
-                ₹{Math.round(liquidWealth).toLocaleString('en-IN')}
+                ₹{Math.round(memberFilter === 'all' ? liquidWealth : selectedMemberLiquidWealth).toLocaleString('en-IN')}
               </Mono>
             </div>
             <div>
-              <span className="text-[10px] text-paper-muted block">🏛️ Fixed Assets</span>
+              <span className="text-[10px] text-paper-muted block">🏛️ Fixed & Real Estate</span>
               <Mono className="font-bold text-gold-soft text-sm">
-                ₹{Math.round(fixedWealth).toLocaleString('en-IN')}
+                ₹{Math.round(memberFilter === 'all' ? combinedFixedWealth : selectedMemberFixedWealth).toLocaleString('en-IN')}
               </Mono>
+              {memberRentalValuation > 0 && (
+                <span className="text-[9px] text-emerald-300 block">
+                  (₹{Math.round(memberFilter === 'all' ? totalRentalPropertiesValuation : memberRentalValuation).toLocaleString('en-IN')} Properties)
+                </span>
+              )}
             </div>
+
+            {/* Monthly Rental Income Card */}
+            {(memberGrossMonthlyRent > 0 || memberDivertedIn > 0) && (
+              <div className="col-span-2 md:col-span-1 pt-1 md:pt-0 border-t md:border-t-0 border-paper/10">
+                <span className="text-[10px] text-paper-muted block">💰 Monthly Net Rent</span>
+                <Mono className="font-bold text-emerald-400 text-sm">
+                  ₹{Math.round(memberFilter === 'all' ? memberGrossMonthlyRent : memberNetMonthlyRent).toLocaleString('en-IN')} / mo
+                </Mono>
+                {memberFilter !== 'all' && (memberDivertedOut > 0 || memberDivertedIn > 0) && (
+                  <span className="text-[9px] text-paper-muted block">
+                    {memberDivertedOut > 0 ? `-₹${memberDivertedOut} Bheja ` : ''}
+                    {memberDivertedIn > 0 ? `+₹${memberDivertedIn} Mila` : ''}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-between items-center text-[10px] text-paper-muted pt-1 border-t border-paper/10">
@@ -347,6 +544,30 @@ export default function WealthPage() {
             </div>
           </div>
           <ArrowRight size={16} className="text-gold-dark group-hover:translate-x-1 transition-transform" />
+        </Link>
+      </div>
+
+      {/* Link Banner to Rentals & Properties Portfolio */}
+      <div className="px-4">
+        <Link 
+          href="/rentals" 
+          className="p-3 bg-paper rounded-2xl border border-emerald-500/30 hover:border-emerald-500 flex items-center justify-between shadow-sm transition-all group"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-700 flex items-center justify-center shrink-0">
+              <Building2 size={16} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-ink flex items-center gap-1.5">
+                Rental Properties & Real Estate Portfolio
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-600 text-paper font-semibold">{rentalProperties.length} Properties</span>
+              </h4>
+              <p className="text-[10px] text-ink-muted">
+                Valuation: <strong className="text-ink">₹{totalRentalPropertiesValuation.toLocaleString('en-IN')}</strong> · Dukan, Makan, Kiraya & Badhotri
+              </p>
+            </div>
+          </div>
+          <ArrowRight size={16} className="text-emerald-700 group-hover:translate-x-1 transition-transform" />
         </Link>
       </div>
 
@@ -390,6 +611,131 @@ export default function WealthPage() {
             {t.label}
           </button>
         ))}
+      </div>
+
+      
+      {/* Real Estate & Rental Properties Cards Section */}
+      <div className="px-4 space-y-2">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-emerald-700" />
+            <h3 className="text-xs font-bold text-ink uppercase tracking-wider">
+              {memberFilter === 'all' ? 'Real Estate & Rental Properties' : `${selectedMemberObj?.name || 'Member'} Ki Properties & Rent`}
+              <span className="ml-1.5 text-[10px] font-mono px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded-full font-bold">
+                {memberRentalProperties.length} Properties
+              </span>
+            </h3>
+          </div>
+          <Link href="/rentals" className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-0.5">
+            Rentals Hub <ArrowRight size={12} />
+          </Link>
+        </div>
+
+        {memberRentalProperties.length === 0 ? (
+          <div className="p-3 bg-paper rounded-2xl border border-dashed border-paper-dim text-center text-xs text-ink-muted">
+            {memberFilter === 'all' 
+              ? 'Abhi koi property add nahi hai. Rentals page se property add karein.' 
+              : `${selectedMemberObj?.name || 'Is sadasya'} ke naam par koi property darj nahi hai. Neeche diye button se property owner badal sakte hain.`}
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {memberRentalProperties.map(p => {
+              const activeCount = p.tenants?.filter(t => t.tenant_status === 'active').length || 0;
+              const diversions = p.rent_diversions || [];
+
+              return (
+                <div key={p.id} className="p-3.5 bg-paper rounded-2xl border border-emerald-500/30 hover:border-emerald-500 transition-all shadow-sm space-y-2.5">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-700 flex items-center justify-center shrink-0">
+                        <Home size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-xs font-bold text-ink">{p.title}</h4>
+                          <span className="text-[9px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-bold">
+                            👤 Owner: {p.owner_member_name || p.landlord_name || 'Papa'}
+                          </span>
+                          <span className="text-[9px] px-1.5 py-0.5 bg-paper-dim text-ink-muted rounded capitalize">
+                            {p.property_type.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-ink-muted mt-0.5">
+                          📍 {p.address}, {p.city} · 👥 {activeCount} Kirayedaar
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="text-[10px] text-ink-muted block">Market Valuation:</span>
+                      <Mono className="text-sm font-bold text-emerald-700 block">
+                        ₹{(p.estimated_market_value || p.purchase_price || 0).toLocaleString('en-IN')}
+                      </Mono>
+                      <span className="text-[10px] font-bold text-ink-muted">
+                        Rent: ₹{(p.monthly_target_revenue || 0).toLocaleString('en-IN')}/mo
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Rent Diversions / Batwara Badge if configured */}
+                  {diversions.length > 0 && (
+                    <div className="p-2 bg-emerald-50 rounded-xl border border-emerald-200/60 space-y-1">
+                      <span className="text-[10px] font-bold text-emerald-800 flex items-center gap-1">
+                        <Split size={12} /> Kiraya Batwara / Diversion Rules:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {diversions.map(d => (
+                          <span key={d.id} className="text-[9px] px-2 py-0.5 bg-paper rounded-md border border-emerald-300 font-semibold text-ink flex items-center gap-1">
+                            <span>➡️ {d.target_member_name}:</span>
+                            <strong className="text-emerald-700 font-mono">
+                              {d.split_type === 'percentage' ? `${d.split_value}%` : `₹${d.split_value}`}
+                            </strong>
+                            <span className="text-ink-muted">({d.purpose})</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions for Property: Change Owner, Rent Diversion, Open Rentals */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-paper-dim">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDiversionPropModal(p);
+                        setDivTargetMemberId(members.find(m => m.id !== p.owner_member_id)?.id || members[0]?.id || '');
+                      }}
+                      className="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-bold rounded-lg transition flex items-center gap-1"
+                    >
+                      <Split size={12} />
+                      <span>Rent Batwara / Divert</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReassignPropModal(p);
+                        setNewPropOwnerId(p.owner_member_id || members[0]?.id || '');
+                      }}
+                      className="px-2.5 py-1 bg-paper-dim hover:bg-paper-dim/80 text-ink text-[11px] font-bold rounded-lg transition flex items-center gap-1 border border-paper-dim"
+                    >
+                      <Users size={12} />
+                      <span>Sadasya Badlein (Owner)</span>
+                    </button>
+
+                    <Link
+                      href="/rentals"
+                      className="px-2.5 py-1 bg-navy text-paper text-[11px] font-bold rounded-lg hover:bg-navy-light transition flex items-center gap-1 ml-auto"
+                    >
+                      <span>Khata Kholein</span>
+                      <ArrowRight size={12} />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Asset Items List with Live P&L Calculation & Joint Badges */}
@@ -472,24 +818,332 @@ export default function WealthPage() {
                   </div>
                 </div>
 
-                <div className="text-right shrink-0">
-                  <Mono className="text-sm font-bold text-ink block">
-                    ₹{Math.round(asset.value).toLocaleString('en-IN')}
-                  </Mono>
-                  {hasPnl ? (
-                    <span className={'text-[9px] font-bold flex items-center justify-end gap-0.5 ' + (isProfitable ? 'text-green' : 'text-coral')}>
-                      {isProfitable ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                      {isProfitable ? '+' : ''}₹{Math.round(pnlAmt).toLocaleString('en-IN')} ({pnlPercent.toFixed(1)}%)
-                    </span>
-                  ) : (
-                    <span className="text-[9px] text-ink-muted uppercase font-bold">{asset.category}</span>
-                  )}
+                <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                  <div>
+                    <Mono className="text-sm font-bold text-ink block">
+                      ₹{Math.round(asset.value).toLocaleString('en-IN')}
+                    </Mono>
+                    {hasPnl ? (
+                      <span className={'text-[9px] font-bold flex items-center justify-end gap-0.5 ' + (isProfitable ? 'text-green' : 'text-coral')}>
+                        {isProfitable ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                        {isProfitable ? '+' : ''}₹{Math.round(pnlAmt).toLocaleString('en-IN')} ({pnlPercent.toFixed(1)}%)
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-ink-muted uppercase font-bold">{asset.category}</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => openEditAssetModal(asset)}
+                      className="p-1 rounded-md bg-paper-dim hover:bg-gold/20 text-ink-muted hover:text-gold-dark transition"
+                      title="Asset Ka Malik / Sadasya Badlein ya Edit Karein"
+                    >
+                      <Edit3 size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAssetClick(asset.id, asset.label)}
+                      className="p-1 rounded-md bg-paper-dim hover:bg-rose-100 text-ink-muted hover:text-rose-600 transition"
+                      title="Asset Delete Karein"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      
+      {/* MODAL: EDIT ASSET & REASSIGN OWNER MEMBER */}
+      {editingAsset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-paper p-5 rounded-2xl border border-paper-dim shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-paper-dim pb-2">
+              <div>
+                <h3 className="text-sm font-bold font-serif text-ink">Asset Edit Karein & Malik Badlein</h3>
+                <p className="text-[10px] text-ink-muted">Family member ke hisab se sampatti ka naam aur malik chunein</p>
+              </div>
+              <button onClick={() => setEditingAsset(null)} className="text-ink-muted hover:text-ink text-xs font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveEditedAsset} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Asset Ka Naam (Label)</label>
+                <input
+                  type="text"
+                  value={editAssetLabel}
+                  onChange={(e) => setEditAssetLabel(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Asset Ki Kimat (Valuation ₹)</label>
+                <input
+                  type="number"
+                  value={editAssetVal}
+                  onChange={(e) => setEditAssetVal(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl font-mono font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">
+                  👤 Sampatti Kis Sadasya Ke Naam Hai? (Primary Owner)
+                </label>
+                <select
+                  value={editAssetMemberId}
+                  onChange={(e) => setEditAssetMemberId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl font-bold text-ink"
+                >
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.relationship || m.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Asset Category</label>
+                <select
+                  value={editAssetCategory}
+                  onChange={(e) => setEditAssetCategory(e.target.value as any)}
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl font-bold text-ink"
+                >
+                  <option value="liquid">💧 Liquid Asset (Cash / Bank / FD / MF / Share)</option>
+                  <option value="fixed">🏛️ Fixed Asset (Gold / Plot / Makan / Gaadi)</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-paper-dim">
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditingAsset(null)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" className="flex-1 bg-navy text-paper font-bold">
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHANGE PROPERTY OWNER QUICK REASSIGN */}
+      {reassignPropModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-paper p-5 rounded-2xl border border-paper-dim shadow-xl space-y-4">
+            <div className="flex justify-between items-center border-b border-paper-dim pb-2">
+              <div>
+                <h3 className="text-sm font-bold font-serif text-ink">Property Ka Malik (Owner) Badlein</h3>
+                <p className="text-[10px] text-ink-muted">{reassignPropModal.title}</p>
+              </div>
+              <button onClick={() => setReassignPropModal(null)} className="text-ink-muted hover:text-ink text-xs font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleReassignPropertyOwner} className="space-y-4">
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-ink space-y-1">
+                <div>Property: <strong>{reassignPropModal.title}</strong></div>
+                <div>Valuation: <strong>₹{(reassignPropModal.estimated_market_value || reassignPropModal.purchase_price || 0).toLocaleString('en-IN')}</strong></div>
+                <div>Monthly Rent: <strong>₹{(reassignPropModal.monthly_target_revenue || 0).toLocaleString('en-IN')}/mo</strong></div>
+                <div>Abhi Kiske Naam: <span className="font-bold text-purple-700">{reassignPropModal.owner_member_name || 'Papa'}</span></div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-ink block mb-1">
+                  Naya Malik Chunein (Family Member):
+                </label>
+                <select
+                  value={newPropOwnerId}
+                  onChange={(e) => setNewPropOwnerId(e.target.value)}
+                  className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl font-bold text-xs"
+                  required
+                >
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.relationship || m.role})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-ink-muted mt-1">
+                  Owner badalte hi yeh property aur iska kiraya turant us sadasya ke wealth profile me shift ho jayega.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-paper-dim">
+                <Button type="button" variant="outline" size="sm" onClick={() => setReassignPropModal(null)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" className="flex-1 bg-navy text-paper font-bold">
+                  Malik Update Karein
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RENT DIVERSION / BATWARA */}
+      {diversionPropModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-paper p-5 rounded-2xl border border-paper-dim shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-paper-dim pb-2">
+              <div>
+                <h3 className="text-sm font-bold font-serif text-ink flex items-center gap-1.5">
+                  <Split size={16} className="text-emerald-700" />
+                  Kiraya Batwara / Rent Diversion System
+                </h3>
+                <p className="text-[10px] text-ink-muted">
+                  {diversionPropModal.title} (Owner: {diversionPropModal.owner_member_name || 'Papa'})
+                </p>
+              </div>
+              <button onClick={() => setDiversionPropModal(null)} className="text-ink-muted hover:text-ink text-xs font-bold">✕</button>
+            </div>
+
+            {/* Existing Diversions List */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-ink">Active Batwara Rules:</span>
+                <span className="text-[11px] font-bold text-emerald-700 font-mono">
+                  Kul Kiraya: ₹{(diversionPropModal.monthly_target_revenue || 0).toLocaleString('en-IN')}/mo
+                </span>
+              </div>
+
+              {(diversionPropModal.rent_diversions || []).length === 0 ? (
+                <div className="p-3 bg-paper-dim rounded-xl text-center text-xs text-ink-muted">
+                  Abhi koi diversion rule nahi hai. Sara kiraya owner ({diversionPropModal.owner_member_name || 'Papa'}) ke account me rehta hai.
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {(diversionPropModal.rent_diversions || []).map((div: any) => {
+                    const calcAmount = div.split_type === 'percentage'
+                      ? Math.round(((diversionPropModal.monthly_target_revenue || 0) * div.split_value) / 100)
+                      : div.split_value;
+
+                    return (
+                      <div key={div.id} className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200/80 flex justify-between items-center text-xs">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-ink">➡️ {div.target_member_name}</span>
+                            <span className="px-1.5 py-0.2 bg-emerald-200 text-emerald-900 rounded font-bold font-mono text-[10px]">
+                              ₹{calcAmount.toLocaleString('en-IN')} {div.split_type === 'percentage' ? `(${div.split_value}%)` : ''}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-ink-muted mt-0.5">
+                            Uddeshya: <strong>{div.purpose}</strong> · Mode: {div.payment_mode || 'Bank Transfer'}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteRentDiversion(diversionPropModal.id, div.id)}
+                          className="p-1.5 bg-paper rounded-lg text-rose-600 hover:bg-rose-100 transition"
+                          title="Rule Hatayein"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Add New Diversion Rule Form */}
+            <form onSubmit={handleAddDiversionRule} className="p-3 bg-paper-dim/60 rounded-xl border border-paper-dim space-y-3">
+              <span className="text-xs font-bold text-ink block">+ Naya Rent Diversion Rule Jodein:</span>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Kis Sadasya Ko Jayega?</label>
+                  <select
+                    value={divTargetMemberId}
+                    onChange={(e) => setDivTargetMemberId(e.target.value)}
+                    className="w-full p-2 bg-paper border border-paper-dim rounded-xl text-xs font-bold text-ink"
+                    required
+                  >
+                    {members.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.relationship || m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Batwara Ka Madhyam</label>
+                  <select
+                    value={divSplitType}
+                    onChange={(e) => setDivSplitType(e.target.value as any)}
+                    className="w-full p-2 bg-paper border border-paper-dim rounded-xl text-xs font-bold text-ink"
+                  >
+                    <option value="fixed_amount">₹ Fixed Amount (e.g. ₹5,000)</option>
+                    <option value="percentage">% Percentage Share (e.g. 40%)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                    {divSplitType === 'percentage' ? 'Kitna % Hissa?' : 'Kitna Fixed ₹ Hissa?'}
+                  </label>
+                  <input
+                    type="number"
+                    value={divSplitValue === 0 ? '' : divSplitValue}
+                    onChange={(e) => setDivSplitValue(e.target.value === '' ? 0 : Number(e.target.value))}
+                    className="w-full p-2 bg-paper border border-paper-dim rounded-xl text-xs font-bold font-mono"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Uddeshya (Purpose)</label>
+                  <input
+                    type="text"
+                    value={divPurpose}
+                    onChange={(e) => setDivPurpose(e.target.value)}
+                    placeholder="e.g. Ghar Kharcha, Padhai, SIP, EMI"
+                    className="w-full p-2 bg-paper border border-paper-dim rounded-xl text-xs font-bold"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Preview Box */}
+              <div className="p-2.5 bg-paper rounded-xl border border-paper-dim text-[11px] space-y-1">
+                <div className="flex justify-between text-ink-muted">
+                  <span>Kiraya: <strong>₹{(diversionPropModal.monthly_target_revenue || 0).toLocaleString('en-IN')}</strong></span>
+                  <span>
+                    Divert Amount: <strong className="text-emerald-700">
+                      ₹{divSplitType === 'percentage' 
+                        ? Math.round(((diversionPropModal.monthly_target_revenue || 0) * (divSplitValue || 0)) / 100).toLocaleString('en-IN') 
+                        : (divSplitValue || 0).toLocaleString('en-IN')}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+
+              <Button type="submit" size="sm" className="w-full bg-emerald-700 hover:bg-emerald-800 text-paper font-bold">
+                + Yeh Diversion Rule Save Karein
+              </Button>
+            </form>
+
+            <div className="pt-2 border-t border-paper-dim text-right">
+              <Button type="button" variant="outline" size="sm" onClick={() => setDiversionPropModal(null)}>
+                Theek Hai / Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add New Asset Modal with Joint Holder Selector & Real-time Autocomplete */}
       {isAddAssetOpen && (

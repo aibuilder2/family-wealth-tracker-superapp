@@ -581,6 +581,13 @@ export interface RentalTenant {
   early_exit_penalty?: string; // e.g. "1 Month Rent deduction if leaving before lock-in"
   special_terms?: string; // Rules, damages liability, etc.
   
+  // Rent Increase / Escalation (Badhotri Schedule)
+  rent_increase_type?: 'percentage' | 'fixed_amount'; // % ya Fixed ₹
+  rent_increase_value?: number; // e.g. 10 (for 10%) ya 1000 (for ₹1,000)
+  rent_increase_frequency?: 'every_11_months' | 'annually' | 'every_2_years' | 'custom';
+  next_rent_increase_date?: string; // Agli badhotri ki tareekh (e.g. 2026-11-01)
+  rent_increase_terms?: string;
+
   // Tenant lifecycle & exit settlement
   tenant_status?: 'active' | 'vacated' | 'replaced';
   vacate_date?: string;
@@ -638,6 +645,13 @@ export interface RentalProperty {
   registration_deed_no?: string;
   annual_appreciation_rate?: number; // Year-on-year appreciation rate % (e.g. 12% - 18%)
 
+  // Rent Increase / Escalation (Badhotri Schedule)
+  rent_increase_type?: 'percentage' | 'fixed_amount'; // % ya Fixed ₹
+  rent_increase_value?: number; // e.g. 10 (for 10%) ya 1000 (for ₹1,000)
+  rent_increase_frequency?: 'every_11_months' | 'annually' | 'every_2_years' | 'custom';
+  next_rent_increase_date?: string; // Agli badhotri ki tareekh (e.g. 2026-11-01)
+  rent_increase_terms?: string;
+
   // Ownership Lifecycle (Transfer to Family Member or Sold)
   ownership_status?: 'owned' | 'transferred' | 'sold';
   sold_details?: {
@@ -654,6 +668,9 @@ export interface RentalProperty {
     notes?: string;
   };
 
+  // Rent Diversion / Batwara to other family members
+  rent_diversions?: RentDiversionRule[];
+
   total_units_or_rooms: number;
   total_capacity_beds?: number;
   has_hostel_model: boolean;
@@ -664,6 +681,18 @@ export interface RentalProperty {
   monthly_target_revenue: number;
   security_deposit_holding: number;
   default_rules?: string;
+  notes?: string;
+}
+
+export interface RentDiversionRule {
+  id: string;
+  target_member_id: string;
+  target_member_name: string;
+  split_type: 'percentage' | 'fixed_amount';
+  split_value: number; // e.g. 50 (%) or 10000 (₹)
+  purpose: string; // e.g. "Ghar Kharcha", "Bachon ki Padhai", "Savings / SIP", "Loan EMI", "Medical Treatment"
+  payment_mode?: 'bank_transfer' | 'cash' | 'upi';
+  is_active: boolean;
   notes?: string;
 }
 

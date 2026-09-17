@@ -6,7 +6,7 @@ import {
   MedicalRecord, HouseholdStaff, CourtCase, CourtHearing, CreditCard, RecurringIncome,
   UtilityBill, CalendarEventItem, AgriculturalLand, CropCycle, AgricultureExpense,
   Vehicle, VehicleServiceLog, UdharContact, UdharSettlement, UdharSettlementMode, CommercialFleetVehicle, FleetTrip, FleetBusinessType, CommercialVehicleType, LawyerFeePayment, LawyerPaymentType, BusinessFirm, FirmDrawing, EntityType,
-  RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentalPropertyType,
+  RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentalPropertyType, RentDiversionRule,
   MemberLedgerEntry, MemberLedgerType,
   GoldLoanPledge, GoldLoanInterestPayment, GoldLoanStatus, GoldPurityKarat,
   Trip, TripMember, TripExpense, TripPoolContribution, TripType, TripExpenseType, TripExpenseCategory,
@@ -1102,6 +1102,9 @@ interface FamilyContextType {
   collectRentPayment: (propertyId: string, tenantId: string, amount: number, isPaid: boolean, details?: { payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque'; transaction_id?: string; maintenance_deduction?: number; damage_deduction?: number; notes?: string }) => void;
   addRentalExpense: (propertyId: string, expense: Omit<RentalExpense, 'id' | 'property_id'>) => void;
   deleteRentalExpense: (propertyId: string, expenseId: string) => void;
+  addRentDiversion: (propertyId: string, rule: Omit<RentDiversionRule, 'id'>) => void;
+  updateRentDiversion: (propertyId: string, ruleId: string, updates: Partial<RentDiversionRule>) => void;
+  deleteRentDiversion: (propertyId: string, ruleId: string) => void;
   addBusinessFirm: (firm: Omit<BusinessFirm, 'id' | 'family_id' | 'total_revenue' | 'total_expenses' | 'total_gst_collected' | 'total_tds_deducted' | 'current_firm_balance' | 'total_drawings_paid' | 'drawings'>) => void;
   recordFirmDrawingToFamily: (firmId: string, drawing: { amount: number; drawing_type: 'partner_salary' | 'profit_dividend' | 'director_remuneration'; credited_to_member_id: string; note: string }) => void;
 
@@ -1143,6 +1146,8 @@ interface FamilyContextType {
   updateGoal: (goalId: string, updates: Partial<Goal>) => void;
   addReminder: (rem: Omit<Reminder, 'id' | 'family_id'>) => void;
   addAsset: (asset: Omit<Asset, 'id' | 'family_id'>) => void;
+  updateAsset: (assetId: string, updates: Partial<Asset>) => void;
+  deleteAsset: (assetId: string) => void;
   addMember: (member: Omit<Member, 'id' | 'family_id'>) => void;
   updateMember: (memberId: string, updates: Partial<Member>) => void;
   deleteMember: (memberId: string) => void;
@@ -1681,6 +1686,25 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const addReminder = (r: Omit<Reminder, 'id' | 'family_id'>) => {
     const newR: Reminder = { ...r, id: 'r-' + Date.now(), family_id: family.id };
     setReminders([...reminders, newR]);
+  };
+
+  
+  const updateAsset = (assetId: string, updates: Partial<Asset>) => {
+    const updated = assets.map(a => a.id === assetId ? { ...a, ...updates } : a);
+    setAssets(updated);
+    try { localStorage.setItem(getStorageKey('assets'), JSON.stringify(updated)); } catch (e) {}
+    if (supabase) {
+      supabase.from('assets').update(updates).eq('id', assetId).then();
+    }
+  };
+
+  const deleteAsset = (assetId: string) => {
+    const updated = assets.filter(a => a.id !== assetId);
+    setAssets(updated);
+    try { localStorage.setItem(getStorageKey('assets'), JSON.stringify(updated)); } catch (e) {}
+    if (supabase) {
+      supabase.from('assets').delete().eq('id', assetId).then();
+    }
   };
 
   const addAsset = (a: Omit<Asset, 'id' | 'family_id'>) => {
@@ -2806,6 +2830,44 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  
+  const addRentDiversion = (propertyId: string, rule: Omit<RentDiversionRule, 'id'>) => {
+    const newRule: RentDiversionRule = {
+      ...rule,
+      id: 'rdiv-' + Date.now()
+    };
+    const updated = rentalProperties.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        rent_diversions: [...(p.rent_diversions || []), newRule]
+      };
+    });
+    saveRentalProperties(updated);
+  };
+
+  const updateRentDiversion = (propertyId: string, ruleId: string, updates: Partial<RentDiversionRule>) => {
+    const updated = rentalProperties.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        rent_diversions: (p.rent_diversions || []).map(r => r.id === ruleId ? { ...r, ...updates } : r)
+      };
+    });
+    saveRentalProperties(updated);
+  };
+
+  const deleteRentDiversion = (propertyId: string, ruleId: string) => {
+    const updated = rentalProperties.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        rent_diversions: (p.rent_diversions || []).filter(r => r.id !== ruleId)
+      };
+    });
+    saveRentalProperties(updated);
+  };
+
   const deleteRentalExpense = (propertyId: string, expenseId: string) => {
     const updated = rentalProperties.map(p => {
       if (p.id !== propertyId) return p;
@@ -3490,6 +3552,11 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         updateGoal,
         addReminder,
         addAsset,
+    updateAsset,
+    deleteAsset,
+    addRentDiversion,
+    updateRentDiversion,
+    deleteRentDiversion,
         addMember,
         updateMember,
         deleteMember,
