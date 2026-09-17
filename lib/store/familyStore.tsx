@@ -1105,6 +1105,7 @@ interface FamilyContextType {
   addRentDiversion: (propertyId: string, rule: Omit<RentDiversionRule, 'id'>) => void;
   updateRentDiversion: (propertyId: string, ruleId: string, updates: Partial<RentDiversionRule>) => void;
   deleteRentDiversion: (propertyId: string, ruleId: string) => void;
+  executeRentDiversion: (propertyId: string, ruleId: string, customAmount?: number) => { success: boolean; message: string };
   addBusinessFirm: (firm: Omit<BusinessFirm, 'id' | 'family_id' | 'total_revenue' | 'total_expenses' | 'total_gst_collected' | 'total_tds_deducted' | 'current_firm_balance' | 'total_drawings_paid' | 'drawings'>) => void;
   recordFirmDrawingToFamily: (firmId: string, drawing: { amount: number; drawing_type: 'partner_salary' | 'profit_dividend' | 'director_remuneration'; credited_to_member_id: string; note: string }) => void;
 
@@ -2784,9 +2785,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
     saveRentalProperties(updated);
 
+    const currentProp = rentalProperties.find(p => p.id === propertyId);
     if (isPaid && amount > 0) {
       addTransaction({
-        member_id: currentUserId,
+        member_id: currentProp?.owner_member_id || currentUserId,
         type: 'income',
         amount: amount,
         category: 'Rental Property Income',
@@ -2855,6 +2857,137 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       };
     });
     saveRentalProperties(updated);
+  };
+
+  
+  const executeRentDiversion = (
+    propertyId: string,
+    ruleId: string,
+    customAmount?: number
+  ): { success: boolean; message: string } => {
+    const prop = rentalProperties.find(p => p.id === propertyId);
+    if (!prop) return { success: false, message: 'Property nahi mili' };
+
+    const rule = (prop.rent_diversions || []).find(r => r.id === ruleId);
+    if (!rule) return { success: false, message: 'Diversion rule nahi mila' };
+
+    const gross = prop.monthly_target_revenue || 0;
+    const amount = customAmount || (rule.split_type === 'percentage' ? Math.round((gross * rule.split_value) / 100) : rule.split_value);
+
+    if (amount <= 0) return { success: false, message: 'Amount 0 se bada hona chahiye' };
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Case 1: FD / RD Investment
+    if (rule.allocation_target === 'fd_rd_investment') {
+      if (rule.linked_asset_id) {
+        const targetAsset = assets.find(a => a.id === rule.linked_asset_id);
+        if (targetAsset) {
+          updateAsset(targetAsset.id, {
+            value: Number(targetAsset.value || 0) + amount,
+            notes: (targetAsset.notes || '') + ` (Kiraye se ₹${amount} jama hua taarikh ${today})`
+          });
+        }
+      } else {
+        // Create new RD/FD asset
+        addAsset({
+          category: 'liquid',
+          type: 'bank_deposit',
+          asset_subtype: 'rd',
+          label: `${rule.target_member_name} - Rent RD (${prop.title})`,
+          value: amount,
+          member_id: rule.target_member_id,
+          notes: `Rental income diversion of ${prop.title}`
+        });
+      }
+
+      addTransaction({
+        member_id: rule.target_member_id,
+        type: 'expense',
+        amount: amount,
+        category: 'Investments / FD / RD',
+        category_type: 'main_ghar',
+        mode: 'online',
+        scope: 'ghar',
+        note: `Rental fund allocated to FD/RD (₹${amount}) from ${prop.title}`,
+        txn_date: today
+      });
+
+      updateRentDiversion(propertyId, ruleId, {
+        last_executed_date: today,
+        last_executed_amount: amount
+      });
+
+      return { success: true, message: `₹${amount.toLocaleString('en-IN')} FD/RD me jud gaya aur Net Worth me add ho gaya!` };
+    }
+
+    // Case 2: Ration & Ghar Kharcha
+    if (rule.allocation_target === 'ghar_ration_expense' || (rule.purpose && (rule.purpose.toLowerCase().includes('ration') || rule.purpose.toLowerCase().includes('kharch')))) {
+      addTransaction({
+        member_id: rule.target_member_id,
+        type: 'expense',
+        amount: amount,
+        category: 'Ration & Groceries',
+        category_type: 'main_ghar',
+        mode: rule.payment_mode === 'cash' ? 'offline' : 'online',
+        scope: 'ghar',
+        note: `Ghar Ration/Kharcha payment funded by Rent (${prop.title}) - ${rule.target_member_name}`,
+        txn_date: today
+      });
+
+      updateRentDiversion(propertyId, ruleId, {
+        last_executed_date: today,
+        last_executed_amount: amount
+      });
+
+      return { success: true, message: `₹${amount.toLocaleString('en-IN')} Ration & Ghar Kharcha hisab me jud gaya!` };
+    }
+
+    // Case 3: Household Staff Payment
+    if (rule.allocation_target === 'staff_payment' || rule.linked_staff_id) {
+      if (rule.linked_staff_id) {
+        addStaffPayment(rule.linked_staff_id, amount, 'salary');
+      } else {
+        addTransaction({
+          member_id: rule.target_member_id,
+          type: 'expense',
+          amount: amount,
+          category: 'Household Staff',
+          category_type: 'main_ghar',
+          mode: rule.payment_mode === 'cash' ? 'offline' : 'online',
+          scope: 'ghar',
+          note: `Staff salary funded by Rent (${prop.title})`,
+          txn_date: today
+        });
+      }
+
+      updateRentDiversion(propertyId, ruleId, {
+        last_executed_date: today,
+        last_executed_amount: amount
+      });
+
+      return { success: true, message: `₹${amount.toLocaleString('en-IN')} Staff khata aur salary me jud gaya!` };
+    }
+
+    // Case 4: General Member Personal Transfer / Savings
+    addTransaction({
+      member_id: rule.target_member_id,
+      type: 'expense',
+      amount: amount,
+      category: 'Family Rent Transfer',
+      category_type: 'main_ghar',
+      mode: rule.payment_mode === 'cash' ? 'offline' : 'online',
+      scope: 'ghar',
+      note: `Rent diverted to ${rule.target_member_name} (${rule.purpose}) from ${prop.title}`,
+      txn_date: today
+    });
+
+    updateRentDiversion(propertyId, ruleId, {
+      last_executed_date: today,
+      last_executed_amount: amount
+    });
+
+    return { success: true, message: `₹${amount.toLocaleString('en-IN')} ${rule.target_member_name} (${rule.purpose}) me safalta-purvak jud gaya!` };
   };
 
   const deleteRentDiversion = (propertyId: string, ruleId: string) => {
@@ -3557,6 +3690,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     addRentDiversion,
     updateRentDiversion,
     deleteRentDiversion,
+    executeRentDiversion,
         addMember,
         updateMember,
         deleteMember,

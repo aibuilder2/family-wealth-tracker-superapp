@@ -21,7 +21,7 @@ interface SearchResult {
 }
 
 export default function WealthPage() {
-  const { assets, totalWealth, liquidWealth, fixedWealth, addAsset, updateAsset, deleteAsset, members, currentUserId, rentalProperties, updateRentalProperty, addRentDiversion, deleteRentDiversion } = useFamilyStore();
+  const { assets, totalWealth, liquidWealth, fixedWealth, addAsset, updateAsset, deleteAsset, members, currentUserId, rentalProperties, updateRentalProperty, addRentDiversion, deleteRentDiversion, executeRentDiversion, staff } = useFamilyStore();
   const [activeTab, setActiveTab] = useState<'all' | 'liquid' | 'fixed'>('all');
   
   // Asset Edit & Delete States
@@ -42,6 +42,11 @@ export default function WealthPage() {
   const [divSplitType, setDivSplitType] = useState<'percentage' | 'fixed_amount'>('fixed_amount');
   const [divSplitValue, setDivSplitValue] = useState<number>(5000);
   const [divPurpose, setDivPurpose] = useState('Ghar Kharcha');
+  
+  const [divAllocTarget, setDivAllocTarget] = useState<'member_personal' | 'fd_rd_investment' | 'ghar_ration_expense' | 'staff_payment'>('member_personal');
+  const [divLinkedAssetId, setDivLinkedAssetId] = useState<string>('');
+  const [divLinkedStaffId, setDivLinkedStaffId] = useState<string>('');
+
   const [divPaymentMode, setDivPaymentMode] = useState<'bank_transfer' | 'cash' | 'upi'>('bank_transfer');
 
   const [memberFilter, setMemberFilter] = useState<'all' | string>('all');
@@ -264,11 +269,25 @@ export default function WealthPage() {
     setReassignPropModal(null);
   };
 
+  
+  const handleExecuteDiversionInWealth = (propertyId: string, ruleId: string) => {
+    const res = executeRentDiversion(propertyId, ruleId);
+    if (res.success) {
+      try { confetti({ particleCount: 60, spread: 60 }); } catch (e) {}
+      alert(res.message);
+    } else {
+      alert(res.message);
+    }
+  };
+
   const handleAddDiversionRule = (e: React.FormEvent) => {
     e.preventDefault();
     if (!diversionPropModal) return;
     const target = members.find(m => m.id === divTargetMemberId);
     if (!target) return;
+
+    const linkedAsset = assets.find(a => a.id === divLinkedAssetId);
+    const linkedStaff = (staff || []).find(s => s.id === divLinkedStaffId);
 
     addRentDiversion(diversionPropModal.id, {
       target_member_id: target.id,
@@ -277,7 +296,12 @@ export default function WealthPage() {
       split_value: Number(divSplitValue) || 0,
       purpose: divPurpose,
       payment_mode: divPaymentMode,
-      is_active: true
+      is_active: true,
+      allocation_target: divAllocTarget,
+      linked_asset_id: divAllocTarget === 'fd_rd_investment' ? divLinkedAssetId || undefined : undefined,
+      linked_asset_name: divAllocTarget === 'fd_rd_investment' ? linkedAsset?.label : undefined,
+      linked_staff_id: divAllocTarget === 'staff_payment' ? divLinkedStaffId || undefined : undefined,
+      linked_staff_name: divAllocTarget === 'staff_payment' ? linkedStaff?.name : undefined
     });
 
     // Reset diversion form
@@ -1028,27 +1052,63 @@ export default function WealthPage() {
                       : div.split_value;
 
                     return (
-                      <div key={div.id} className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200/80 flex justify-between items-center text-xs">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-ink">➡️ {div.target_member_name}</span>
-                            <span className="px-1.5 py-0.2 bg-emerald-200 text-emerald-900 rounded font-bold font-mono text-[10px]">
-                              ₹{calcAmount.toLocaleString('en-IN')} {div.split_type === 'percentage' ? `(${div.split_value}%)` : ''}
-                            </span>
+                      <div key={div.id} className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/80 space-y-2 text-xs">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-ink">➡️ {div.target_member_name}</span>
+                              <span className="px-1.5 py-0.2 bg-emerald-200 text-emerald-900 rounded font-bold font-mono text-[10px]">
+                                ₹{calcAmount.toLocaleString('en-IN')} {div.split_type === 'percentage' ? `(${div.split_value}%)` : ''}
+                              </span>
+                              {div.allocation_target === 'fd_rd_investment' && (
+                                <span className="px-1.5 py-0.2 bg-blue-100 text-blue-800 rounded font-bold text-[9px]">
+                                  🏦 FD/RD Link: {div.linked_asset_name || 'Rent RD Deposit'}
+                                </span>
+                              )}
+                              {div.allocation_target === 'ghar_ration_expense' && (
+                                <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded font-bold text-[9px]">
+                                  🛒 Ration / Kirana Entry
+                                </span>
+                              )}
+                              {div.allocation_target === 'staff_payment' && (
+                                <span className="px-1.5 py-0.2 bg-purple-100 text-purple-800 rounded font-bold text-[9px]">
+                                  👨‍🍳 Staff Salary: {div.linked_staff_name || 'Household Staff'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-ink-muted mt-0.5">
+                              Uddeshya: <strong>{div.purpose}</strong> · Mode: {div.payment_mode || 'Bank Transfer'}
+                            </p>
+                            {div.last_executed_date && (
+                              <p className="text-[9px] text-emerald-700 font-bold mt-0.5">
+                                ✅ Pichli Baar Jama: {div.last_executed_date} ko ₹{(div.last_executed_amount || calcAmount).toLocaleString('en-IN')}
+                              </p>
+                            )}
                           </div>
-                          <p className="text-[10px] text-ink-muted mt-0.5">
-                            Uddeshya: <strong>{div.purpose}</strong> · Mode: {div.payment_mode || 'Bank Transfer'}
-                          </p>
+
+                          <button
+                            type="button"
+                            onClick={() => deleteRentDiversion(diversionPropModal.id, div.id)}
+                            className="p-1.5 bg-paper rounded-lg text-rose-600 hover:bg-rose-100 transition"
+                            title="Rule Hatayein"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => deleteRentDiversion(diversionPropModal.id, div.id)}
-                          className="p-1.5 bg-paper rounded-lg text-rose-600 hover:bg-rose-100 transition"
-                          title="Rule Hatayein"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        {/* Execute Now Action Button */}
+                        <div className="pt-1.5 border-t border-emerald-200/60 flex justify-between items-center">
+                          <span className="text-[10px] text-ink-muted">
+                            Is mahine ka kiraya {div.allocation_target === 'fd_rd_investment' ? 'FD/RD me jama karein' : div.allocation_target === 'ghar_ration_expense' ? 'Ration kharch me jodein' : div.allocation_target === 'staff_payment' ? 'Staff salary me jodein' : 'sadasya ko bhejein'}:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleExecuteDiversionInWealth(diversionPropModal.id, div.id)}
+                            className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-paper text-[10px] font-bold rounded-lg transition shadow flex items-center gap-1"
+                          >
+                            <span>⚡ Fund Jama / Transfer Karein</span>
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -1062,7 +1122,27 @@ export default function WealthPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Kis Sadasya Ko Jayega?</label>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">🎯 Fund Kahan Kharch / Jama Hoga?</label>
+                  <select
+                    value={divAllocTarget}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setDivAllocTarget(val);
+                      if (val === 'ghar_ration_expense') setDivPurpose('Ghar Ration & Kirana Kharcha');
+                      if (val === 'fd_rd_investment') setDivPurpose('Monthly FD / RD Investment');
+                      if (val === 'staff_payment') setDivPurpose('Household Staff Salary');
+                    }}
+                    className="w-full p-2 bg-paper border border-emerald-500/40 rounded-xl text-xs font-bold text-ink"
+                  >
+                    <option value="member_personal">👤 Sadasya Ka Personal Khata / Savings</option>
+                    <option value="fd_rd_investment">🏦 Bank FD / RD (Fixed / Recurring Deposit Jama)</option>
+                    <option value="ghar_ration_expense">🛒 Ghar Ration & Groceries (राशन व घरेलू खर्च)</option>
+                    <option value="staff_payment">👨‍🍳 Household Staff Salary (ड्राइवर, नौकर, बाई वेतन)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Kis Sadasya Ke Naam / Zariye?</label>
                   <select
                     value={divTargetMemberId}
                     onChange={(e) => setDivTargetMemberId(e.target.value)}
@@ -1076,7 +1156,53 @@ export default function WealthPage() {
                     ))}
                   </select>
                 </div>
+              </div>
 
+              {/* Conditional Selector for FD/RD or Staff */}
+              {divAllocTarget === 'fd_rd_investment' && (
+                <div>
+                  <label className="text-[10px] font-bold text-emerald-800 uppercase block mb-1">🏦 Kaunse FD / RD Asset Me Jama Hoga?</label>
+                  <select
+                    value={divLinkedAssetId}
+                    onChange={(e) => setDivLinkedAssetId(e.target.value)}
+                    className="w-full p-2 bg-paper border border-emerald-500/50 rounded-xl text-xs font-bold text-ink"
+                  >
+                    <option value="">+ Nayi Rent RD Deposit Shuru Karein (Automatic Naya Asset Banega)</option>
+                    {assets.filter(a => a.type === 'bank_deposit' || a.label.toLowerCase().includes('fd') || a.label.toLowerCase().includes('rd')).map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.label} (Current Value: ₹{Math.round(a.value).toLocaleString('en-IN')})
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[9px] text-ink-muted mt-0.5 block">
+                    Kiraye ka paisa is FD/RD me judega aur Wealth / Net Worth me automatic badhega.
+                  </span>
+                </div>
+              )}
+
+              {divAllocTarget === 'staff_payment' && (
+                <div>
+                  <label className="text-[10px] font-bold text-purple-800 uppercase block mb-1">👨‍🍳 Kis Staff Worker Ko Salary Denge?</label>
+                  <select
+                    value={divLinkedStaffId}
+                    onChange={(e) => setDivLinkedStaffId(e.target.value)}
+                    className="w-full p-2 bg-paper border border-purple-500/50 rounded-xl text-xs font-bold text-ink"
+                    required
+                  >
+                    <option value="">Staff Worker Chunein...</option>
+                    {(staff || []).map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.role}) · Monthly Salary: ₹{s.monthly_salary.toLocaleString('en-IN')}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[9px] text-ink-muted mt-0.5 block">
+                    Kiraye ka yeh hissa Staff management (/staff) me salary payment ke roop me darj ho jayega.
+                  </span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 <div>
                   <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Batwara Ka Madhyam</label>
                   <select
@@ -1087,6 +1213,19 @@ export default function WealthPage() {
                     <option value="fixed_amount">₹ Fixed Amount (e.g. ₹5,000)</option>
                     <option value="percentage">% Percentage Share (e.g. 40%)</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                    {divSplitType === 'percentage' ? 'Kitna % Hissa?' : 'Kitna Fixed ₹ Hissa?'}
+                  </label>
+                  <input
+                    type="number"
+                    value={divSplitValue === 0 ? '' : divSplitValue}
+                    onChange={(e) => setDivSplitValue(e.target.value === '' ? 0 : Number(e.target.value))}
+                    className="w-full p-2 bg-paper border border-paper-dim rounded-xl text-xs font-bold font-mono"
+                    required
+                  />
                 </div>
               </div>
 

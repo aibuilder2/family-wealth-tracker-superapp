@@ -690,10 +690,19 @@ export interface RentDiversionRule {
   target_member_name: string;
   split_type: 'percentage' | 'fixed_amount';
   split_value: number; // e.g. 50 (%) or 10000 (₹)
-  purpose: string; // e.g. "Ghar Kharcha", "Bachon ki Padhai", "Savings / SIP", "Loan EMI", "Medical Treatment"
+  purpose: string; // e.g. "Ghar Kharcha / Ration", "Bachon ki Padhai", "Savings / SIP / FD / RD", "Loan EMI", "Staff Salary"
   payment_mode?: 'bank_transfer' | 'cash' | 'upi';
   is_active: boolean;
   notes?: string;
+
+  // Direct Integration with FD/RD, Ration, and Staff
+  allocation_target?: 'member_personal' | 'fd_rd_investment' | 'ghar_ration_expense' | 'staff_payment' | 'loan_emi';
+  linked_asset_id?: string; // For linking to FD or RD in Wealth
+  linked_asset_name?: string;
+  linked_staff_id?: string; // For linking to household staff member
+  linked_staff_name?: string;
+  last_executed_date?: string; // e.g. "2026-09-17"
+  last_executed_amount?: number;
 }
 
 export type MemberLedgerType = 'cash_transfer' | 'samaan_shopping' | 'work_payment' | 'settlement';

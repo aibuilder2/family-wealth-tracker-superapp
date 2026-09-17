@@ -70,7 +70,10 @@ export default function RentalsPage() {
     addRentalExpense,
     deleteRentalExpense,
     addRentDiversion,
-    deleteRentDiversion
+    deleteRentDiversion,
+    executeRentDiversion,
+    assets,
+    staff
   } = useFamilyStore();
 
   const [selectedPropId, setSelectedPropId] = useState<string>(rentalProperties[0]?.id || "");
@@ -80,7 +83,22 @@ export default function RentalsPage() {
   const [rentDivSplitType, setRentDivSplitType] = useState<"percentage" | "fixed_amount">("fixed_amount");
   const [rentDivSplitValue, setRentDivSplitValue] = useState<number>(5000);
   const [rentDivPurpose, setRentDivPurpose] = useState("Ghar Kharcha");
+  
+  const [rentDivAllocTarget, setRentDivAllocTarget] = useState<'member_personal' | 'fd_rd_investment' | 'ghar_ration_expense' | 'staff_payment'>('member_personal');
+  const [rentDivLinkedAssetId, setRentDivLinkedAssetId] = useState<string>('');
+  const [rentDivLinkedStaffId, setRentDivLinkedStaffId] = useState<string>('');
+
   const [rentDivPaymentMode, setRentDivPaymentMode] = useState<"bank_transfer" | "cash" | "upi">("bank_transfer");
+
+  
+  const handleExecuteDiversionInRentals = (propertyId: string, ruleId: string) => {
+    const res = executeRentDiversion(propertyId, ruleId);
+    if (res.success) {
+      alert(res.message);
+    } else {
+      alert(res.message);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<"tenants" | "past_tenants" | "rooms_beds" | "maintenance_expenses" | "agreement_rules" | "wealth_details" | "submeter" | "diversions">("tenants");
 
