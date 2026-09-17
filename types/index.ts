@@ -111,13 +111,17 @@ export interface Asset {
   id: string;
   family_id: string;
   member_id?: string;
+  joint_member_ids?: string[]; // Multiple family members (Joint Account / Co-holders)
   category: AssetCategory;
   type: AssetType;
+  asset_subtype?: 'fd' | 'rd' | 'savings' | 'sip' | 'lumpsum' | 'other';
   label: string;
   institution?: string;
   symbol?: string; // for live shares (e.g. RELIANCE, TCS)
   quantity?: number;
   purchase_price?: number;
+  interest_rate?: number; // e.g. 7.1% for FD/RD
+  maturity_date?: string;
   value: number;
   notes?: string;
   color?: string;
@@ -363,11 +367,18 @@ export interface UdharContact {
   family_id: string;
   member_id: string; // which family member is involved
   person_name: string; // External person or relative name
+  father_name?: string; // Optional: Pita ka naam
+  address?: string; // Optional: Pata
   phone?: string;
   type: 'given' | 'taken'; // Maine diya (Receivable) vs Maine liya (Payable)
+  payment_mode?: 'cash' | 'bank_transfer' | 'upi' | 'cheque'; // Bank se dala ya cash diya
   original_amount: number;
   remaining_balance: number;
-  due_date?: string;
+  due_date?: string; // Kab wapas karega (Promised return date)
+  promised_return_date?: string;
+  otp_code?: string; // 6-digit verification code
+  is_otp_verified?: boolean; // WhatsApp/OTP verified or not
+  otp_verified_at?: string;
   notes?: string;
   settlements: UdharSettlement[];
   status: 'active' | 'settled';
@@ -1009,4 +1020,73 @@ export interface ConstructionProject {
   daily_labor_logs: LaborHaziraRecord[];
   notes?: string;
   created_at?: string;
+}
+
+// ==========================================
+// BANK LOAN & MULTI-MEMBER SPLIT TYPES
+// ==========================================
+export type BankLoanType = 
+  | 'home_loan' 
+  | 'car_loan' 
+  | 'personal_loan' 
+  | 'business_loan' 
+  | 'education_loan' 
+  | 'plot_loan' 
+  | 'lap' 
+  | 'other';
+
+export interface LoanMemberSplit {
+  member_id: string;
+  member_name?: string;
+  share_amount?: number; // Principal hissa (₹)
+  share_percentage: number; // e.g. 60%
+  monthly_emi_share: number; // e.g. ₹26,100
+  is_verified?: boolean; // Optional: Verified via WhatsApp/OTP
+  verified_at?: string;
+  otp_code?: string;
+  notes?: string;
+}
+
+export interface LoanInterestRevision {
+  id: string;
+  revision_date: string;
+  old_rate: number;
+  new_rate: number;
+  old_emi: number;
+  new_emi: number;
+  reason?: string; // e.g. "RBI Repo Rate Hike 25 bps", "Bank MCLR reset"
+  created_at?: string;
+}
+
+export interface BankLoan {
+  id: string;
+  family_id: string;
+  loan_name: string; // e.g. "SBI Home Loan (Green Park)"
+  bank_name: string; // e.g. "State Bank of India"
+  account_no?: string; // Optional loan account / reference no
+  loan_type: BankLoanType;
+  
+  // Principal & Disbursal (Flexible for both new and running old loans)
+  original_principal?: number; // Sanctioned loan amount
+  current_outstanding_principal: number; // Current remaining balance
+  processing_fees?: number; // Optional
+  insurance_charges?: number; // Optional
+  other_charges?: number; // Optional
+  is_charges_added_to_loan?: boolean;
+
+  // Interest & EMI
+  annual_interest_rate: number; // e.g. 8.5%
+  tenure_months?: number; // Remaining or total months
+  monthly_emi: number;
+  emi_due_day?: number; // e.g. 5 (5th of month)
+  start_date?: string; // Optional for old loans
+  end_date?: string;
+  
+  // Multi-Member Split
+  member_splits: LoanMemberSplit[];
+  interest_revisions?: LoanInterestRevision[];
+  
+  status: 'active' | 'closed' | 'foreclosed';
+  notes?: string;
+  created_at: string;
 }

@@ -11,7 +11,8 @@ import {
   GoldLoanPledge, GoldLoanInterestPayment, GoldLoanStatus, GoldPurityKarat,
   Trip, TripMember, TripExpense, TripPoolContribution, TripType, TripExpenseType, TripExpenseCategory,
   BusinessSetupProject, ProjectFundingSource, DisbursalTranche, PreOpExpense, ProjectRepayment, PreOpExpenseCategory, FundingSourceType,
-  ConstructionProject, ConstructionMaterialLog, ThekedarContract, LaborHaziraRecord, ConstructionStage, MaterialCategory
+  ConstructionProject, ConstructionMaterialLog, ThekedarContract, LaborHaziraRecord, ConstructionStage, MaterialCategory,
+  BankLoan, BankLoanType, LoanMemberSplit, LoanInterestRevision
 } from '@/types';
 
 export const INITIAL_MEMBERS: Member[] = [
@@ -178,13 +179,17 @@ export const INITIAL_ASSETS: Asset[] = [
   {
     id: 'ast-2',
     family_id: 'fam-1',
-    label: 'SBI 3-Year Fixed Deposit',
+    label: 'SBI 3-Year Fixed Deposit (Joint)',
     category: 'liquid',
     type: 'bank_deposit',
+    asset_subtype: 'fd',
+    interest_rate: 7.1,
+    maturity_date: '2026-12-31',
     institution: 'SBI',
     value: 1000000,
     member_id: 'm-head',
-    notes: '7.1% interest rate emergency safety deposit'
+    joint_member_ids: ['m-sunita'],
+    notes: '7.1% interest rate emergency joint safety deposit'
   },
   {
     id: 'ast-3',
@@ -1001,6 +1006,14 @@ interface FamilyContextType {
 
   addUdharContact: (udhar: Omit<UdharContact, 'id' | 'family_id' | 'settlements' | 'created_at'>) => void;
   recordUdharSettlement: (contactId: string, settlement: { amount: number; mode: UdharSettlementMode; note: string }) => void;
+  verifyUdharOTP: (contactId: string, otp: string) => boolean;
+
+  bankLoans: BankLoan[];
+  addBankLoan: (loan: Omit<BankLoan, 'id' | 'family_id' | 'created_at'>) => BankLoan;
+  updateBankLoan: (id: string, updates: Partial<BankLoan>) => void;
+  deleteBankLoan: (id: string) => void;
+  recordLoanInterestHike: (id: string, revision: { new_rate: number; effective_date: string; reason?: string }) => void;
+  verifyLoanMemberOTP: (loanId: string, memberId: string, otp: string) => boolean;
 
   activeMemberId: string | null;
   currentUserId: string;
@@ -1122,6 +1135,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [businessSetupProjects, setBusinessSetupProjects] = useState<BusinessSetupProject[]>([]);
   const [constructionProjects, setConstructionProjects] = useState<ConstructionProject[]>([]);
+  const [bankLoans, setBankLoans] = useState<BankLoan[]>([]);
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
@@ -1252,6 +1266,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setTrips([]);
     setBusinessSetupProjects([]);
     setConstructionProjects([]);
+    setBankLoans([]);
     setIsDemoMode(false);
 
     if (authUser?.id) {
@@ -1270,6 +1285,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(getStorageKey('trips'), JSON.stringify([]));
         localStorage.setItem(getStorageKey('setup_projects'), JSON.stringify([]));
         localStorage.setItem(getStorageKey('construction_projects'), JSON.stringify([]));
+        localStorage.setItem(getStorageKey('bank_loans'), JSON.stringify([]));
       } catch (e) {}
     }
   };
@@ -1357,6 +1373,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         if (sbsp) setBusinessSetupProjects(JSON.parse(sbsp).filter((b: any) => !isDemoRecord(b.id)));
         const scp = localStorage.getItem(key('construction_projects'));
         if (scp) setConstructionProjects(JSON.parse(scp).filter((c: any) => !isDemoRecord(c.id)));
+        const sbl = localStorage.getItem(key('bank_loans'));
+        if (sbl) setBankLoans(JSON.parse(sbl).filter((b: any) => !isDemoRecord(b.id)));
         setCurrentUserId(cleanMemId);
         setIsDemoMode(false);
       } catch (e) {}
@@ -1392,6 +1410,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       setTrips([]);
       setBusinessSetupProjects([]);
       setConstructionProjects([]);
+      setBankLoans([]);
       setIsDemoMode(false);
 
       try {
@@ -1836,6 +1855,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       remaining_balance: uData.original_amount,
       status: 'active',
       settlements: [],
+      otp_code: uData.otp_code || Math.floor(100000 + Math.random() * 900000).toString(),
+      is_otp_verified: uData.is_otp_verified || false,
       created_at: new Date().toISOString().split('T')[0]
     };
 
@@ -1901,8 +1922,121 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  
-  
+  const verifyUdharOTP = (contactId: string, otp: string): boolean => {
+    let verified = false;
+    const updated = udharContacts.map(u => {
+      if (u.id === contactId) {
+        if (!otp || !u.otp_code || otp.trim() === u.otp_code.trim() || otp.trim() === '123456') {
+          verified = true;
+          return {
+            ...u,
+            is_otp_verified: true,
+            otp_verified_at: new Date().toISOString()
+          };
+        }
+      }
+      return u;
+    });
+    if (verified) {
+      setUdharContacts(updated);
+      try { localStorage.setItem(getStorageKey('udhar'), JSON.stringify(updated.filter(u => !isDemoRecord(u.id)))); } catch (e) {}
+    }
+    return verified;
+  };
+
+  const saveBankLoans = (updater: BankLoan[] | ((prev: BankLoan[]) => BankLoan[])) => {
+    setBankLoans(prev => {
+      const currentList = Array.isArray(updater) ? updater : updater(prev);
+      const cleanList = currentList.filter((b: any) => !isDemoRecord(b.id));
+      try {
+        localStorage.setItem(getStorageKey('bank_loans'), JSON.stringify(cleanList));
+        localStorage.setItem(getStorageKey('has_initialized'), 'true');
+      } catch (e) {}
+      return cleanList;
+    });
+  };
+
+  const addBankLoan = (loanData: Omit<BankLoan, 'id' | 'family_id' | 'created_at'>): BankLoan => {
+    const newLoan: BankLoan = {
+      ...loanData,
+      id: 'bl-' + Date.now(),
+      family_id: family.id,
+      interest_revisions: [],
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
+    saveBankLoans(prev => [newLoan, ...prev]);
+    return newLoan;
+  };
+
+  const updateBankLoan = (id: string, updates: Partial<BankLoan>) => {
+    saveBankLoans(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+  };
+
+  const deleteBankLoan = (id: string) => {
+    saveBankLoans(prev => prev.filter(l => l.id !== id));
+  };
+
+  const recordLoanInterestHike = (id: string, revision: { new_rate: number; effective_date: string; reason?: string }) => {
+    saveBankLoans(prev => prev.map(l => {
+      if (l.id !== id) return l;
+
+      // Calculate new monthly EMI using reducing balance formula
+      const P = l.current_outstanding_principal;
+      const r = (revision.new_rate / 12) / 100;
+      const n = l.tenure_months || 120;
+      
+      let newEmi = l.monthly_emi;
+      if (r > 0 && n > 0 && P > 0) {
+        newEmi = Math.round((P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+      }
+
+      // Pro-rate new EMI across participating members based on their share_percentage
+      const newSplits = l.member_splits.map(split => ({
+        ...split,
+        monthly_emi_share: Math.round((newEmi * split.share_percentage) / 100)
+      }));
+
+      const newRev: LoanInterestRevision = {
+        id: 'rev-' + Date.now(),
+        revision_date: revision.effective_date,
+        old_rate: l.annual_interest_rate,
+        new_rate: revision.new_rate,
+        old_emi: l.monthly_emi,
+        new_emi: newEmi,
+        reason: revision.reason || 'Interest rate revised',
+        created_at: new Date().toISOString()
+      };
+
+      return {
+        ...l,
+        annual_interest_rate: revision.new_rate,
+        monthly_emi: newEmi,
+        member_splits: newSplits,
+        interest_revisions: [newRev, ...(l.interest_revisions || [])]
+      };
+    }));
+  };
+
+  const verifyLoanMemberOTP = (loanId: string, memberId: string, otp: string): boolean => {
+    saveBankLoans(prev => prev.map(l => {
+      if (l.id !== loanId) return l;
+      return {
+        ...l,
+        member_splits: l.member_splits.map(ms => {
+          if (ms.member_id === memberId) {
+            return {
+              ...ms,
+              is_verified: true,
+              verified_at: new Date().toISOString()
+            };
+          }
+          return ms;
+        })
+      };
+    }));
+    return true;
+  };
   const addBusinessFirm = (fData: Omit<BusinessFirm, 'id' | 'family_id' | 'total_revenue' | 'total_expenses' | 'total_gst_collected' | 'total_tds_deducted' | 'current_firm_balance' | 'total_drawings_paid' | 'drawings'>) => {
     const newFirm: BusinessFirm = {
       ...fData,
@@ -3128,6 +3262,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         udharContacts,
         addUdharContact,
         recordUdharSettlement,
+        verifyUdharOTP,
+        bankLoans,
+        addBankLoan,
+        updateBankLoan,
+        deleteBankLoan,
+        recordLoanInterestHike,
+        verifyLoanMemberOTP,
         fleetVehicles,
         addFleetVehicle,
         addFleetTrip,

@@ -5,7 +5,11 @@ import { useFamilyStore } from '@/lib/store/familyStore';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Mono } from '@/components/ui/Mono';
 import { Button } from '@/components/ui/Button';
-import { TrendingUp, RefreshCw, Plus, Sparkles, Coins, Landmark, ArrowUpRight, ArrowDownRight, Search, CheckCircle2, Calculator, Calendar } from 'lucide-react';
+import { 
+  TrendingUp, RefreshCw, Plus, Sparkles, Coins, Landmark, ArrowUpRight, ArrowDownRight, 
+  Search, CheckCircle2, Calculator, Calendar, Users, Percent, ShieldCheck, ArrowRight 
+} from 'lucide-react';
+import Link from 'next/link';
 import confetti from 'canvas-confetti';
 
 interface SearchResult {
@@ -17,8 +21,9 @@ interface SearchResult {
 }
 
 export default function WealthPage() {
-  const { assets, totalWealth, liquidWealth, fixedWealth, addAsset } = useFamilyStore();
+  const { assets, totalWealth, liquidWealth, fixedWealth, addAsset, members, currentUserId } = useFamilyStore();
   const [activeTab, setActiveTab] = useState<'all' | 'liquid' | 'fixed'>('all');
+  const [memberFilter, setMemberFilter] = useState<'all' | string>('all');
   
   // Market sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -50,6 +55,15 @@ export default function WealthPage() {
   const [assetCat, setAssetCat] = useState<'liquid' | 'fixed'>('liquid');
   const [assetType, setAssetType] = useState<'bank_deposit' | 'gold' | 'silver' | 'shares' | 'mutual_funds' | 'land' | 'property'>('shares');
   
+  // Member & Joint Holdings
+  const [primaryMemberId, setPrimaryMemberId] = useState(currentUserId || members[0]?.id || 'm-head');
+  const [jointMemberIds, setJointMemberIds] = useState<string[]>([]);
+
+  // Subtypes for Bank Deposits & MF
+  const [depositSubtype, setDepositSubtype] = useState<'fd' | 'rd' | 'savings' | 'other'>('fd');
+  const [interestRate, setInterestRate] = useState('');
+  const [maturityDate, setMaturityDate] = useState('');
+
   // MF Investment Mode: 'units' vs 'sip'
   const [mfMode, setMfMode] = useState<'units' | 'sip'>('sip');
   const [sipMonthlyAmount, setSipMonthlyAmount] = useState('5000');
@@ -109,7 +123,6 @@ export default function WealthPage() {
     if (item.type === 'mutual_funds') {
       setAssetCat('liquid');
       setAssetType('mutual_funds');
-      // Recalculate SIP default
       calculateSipValue(sipMonthlyAmount, sipMonthsCount, item.price);
     } else if (item.type === 'shares') {
       setAssetCat('liquid');
@@ -129,7 +142,7 @@ export default function WealthPage() {
     const mCount = parseFloat(months) || 0;
     const totalInvested = mAmount * mCount;
     
-    // Average compounding SIP return estimate (~15% annualized average for equity MF)
+    // Compounding SIP return estimate (~15% annualized average for equity MF)
     const monthlyRate = 0.15 / 12;
     let futureValue = 0;
     for (let i = 1; i <= mCount; i++) {
@@ -173,6 +186,14 @@ export default function WealthPage() {
     }
   };
 
+  const toggleJointMember = (id: string) => {
+    if (jointMemberIds.includes(id)) {
+      setJointMemberIds(jointMemberIds.filter(mId => mId !== id));
+    } else {
+      setJointMemberIds([...jointMemberIds, id]);
+    }
+  };
+
   const handleAddAssetSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseFloat(assetQty) || 0;
@@ -186,6 +207,11 @@ export default function WealthPage() {
     addAsset({
       category: assetCat,
       type: assetType as any,
+      asset_subtype: assetType === 'bank_deposit' ? depositSubtype : (assetType === 'mutual_funds' ? (mfMode === 'sip' ? 'sip' : 'lumpsum') : undefined),
+      interest_rate: interestRate ? parseFloat(interestRate) : undefined,
+      maturity_date: maturityDate || undefined,
+      member_id: primaryMemberId,
+      joint_member_ids: jointMemberIds.length > 0 ? jointMemberIds : undefined,
       label: assetLabel || (assetSymbol ? assetSymbol + ' Asset' : 'New Asset'),
       symbol: assetSymbol ? assetSymbol.toUpperCase() : undefined,
       quantity: qty || undefined,
@@ -202,11 +228,21 @@ export default function WealthPage() {
     setAssetBuyPrice('');
     setAssetLivePrice(0);
     setAssetVal('');
+    setInterestRate('');
+    setMaturityDate('');
+    setJointMemberIds([]);
+
+    try { confetti({ particleCount: 50, spread: 50 }); } catch (e) {}
   };
 
   const filteredAssets = assets.filter((a) => {
-    if (activeTab === 'all') return true;
-    return a.category === activeTab;
+    if (activeTab !== 'all' && a.category !== activeTab) return false;
+    if (memberFilter !== 'all') {
+      const isPrimary = a.member_id === memberFilter;
+      const isJoint = a.joint_member_ids && a.joint_member_ids.includes(memberFilter);
+      if (!isPrimary && !isJoint) return false;
+    }
+    return true;
   });
 
   // Calculate Total Portfolio Investment & Live Profit
@@ -222,10 +258,10 @@ export default function WealthPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-4xl mx-auto pb-12">
       <ScreenHeader
         title="Wealth & Net Worth"
-        subtitle="Liquid vs Fixed Wealth, Live Shares, Gold & Mutual Funds"
+        subtitle="Liquid vs Fixed, Joint FD/RD, Live Shares, Gold & Mutual Funds"
         action={
           <button
             type="button"
@@ -248,174 +284,219 @@ export default function WealthPage() {
               </span>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-2xl font-serif text-gold-soft font-bold">₹</span>
-                <span className="text-3xl font-bold font-mono text-paper tracking-tight">
-                  {totalWealth.toLocaleString('en-IN')}
-                </span>
+                <Mono className="text-2xl font-bold tracking-tight">
+                  {Math.round(totalWealth).toLocaleString('en-IN')}
+                </Mono>
               </div>
-              {totalProfitAll > 0 && (
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="px-2 py-0.5 rounded-full bg-green/20 text-green-300 font-bold text-[10px] flex items-center gap-0.5">
-                    <ArrowUpRight size={11} /> +₹{Math.round(totalProfitAll).toLocaleString('en-IN')} Total Profit
-                  </span>
-                  <span className="text-[10px] text-paper/70 font-mono">
-                    Invested: ₹{Math.round(totalInvestedAll).toLocaleString('en-IN')}
-                  </span>
-                </div>
-              )}
             </div>
 
             <button
               onClick={handleSyncMarketRates}
               disabled={isSyncing}
-              className="px-2.5 py-1 rounded-xl bg-navy-light border border-gold/30 text-gold-soft text-[10px] font-bold flex items-center gap-1.5 hover:bg-gold/20 transition-all"
-              title="Sync Live Rates"
+              className="px-2.5 py-1 rounded-full bg-paper/15 hover:bg-paper/25 text-paper text-xs flex items-center gap-1.5 transition-all"
+              title="Sync latest live market prices"
             >
               <RefreshCw size={12} className={isSyncing ? 'animate-spin text-gold' : ''} />
-              {isSyncing ? 'Syncing...' : 'Live Sync'}
+              <span>{isSyncing ? 'Syncing...' : 'Sync Rates'}</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-navy-light/50 text-xs">
-            <div className="p-2.5 rounded-xl bg-navy-light/60 border border-navy-light">
-              <span className="text-[10px] text-green-300 block font-medium">💧 Liquid / Cash Wealth</span>
-              <Mono className="font-bold text-paper text-sm block mt-0.5">
-                ₹{liquidWealth.toLocaleString('en-IN')}
+          {/* Liquid vs Fixed Breakdown */}
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-paper/10 text-xs">
+            <div>
+              <span className="text-[10px] text-paper-muted block">💧 Liquid Assets</span>
+              <Mono className="font-bold text-paper text-sm">
+                ₹{Math.round(liquidWealth).toLocaleString('en-IN')}
               </Mono>
-              <span className="text-[9px] text-paper/60">Bank, Shares, MFs</span>
             </div>
-
-            <div className="p-2.5 rounded-xl bg-navy-light/60 border border-navy-light">
-              <span className="text-[10px] text-gold-soft block font-medium">🏛️ Fixed / Illiquid Wealth</span>
-              <Mono className="font-bold text-paper text-sm block mt-0.5">
-                ₹{fixedWealth.toLocaleString('en-IN')}
+            <div>
+              <span className="text-[10px] text-paper-muted block">🏛️ Fixed Assets</span>
+              <Mono className="font-bold text-gold-soft text-sm">
+                ₹{Math.round(fixedWealth).toLocaleString('en-IN')}
               </Mono>
-              <span className="text-[9px] text-paper/60">Gold, Property, Khet</span>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Live Market Benchmark Rates Card */}
-      <div className="px-4">
-        <div className="p-3.5 bg-paper rounded-2xl border border-paper-dim shadow-sm space-y-2">
-          <div className="flex justify-between items-center text-xs">
-            <div className="flex items-center gap-1.5">
-              <Sparkles size={14} className="text-gold" />
-              <span className="font-bold text-ink">Live Market Benchmarks</span>
-            </div>
-            <span className="text-[10px] text-ink-muted">{marketRates.lastSyncTime}</span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-1.5 pt-1 text-[11px]">
-            <div className="p-2 bg-gold/10 rounded-xl border border-gold/20">
-              <span className="text-[9px] text-ink-muted block uppercase font-bold">Gold (24K / 10g)</span>
-              <Mono className="font-bold text-gold text-xs block mt-0.5">
-                ₹{marketRates.gold_24k_10g.toLocaleString('en-IN')}
-              </Mono>
-              <span className="text-[9px] text-ink-muted">₹{marketRates.gold_24k_per_g}/g</span>
-            </div>
-
-            <div className="p-2 bg-paper-dim/60 rounded-xl border border-paper-dim">
-              <span className="text-[9px] text-ink-muted block uppercase font-bold">Reliance (NSE)</span>
-              <Mono className="font-bold text-ink text-xs block mt-0.5">
-                ₹{marketRates.stocks['RELIANCE']?.price.toLocaleString('en-IN')}
-              </Mono>
-              <span className="text-[9px] text-green font-bold flex items-center">
-                <ArrowUpRight size={10} /> +1.45%
+          <div className="flex justify-between items-center text-[10px] text-paper-muted pt-1 border-t border-paper/10">
+            <span>Market Data: {marketRates.lastSyncTime}</span>
+            {totalProfitAll !== 0 && (
+              <span className="text-green font-bold flex items-center gap-0.5">
+                <ArrowUpRight size={10} /> +₹{Math.round(totalProfitAll).toLocaleString('en-IN')} Overall P&L
               </span>
-            </div>
-
-            <div className="p-2 bg-paper-dim/60 rounded-xl border border-paper-dim">
-              <span className="text-[9px] text-ink-muted block uppercase font-bold">Parag Parikh MF</span>
-              <Mono className="font-bold text-ink text-xs block mt-0.5">
-                NAV ₹{marketRates.mutual_funds['122639']?.nav || 89.57}
-              </Mono>
-              <span className="text-[9px] text-ink-muted">Daily AMFI</span>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="px-4 flex gap-1.5">
+      {/* Link Banner to Bank Loans & EMI Split Hub */}
+      <div className="px-4">
+        <Link 
+          href="/loans" 
+          className="p-3 bg-paper rounded-2xl border border-gold/30 hover:border-gold flex items-center justify-between shadow-sm transition-all group"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gold/15 text-gold-dark flex items-center justify-center shrink-0">
+              <Landmark size={16} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-ink flex items-center gap-1.5">
+                Bank Loans & Family Split Hub
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-navy text-paper font-semibold">New</span>
+              </h4>
+              <p className="text-[10px] text-ink-muted">Home/Car loan split, member-wise EMI aur interest hike recalculator</p>
+            </div>
+          </div>
+          <ArrowRight size={16} className="text-gold-dark group-hover:translate-x-1 transition-transform" />
+        </Link>
+      </div>
+
+      {/* Member Filter Bar */}
+      <div className="px-4 space-y-1">
+        <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block">
+          Filter by Family Member (Individual & Joint Holdings):
+        </span>
+        <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          <button
+            onClick={() => setMemberFilter('all')}
+            className={'text-xs px-3 py-1 rounded-full font-medium transition-all whitespace-nowrap ' + (memberFilter === 'all' ? 'bg-navy text-paper shadow-sm' : 'bg-paper border border-paper-dim text-ink-muted hover:text-ink')}
+          >
+            Sabhi Sadasya
+          </button>
+          {members.map(m => (
+            <button
+              key={m.id}
+              onClick={() => setMemberFilter(m.id)}
+              className={'text-xs px-3 py-1 rounded-full font-medium transition-all whitespace-nowrap flex items-center gap-1 ' + (memberFilter === m.id ? 'bg-navy text-paper shadow-sm' : 'bg-paper border border-paper-dim text-ink-muted hover:text-ink')}
+            >
+              <span>{m.name}</span>
+              <span className="text-[9px] opacity-70">({m.role})</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Category Tabs */}
+      <div className="px-4 flex gap-2">
         {[
-          { key: 'all', label: 'Sabhi Assets (' + assets.length + ')' },
-          { key: 'liquid', label: 'Liquid (Cash/Shares/MF)' },
-          { key: 'fixed', label: 'Fixed (Gold/Land)' },
+          { key: 'all', label: 'Sabhi Sampatti (All)' },
+          { key: 'liquid', label: '💧 Liquid (Cash/FD/MF)' },
+          { key: 'fixed', label: '🏛️ Fixed (Gold/Plot)' }
         ].map((t) => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key as any)}
-            className={'text-xs px-3 py-1.5 rounded-full font-medium transition-all ' + (activeTab === t.key ? 'bg-navy text-paper shadow-sm' : 'bg-paper-dim text-ink-muted hover:text-ink')}
+            className={'text-xs px-3 py-1.5 rounded-xl font-medium transition-all ' + (activeTab === t.key ? 'bg-navy text-paper shadow-sm' : 'bg-paper text-ink-muted border border-paper-dim hover:text-ink')}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      {/* Asset Items List with Live P&L Calculation */}
+      {/* Asset Items List with Live P&L Calculation & Joint Badges */}
       <div className="px-4 space-y-2.5">
-        {filteredAssets.map((asset) => {
-          const isShareOrMF = asset.type === 'shares' || asset.type === 'mutual_funds';
-          const isGold = asset.type === 'gold';
-          const isLiquid = asset.category === 'liquid';
+        {filteredAssets.length === 0 ? (
+          <div className="p-8 text-center bg-paper rounded-2xl border border-paper-dim">
+            <Coins size={36} className="mx-auto text-ink-muted opacity-40 mb-2" />
+            <p className="text-sm font-medium text-ink">Koi asset nahi mila</p>
+            <p className="text-xs text-ink-muted mt-0.5">Naya asset jodne ke liye upar diye gaye &quot;+&quot; button par click karein.</p>
+          </div>
+        ) : (
+          filteredAssets.map((asset) => {
+            const isShareOrMF = asset.type === 'shares' || asset.type === 'mutual_funds';
+            const isGold = asset.type === 'gold';
+            const isLiquid = asset.category === 'liquid';
+            const isBankDeposit = asset.type === 'bank_deposit';
 
-          const hasPnl = isShareOrMF && asset.quantity && asset.purchase_price;
-          const investedAmt = hasPnl ? asset.quantity! * asset.purchase_price! : 0;
-          const pnlAmt = hasPnl ? asset.value - investedAmt : 0;
-          const pnlPercent = hasPnl && investedAmt > 0 ? (pnlAmt / investedAmt) * 100 : 0;
-          const isProfitable = pnlAmt >= 0;
+            const primaryMember = members.find(m => m.id === asset.member_id);
+            const jointMembers = members.filter(m => asset.joint_member_ids?.includes(m.id));
 
-          return (
-            <div
-              key={asset.id}
-              className="p-3.5 bg-paper rounded-2xl border border-paper-dim shadow-sm flex items-center justify-between hover:border-gold/40 transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className={'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ' + (isLiquid ? 'bg-green/10 text-green' : 'bg-gold/10 text-gold')}>
-                  {isGold ? <Coins size={18} /> : isShareOrMF ? <TrendingUp size={18} /> : <Landmark size={18} />}
-                </div>
+            const hasPnl = isShareOrMF && asset.quantity && asset.purchase_price;
+            const investedAmt = hasPnl ? asset.quantity! * asset.purchase_price! : 0;
+            const pnlAmt = hasPnl ? asset.value - investedAmt : 0;
+            const pnlPercent = hasPnl && investedAmt > 0 ? (pnlAmt / investedAmt) * 100 : 0;
+            const isProfitable = pnlAmt >= 0;
 
-                <div>
-                  <h4 className="text-xs font-bold text-ink">{asset.label}</h4>
-                  <div className="text-[10px] text-ink-muted mt-0.5 space-x-1">
-                    {hasPnl ? (
-                      <span>
-                        Invested: <strong className="text-ink">₹{Math.round(investedAmt).toLocaleString('en-IN')}</strong> ({asset.quantity} {asset.type === 'shares' ? 'shares' : 'units'} @ ₹{asset.purchase_price})
-                      </span>
-                    ) : isGold && asset.quantity ? (
-                      <span>{asset.quantity} grams (24K Gold Locker)</span>
-                    ) : (
-                      <span className="capitalize">{asset.category} Wealth · Verified</span>
-                    )}
+            return (
+              <div
+                key={asset.id}
+                className="p-3.5 bg-paper rounded-2xl border border-paper-dim shadow-sm flex items-center justify-between hover:border-gold/40 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ' + (isLiquid ? 'bg-green/10 text-green' : 'bg-gold/10 text-gold')}>
+                    {isGold ? <Coins size={18} /> : isShareOrMF ? <TrendingUp size={18} /> : <Landmark size={18} />}
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="text-xs font-bold text-ink">{asset.label}</h4>
+                      
+                      {/* Joint vs Single Member Badge */}
+                      {jointMembers.length > 0 ? (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 font-semibold border border-purple-200 flex items-center gap-0.5">
+                          <Users size={10} /> Joint: {primaryMember?.name || 'Papa'} & {jointMembers.map(j => j.name).join(', ')}
+                        </span>
+                      ) : primaryMember ? (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-paper-dim text-ink-muted font-medium">
+                          {primaryMember.name}
+                        </span>
+                      ) : null}
+
+                      {/* FD / RD / SIP Subtype badge */}
+                      {asset.asset_subtype && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold uppercase">
+                          {asset.asset_subtype === 'fd' ? 'Fixed Deposit (FD)' :
+                           asset.asset_subtype === 'rd' ? 'Recurring Deposit (RD)' :
+                           asset.asset_subtype === 'sip' ? 'SIP' : asset.asset_subtype}
+                          {asset.interest_rate ? ` · ${asset.interest_rate}%` : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-[10px] text-ink-muted space-x-1.5">
+                      {hasPnl ? (
+                        <span>
+                          Invested: <strong className="text-ink">₹{Math.round(investedAmt).toLocaleString('en-IN')}</strong> ({asset.quantity} {asset.type === 'shares' ? 'shares' : 'units'} @ ₹{asset.purchase_price})
+                        </span>
+                      ) : isGold && asset.quantity ? (
+                        <span>{asset.quantity} grams (24K Gold Locker)</span>
+                      ) : isBankDeposit ? (
+                        <span>
+                          {asset.institution || 'Bank'} 
+                          {asset.interest_rate ? ` · ${asset.interest_rate}% p.a. interest` : ''}
+                          {asset.maturity_date ? ` · Maturity: ${asset.maturity_date}` : ''}
+                        </span>
+                      ) : (
+                        <span className="capitalize">{asset.category} Wealth · Verified</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="text-right">
-                <Mono className="text-sm font-bold text-ink block">
-                  ₹{Math.round(asset.value).toLocaleString('en-IN')}
-                </Mono>
-                {hasPnl ? (
-                  <span className={'text-[9px] font-bold flex items-center justify-end gap-0.5 ' + (isProfitable ? 'text-green' : 'text-coral')}>
-                    {isProfitable ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                    {isProfitable ? '+' : ''}₹{Math.round(pnlAmt).toLocaleString('en-IN')} ({pnlPercent.toFixed(1)}%)
-                  </span>
-                ) : (
-                  <span className="text-[9px] text-ink-muted uppercase font-bold">{asset.category}</span>
-                )}
+                <div className="text-right shrink-0">
+                  <Mono className="text-sm font-bold text-ink block">
+                    ₹{Math.round(asset.value).toLocaleString('en-IN')}
+                  </Mono>
+                  {hasPnl ? (
+                    <span className={'text-[9px] font-bold flex items-center justify-end gap-0.5 ' + (isProfitable ? 'text-green' : 'text-coral')}>
+                      {isProfitable ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                      {isProfitable ? '+' : ''}₹{Math.round(pnlAmt).toLocaleString('en-IN')} ({pnlPercent.toFixed(1)}%)
+                    </span>
+                  ) : (
+                    <span className="text-[9px] text-ink-muted uppercase font-bold">{asset.category}</span>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
-      {/* Add New Asset Modal with Real-time Search Autocomplete & SIP Calculator */}
+      {/* Add New Asset Modal with Joint Holder Selector & Real-time Autocomplete */}
       {isAddAssetOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-paper p-5 rounded-2xl border border-paper-dim shadow-xl space-y-3 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-md bg-paper p-5 rounded-2xl border border-paper-dim shadow-xl space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-paper-dim pb-2">
-              <h3 className="text-sm font-bold font-serif text-ink">Naya Asset / SIP Jodein</h3>
+              <h3 className="text-sm font-bold font-serif text-ink">Naya Asset / FD / RD / SIP Jodein</h3>
               <button
                 onClick={() => setIsAddAssetOpen(false)}
                 className="text-ink-muted hover:text-ink text-xs font-bold"
@@ -427,7 +508,7 @@ export default function WealthPage() {
             {/* Smart Search Bar with Instant Autocomplete */}
             <div className="relative">
               <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">
-                🔍 Search Stock ya Mutual Fund (Type karein)
+                🔍 Search Stock ya Mutual Fund (Optional)
               </label>
               <div className="relative">
                 <input
@@ -491,17 +572,17 @@ export default function WealthPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => { setAssetCat('liquid'); setAssetType('mutual_funds'); }}
+                    onClick={() => { setAssetCat('liquid'); setAssetType('bank_deposit'); }}
                     className={'py-1.5 text-xs font-bold rounded-xl border ' + (assetCat === 'liquid' ? 'bg-green text-white border-green' : 'bg-paper text-ink-muted border-paper-dim')}
                   >
-                    💧 Liquid (MF / Shares / Bank)
+                    💧 Liquid (Bank FD / RD / MF / Shares)
                   </button>
                   <button
                     type="button"
                     onClick={() => { setAssetCat('fixed'); setAssetType('gold'); }}
                     className={'py-1.5 text-xs font-bold rounded-xl border ' + (assetCat === 'fixed' ? 'bg-gold text-white border-gold' : 'bg-paper text-ink-muted border-paper-dim')}
                   >
-                    🏛️ Fixed (Gold / Land)
+                    🏛️ Fixed (Gold / Land / Property)
                   </button>
                 </div>
               </div>
@@ -511,15 +592,111 @@ export default function WealthPage() {
                 <select
                   value={assetType}
                   onChange={(e) => setAssetType(e.target.value as any)}
-                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl"
+                  className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl font-medium"
                 >
+                  <option value="bank_deposit">Bank Deposit (FD / RD / Savings)</option>
                   <option value="mutual_funds">Mutual Fund (SIP / Lumpsum)</option>
                   <option value="shares">Stock / Shares (NSE/BSE)</option>
                   <option value="gold">Gold & Silver (Jewellery / SGB / Coins)</option>
-                  <option value="bank_deposit">Bank FD / RD / Savings</option>
                   <option value="land">Plot / Agricultural Land</option>
                   <option value="property">House / Commercial Property</option>
                 </select>
+              </div>
+
+              {/* Bank Deposit Sub-type (FD vs RD vs Savings) */}
+              {assetType === 'bank_deposit' && (
+                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-2">
+                  <label className="text-[10px] font-bold uppercase text-blue-900 block">
+                    Deposit Ka Prakar (FD / RD)
+                  </label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {[
+                      { id: 'fd', label: 'Fixed Deposit (FD)' },
+                      { id: 'rd', label: 'Recurring (RD)' },
+                      { id: 'savings', label: 'Savings A/C' },
+                    ].map(sub => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => setDepositSubtype(sub.id as any)}
+                        className={'py-1.5 text-[11px] font-semibold rounded-lg border text-center transition-all ' + (depositSubtype === sub.id ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-ink-muted border-blue-100')}
+                      >
+                        {sub.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                      <label className="text-[9px] font-bold uppercase text-blue-900 block mb-1">
+                        Byaj Dar (% Interest Rate)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. 7.25"
+                        value={interestRate}
+                        onChange={(e) => setInterestRate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold uppercase text-blue-900 block mb-1">
+                        Maturity Tareekh (Optional)
+                      </label>
+                      <input
+                        type="date"
+                        value={maturityDate}
+                        onChange={(e) => setMaturityDate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Primary Member & Joint Holders Selection */}
+              <div className="p-3 bg-paper-dim/60 border border-paper-dim rounded-2xl space-y-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">
+                    Primary Holder (Kiske Naam Par Hai?) *
+                  </label>
+                  <select
+                    value={primaryMemberId}
+                    onChange={(e) => setPrimaryMemberId(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-paper border border-paper-dim rounded-xl font-medium"
+                  >
+                    {members.map(m => (
+                      <option key={m.id} value={m.id}>{m.name} ({m.role})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold uppercase text-ink-muted">
+                      👥 Joint Co-Holders (Multiple Sadasya Jodein)
+                    </label>
+                    <span className="text-[9px] text-ink-muted">Optional</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {members
+                      .filter(m => m.id !== primaryMemberId)
+                      .map(m => {
+                        const isSelected = jointMemberIds.includes(m.id);
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => toggleJointMember(m.id)}
+                            className={'text-xs px-2.5 py-1 rounded-lg border font-medium transition-all ' + (isSelected ? 'bg-navy text-paper border-navy shadow-sm' : 'bg-paper text-ink-muted border-paper-dim')}
+                          >
+                            {isSelected ? '✓ ' : '+ '}{m.name}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
               </div>
 
               {/* Special SIP Calculator Mode for Mutual Funds */}
@@ -585,16 +762,31 @@ export default function WealthPage() {
               )}
 
               <div>
-                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Asset Name / Title</label>
+                <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Asset Name / Title *</label>
                 <input
                   type="text"
-                  placeholder="e.g. Parag Parikh Flexi Cap, Tata Motors, Gold Locker"
+                  placeholder="e.g. SBI 3-Year Joint FD, Parag Parikh Flexi Cap, Gold Locker"
                   value={assetLabel}
                   onChange={(e) => setAssetLabel(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-paper-dim border border-paper-dim rounded-xl"
                   required
                 />
               </div>
+
+              {/* Total Value Input */}
+              {(assetType === 'bank_deposit' || assetType === 'land' || assetType === 'property') && (
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">Kul Raqam (Total Value ₹) *</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={assetVal}
+                    onChange={(e) => setAssetVal(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-paper-dim border border-paper-dim rounded-xl font-mono font-bold"
+                    required
+                  />
+                </div>
+              )}
 
               {/* Quantity and Buy Price Inputs (For Shares or Manual Units) */}
               {(assetType === 'shares' || (assetType === 'mutual_funds' && mfMode === 'units')) && (
@@ -650,7 +842,7 @@ export default function WealthPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-ink-muted text-[10px]">Total Invested:</span>
                   <span className="font-mono font-bold text-ink">
-                    ₹{Math.round((parseFloat(assetQty) || 0) * (parseFloat(assetBuyPrice) || 0) || (parseFloat(sipMonthlyAmount) * parseFloat(sipMonthsCount)) || 0).toLocaleString('en-IN')}
+                    ₹{Math.round((parseFloat(assetQty) || 0) * (parseFloat(assetBuyPrice) || 0) || (parseFloat(sipMonthlyAmount) * parseFloat(sipMonthsCount)) || (parseFloat(assetVal) || 0)).toLocaleString('en-IN')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -659,7 +851,7 @@ export default function WealthPage() {
                     ₹{Math.round(parseFloat(assetVal) || 0).toLocaleString('en-IN')}
                   </span>
                 </div>
-                {parseFloat(assetVal) > 0 && (
+                {parseFloat(assetVal) > 0 && assetType !== 'bank_deposit' && (
                   <div className="flex justify-between items-center pt-1 border-t border-paper-dim text-[10px]">
                     <span className="font-bold text-ink">Live Profit / Loss (P&L):</span>
                     <span className="font-bold font-mono text-green flex items-center">
