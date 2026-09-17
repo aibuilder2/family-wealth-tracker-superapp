@@ -7,7 +7,7 @@ import { Mono } from '@/components/ui/Mono';
 import { Button } from '@/components/ui/Button';
 import { 
   TrendingUp, RefreshCw, Plus, Sparkles, Coins, Landmark, ArrowUpRight, ArrowDownRight, 
-  Search, CheckCircle2, Calculator, Calendar, Users, Percent, ShieldCheck, ArrowRight, Building2, Home, Edit3, Trash2, ArrowRightLeft, Building, Check, Split 
+  Search, CheckCircle2, Calculator, Calendar, Users, Percent, ShieldCheck, ArrowRight, Building2, Home, Edit3, Trash2, ArrowRightLeft, Building, Check, Split, PiggyBank, Wallet, ShoppingCart, UserCheck, ReceiptText 
 } from 'lucide-react';
 import Link from 'next/link';
 import confetti from 'canvas-confetti';
@@ -21,8 +21,8 @@ interface SearchResult {
 }
 
 export default function WealthPage() {
-  const { assets, totalWealth, liquidWealth, fixedWealth, addAsset, updateAsset, deleteAsset, members, currentUserId, rentalProperties, updateRentalProperty, addRentDiversion, deleteRentDiversion, executeRentDiversion, staff } = useFamilyStore();
-  const [activeTab, setActiveTab] = useState<'all' | 'liquid' | 'fixed'>('all');
+  const { assets, addTransaction, addStaffPayment, staff, transactions, totalWealth, liquidWealth, fixedWealth, addAsset, updateAsset, deleteAsset, members, currentUserId, rentalProperties, updateRentalProperty, addRentDiversion, deleteRentDiversion, executeRentDiversion } = useFamilyStore();
+  const [activeTab, setActiveTab] = useState<'all' | 'liquid' | 'fixed' | 'fdrd'>('all');
   
   // Asset Edit & Delete States
   const [editingAsset, setEditingAsset] = useState<any | null>(null);
@@ -82,6 +82,26 @@ export default function WealthPage() {
   });
 
   // Modal & Search Autocomplete State
+  
+  // Dedicated FD / RD / SIP Creation Modal State
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [depositType, setDepositType] = useState<'fd' | 'rd' | 'sip'>('rd');
+  const [depositBankName, setDepositBankName] = useState('State Bank of India (SBI)');
+  const [depositCustomLabel, setDepositCustomLabel] = useState('');
+  const [depositAmountVal, setDepositAmountVal] = useState('5000');
+  const [depositInterestRateVal, setDepositInterestRateVal] = useState('7.1');
+  const [depositTenureMonths, setDepositTenureMonths] = useState('12');
+  const [depositMaturityDateVal, setDepositMaturityDateVal] = useState('');
+  const [depositOwnerMemberId, setDepositOwnerMemberId] = useState(currentUserId || members[0]?.id || '');
+  const [depositJointMemberIds, setDepositJointMemberIds] = useState<string[]>([]);
+  const [depositFundedByRent, setDepositFundedByRent] = useState(false);
+
+  // Quick Passbook Kharcha Entry Modal (Ration / Staff Payment)
+  const [quickKharchaType, setQuickKharchaType] = useState<'ration' | 'staff' | null>(null);
+  const [quickKharchaAmount, setQuickKharchaAmount] = useState('5000');
+  const [quickKharchaNote, setQuickKharchaNote] = useState('Mahine ka Rashan & Kirana Saman');
+  const [quickKharchaStaffId, setQuickKharchaStaffId] = useState('');
+
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [assetCat, setAssetCat] = useState<'liquid' | 'fixed'>('liquid');
   const [assetType, setAssetType] = useState<'bank_deposit' | 'gold' | 'silver' | 'shares' | 'mutual_funds' | 'land' | 'property'>('shares');
@@ -309,6 +329,95 @@ export default function WealthPage() {
     setDivPurpose('Ghar Kharcha');
   };
 
+  
+  const handleOpenDepositModal = (preferredType: 'fd' | 'rd' | 'sip' = 'rd', memberId?: string) => {
+    setDepositType(preferredType);
+    setDepositOwnerMemberId(memberId || (memberFilter !== 'all' ? memberFilter : currentUserId || members[0]?.id || ''));
+    setDepositJointMemberIds([]);
+    setDepositBankName('State Bank of India (SBI)');
+    setDepositCustomLabel('');
+    setDepositAmountVal(preferredType === 'fd' ? '100000' : '5000');
+    setDepositInterestRateVal(preferredType === 'sip' ? '14.5' : '7.1');
+    setDepositTenureMonths('12');
+    setDepositFundedByRent(false);
+    setIsDepositModalOpen(true);
+  };
+
+  const handleSaveDepositSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(depositAmountVal) || 0;
+    if (amount <= 0) return alert('Kripya sahi rashi bharein');
+
+    const owner = members.find(m => m.id === depositOwnerMemberId);
+    const label = depositCustomLabel.trim() || `${depositBankName} ${depositType.toUpperCase()} (${owner?.name || 'Self'})`;
+
+    // Add to assets
+    addAsset({
+      category: 'liquid',
+      type: depositType === 'sip' ? 'mutual_funds' : 'bank_deposit',
+      asset_subtype: depositType,
+      institution: depositBankName,
+      label,
+      value: amount,
+      interest_rate: depositInterestRateVal ? parseFloat(depositInterestRateVal) : undefined,
+      maturity_date: depositMaturityDateVal || undefined,
+      member_id: depositOwnerMemberId,
+      joint_member_ids: depositJointMemberIds.length > 0 ? depositJointMemberIds : undefined,
+      notes: depositFundedByRent ? 'Kiraye ke funds se jama' : undefined,
+      color: depositType === 'fd' ? '#B98B2A' : depositType === 'rd' ? '#2563EB' : '#059669'
+    });
+
+    // If funded by rent, log an investment transaction
+    if (depositFundedByRent) {
+      addTransaction({
+        member_id: depositOwnerMemberId,
+        type: 'expense',
+        amount,
+        category: 'Investments / FD / RD',
+        category_type: 'main_ghar',
+        mode: 'online',
+        scope: 'ghar',
+        note: `Rent funds allocated to ${depositType.toUpperCase()}: ₹${amount} (${depositBankName})`,
+        txn_date: new Date().toISOString().split('T')[0]
+      });
+    }
+
+    try { confetti({ particleCount: 60, spread: 60 }); } catch (e) {}
+    alert(`✅ ${label} safalta-purvak jud gayi! Net Worth aur Liquid Wealth me add ho gaya.`);
+    setIsDepositModalOpen(false);
+  };
+
+  const handleQuickKharchaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(quickKharchaAmount) || 0;
+    if (amount <= 0) return alert('Kripya sahi rashi bharein');
+
+    const targetMemberId = memberFilter !== 'all' ? memberFilter : currentUserId || members[0]?.id || '';
+    const today = new Date().toISOString().split('T')[0];
+
+    if (quickKharchaType === 'ration') {
+      addTransaction({
+        member_id: targetMemberId,
+        type: 'expense',
+        amount,
+        category: 'Ration & Groceries',
+        category_type: 'main_ghar',
+        mode: 'offline',
+        scope: 'ghar',
+        note: quickKharchaNote || 'Ghar Ration & Kirana Kharcha',
+        txn_date: today
+      });
+      alert(`✅ ₹${amount.toLocaleString('en-IN')} Ration & Saman kharch me jud gaya!`);
+    } else if (quickKharchaType === 'staff') {
+      if (!quickKharchaStaffId) return alert('Kripya staff worker chunein');
+      addStaffPayment(quickKharchaStaffId, amount, 'salary');
+      alert(`✅ Staff worker ki salary ₹${amount.toLocaleString('en-IN')} safalta-purvak jud gayi!`);
+    }
+
+    try { confetti({ particleCount: 40, spread: 40 }); } catch (e) {}
+    setQuickKharchaType(null);
+  };
+
   const handleAddAssetSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseFloat(assetQty) || 0;
@@ -355,7 +464,12 @@ export default function WealthPage() {
 
   // Filter regular assets for selected tab and member
   const filteredAssets = assets.filter((a) => {
-    if (activeTab !== 'all' && a.category !== activeTab) return false;
+    if (activeTab === 'fdrd') {
+      const isDeposit = a.type === 'bank_deposit' || a.asset_subtype === 'fd' || a.asset_subtype === 'rd' || a.asset_subtype === 'sip' || a.label.toLowerCase().includes('fd') || a.label.toLowerCase().includes('rd') || a.label.toLowerCase().includes('deposit');
+      if (!isDeposit) return false;
+    } else if (activeTab !== 'all' && a.category !== activeTab) {
+      return false;
+    }
     if (memberFilter !== 'all') {
       const isPrimary = a.member_id === memberFilter;
       const isJoint = a.joint_member_ids && a.joint_member_ids.includes(memberFilter);
@@ -466,6 +580,52 @@ export default function WealthPage() {
           </button>
         }
       />
+
+      
+      {/* Prominent High-Visibility Action Bar for FD / RD / SIP and Assets */}
+      <div className="px-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          onClick={() => handleOpenDepositModal('rd')}
+          className="p-3.5 bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 hover:from-emerald-600 hover:to-teal-700 text-paper rounded-2xl shadow-md border border-emerald-600/40 flex items-center justify-between transition-all group"
+        >
+          <div className="flex items-center gap-2.5 text-left">
+            <div className="w-9 h-9 rounded-xl bg-paper/20 flex items-center justify-center shrink-0">
+              <PiggyBank size={20} className="text-paper" />
+            </div>
+            <div>
+              <span className="text-xs font-black block text-paper tracking-wide">
+                + Family Member FD / RD / SIP Jodein
+              </span>
+              <span className="text-[10px] text-paper-muted block">
+                Bank Fixed Deposit, Har Mahine RD ya Mutual Fund SIP
+              </span>
+            </div>
+          </div>
+          <Plus size={18} className="text-gold group-hover:rotate-90 transition-transform" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsAddAssetOpen(true)}
+          className="p-3.5 bg-paper hover:bg-paper-dim text-ink rounded-2xl shadow-sm border border-paper-dim flex items-center justify-between transition-all group"
+        >
+          <div className="flex items-center gap-2.5 text-left">
+            <div className="w-9 h-9 rounded-xl bg-gold/15 flex items-center justify-center shrink-0">
+              <Coins size={18} className="text-gold-dark" />
+            </div>
+            <div>
+              <span className="text-xs font-bold block text-ink">
+                + Anya Sampatti (Gold, Shares, Plot)
+              </span>
+              <span className="text-[10px] text-ink-muted block">
+                Sona, Chandi, Share Market, Zameen ya Naya Asset
+              </span>
+            </div>
+          </div>
+          <Plus size={18} className="text-ink-muted group-hover:rotate-90 transition-transform" />
+        </button>
+      </div>
 
       {/* Main Total Wealth Card with Dynamic Member-Wise Breakdown */}
       <div className="px-4">
@@ -624,7 +784,8 @@ export default function WealthPage() {
       <div className="px-4 flex gap-2">
         {[
           { key: 'all', label: 'Sabhi Sampatti (All)' },
-          { key: 'liquid', label: '💧 Liquid (Cash/FD/MF)' },
+          { key: 'fdrd', label: '🏦 FD, RD & SIP Hub' },
+          { key: 'liquid', label: '💧 Liquid (Cash/Bank)' },
           { key: 'fixed', label: '🏛️ Fixed (Gold/Plot)' }
         ].map((t) => (
           <button
@@ -638,6 +799,100 @@ export default function WealthPage() {
       </div>
 
       
+      
+      {/* MEMBER RENT & CASHFLOW PASSBOOK (एक ही जगह पूरा हिसाब - Kiraya, RD/FD, Ration, Staff) */}
+      {selectedMemberObj && (
+        <div className="px-4">
+          <div className="p-4 bg-gradient-to-r from-slate-900 via-[#111827] to-slate-900 rounded-3xl border border-slate-800 text-slate-200 shadow-xl space-y-3.5">
+            <div className="flex justify-between items-start flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center">
+                  <ReceiptText size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white flex items-center gap-1.5">
+                    📖 {selectedMemberObj.name} Ka Rent & Funds Khata (Passbook)
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold">
+                      {selectedMemberObj.relationship || selectedMemberObj.role}
+                    </span>
+                  </h4>
+                  <p className="text-[10px] text-slate-400">
+                    Is sadasya ke paas kitna kiraya aaya aur usme se kya-kya kharch/jama hua
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleOpenDepositModal('rd', selectedMemberObj.id)}
+                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold transition flex items-center gap-1 shadow"
+                >
+                  <PiggyBank size={12} /> + RD/FD Me Jama
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickKharchaType('ration');
+                    setQuickKharchaAmount('5000');
+                    setQuickKharchaNote('Ghar Ration & Kirana Saman');
+                  }}
+                  className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[10px] font-bold transition flex items-center gap-1 shadow"
+                >
+                  <ShoppingCart size={12} /> + Ration Likhein
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickKharchaType('staff');
+                    setQuickKharchaAmount('8000');
+                    setQuickKharchaStaffId((staff || [])[0]?.id || '');
+                  }}
+                  className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] font-bold transition flex items-center gap-1 shadow"
+                >
+                  <UserCheck size={12} /> + Staff Vetan
+                </button>
+              </div>
+            </div>
+
+            {/* Income vs Outflow Summary Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-800 text-xs">
+              <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                <span className="text-[10px] text-slate-400 block">📥 Aaya Hua Kiraya</span>
+                <span className="font-mono font-black text-emerald-400 text-sm">
+                  +₹{Math.round(memberGrossMonthlyRent).toLocaleString('en-IN')}
+                </span>
+                <span className="text-[9px] text-slate-500 block mt-0.5">{memberRentalProperties.length} Properties</span>
+              </div>
+
+              <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                <span className="text-[10px] text-slate-400 block">🏦 FD / RD Jama</span>
+                <span className="font-mono font-black text-blue-400 text-sm">
+                  ₹{Math.round(assets.filter(a => (a.member_id === selectedMemberObj.id || a.joint_member_ids?.includes(selectedMemberObj.id)) && (a.asset_subtype === 'fd' || a.asset_subtype === 'rd' || a.asset_subtype === 'sip')).reduce((s, a) => s + Number(a.value || 0), 0)).toLocaleString('en-IN')}
+                </span>
+                <span className="text-[9px] text-blue-300 block mt-0.5">Bachat & Investments</span>
+              </div>
+
+              <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                <span className="text-[10px] text-slate-400 block">🛒 Ration & Staff Kharch</span>
+                <span className="font-mono font-black text-amber-400 text-sm">
+                  -₹{Math.round(transactions.filter(t => t.member_id === selectedMemberObj.id && (t.category?.toLowerCase().includes('ration') || t.category?.toLowerCase().includes('staff') || t.category?.toLowerCase().includes('grocer'))).reduce((s, t) => s + Number(t.amount || 0), 0)).toLocaleString('en-IN')}
+                </span>
+                <span className="text-[9px] text-amber-300 block mt-0.5">Gharelu Kharcha</span>
+              </div>
+
+              <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                <span className="text-[10px] text-slate-400 block">💰 Net Bacha Kiraya</span>
+                <span className="font-mono font-black text-emerald-300 text-sm">
+                  ₹{Math.round(memberNetMonthlyRent).toLocaleString('en-IN')} / mo
+                </span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">In Hand Balance</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Real Estate & Rental Properties Cards Section */}
       <div className="px-4 space-y-2">
         <div className="flex justify-between items-center">
@@ -765,10 +1020,23 @@ export default function WealthPage() {
       {/* Asset Items List with Live P&L Calculation & Joint Badges */}
       <div className="px-4 space-y-2.5">
         {filteredAssets.length === 0 ? (
-          <div className="p-8 text-center bg-paper rounded-2xl border border-paper-dim">
-            <Coins size={36} className="mx-auto text-ink-muted opacity-40 mb-2" />
-            <p className="text-sm font-medium text-ink">Koi asset nahi mila</p>
-            <p className="text-xs text-ink-muted mt-0.5">Naya asset jodne ke liye upar diye gaye &quot;+&quot; button par click karein.</p>
+          <div className="p-8 text-center bg-paper rounded-2xl border border-paper-dim space-y-2">
+            <PiggyBank size={36} className="mx-auto text-ink-muted opacity-40 mb-2" />
+            <p className="text-sm font-bold text-ink">
+              {activeTab === 'fdrd' ? 'Abhi koi FD, RD ya SIP darj nahi hai' : 'Koi asset nahi mila'}
+            </p>
+            <p className="text-xs text-ink-muted mt-0.5">
+              {activeTab === 'fdrd' 
+                ? 'Family member ke naam par Bank FD, RD ya SIP shuru karne ke liye neeche button dabayein.' 
+                : 'Naya asset jodne ke liye upar diye gaye button par click karein.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => handleOpenDepositModal(activeTab === 'fdrd' ? 'rd' : 'fd')}
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-paper font-bold text-xs rounded-xl shadow mt-2 inline-flex items-center gap-1.5"
+            >
+              <Plus size={14} /> + Family Member FD / RD / SIP Jodein
+            </button>
           </div>
         ) : (
           filteredAssets.map((asset) => {
@@ -883,6 +1151,307 @@ export default function WealthPage() {
       </div>
 
       
+      
+      {/* MODAL: DEDICATED FAMILY MEMBER FD / RD / SIP CREATION MODAL */}
+      {isDepositModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-paper p-5 rounded-3xl border border-paper-dim shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-paper-dim pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-700 flex items-center justify-center">
+                  <PiggyBank size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black font-serif text-ink">Family Member Ke Naam FD / RD / SIP Jodein</h3>
+                  <p className="text-[10px] text-ink-muted">Bank Fixed Deposit, Monthly RD ya Mutual Fund SIP</p>
+                </div>
+              </div>
+              <button onClick={() => setIsDepositModalOpen(false)} className="text-ink-muted hover:text-ink text-xs font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveDepositSubmit} className="space-y-3.5">
+              {/* Type Switcher: FD vs RD vs SIP */}
+              <div>
+                <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                  Bachat Ka Madhyam (Deposit Type)
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDepositType('fd');
+                      setDepositAmountVal('100000');
+                      setDepositInterestRateVal('7.1');
+                    }}
+                    className={`p-2.5 rounded-xl border text-center transition-all ${
+                      depositType === 'fd'
+                        ? 'bg-amber-500 text-slate-950 border-amber-600 font-bold shadow-sm'
+                        : 'bg-paper-dim border-paper-dim text-ink hover:bg-paper'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">🟡 Bank FD</span>
+                    <span className="text-[9px] opacity-80">एकमुश्त जमा</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDepositType('rd');
+                      setDepositAmountVal('5000');
+                      setDepositInterestRateVal('7.0');
+                    }}
+                    className={`p-2.5 rounded-xl border text-center transition-all ${
+                      depositType === 'rd'
+                        ? 'bg-blue-600 text-paper border-blue-700 font-bold shadow-sm'
+                        : 'bg-paper-dim border-paper-dim text-ink hover:bg-paper'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">🟢 Monthly RD</span>
+                    <span className="text-[9px] opacity-80">हर महीने जमा</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDepositType('sip');
+                      setDepositAmountVal('5000');
+                      setDepositInterestRateVal('14.5');
+                    }}
+                    className={`p-2.5 rounded-xl border text-center transition-all ${
+                      depositType === 'sip'
+                        ? 'bg-emerald-600 text-paper border-emerald-700 font-bold shadow-sm'
+                        : 'bg-paper-dim border-paper-dim text-ink hover:bg-paper'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">🔵 Mutual Fund SIP</span>
+                    <span className="text-[9px] opacity-80">SIP निवेश</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Member Selection (Single vs Joint) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                    👤 Kis Family Member Ke Naam Par?
+                  </label>
+                  <select
+                    value={depositOwnerMemberId}
+                    onChange={(e) => setDepositOwnerMemberId(e.target.value)}
+                    className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold text-ink"
+                    required
+                  >
+                    {members.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.relationship || m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                    👥 Joint Holder (Optional)
+                  </label>
+                  <select
+                    value={depositJointMemberIds[0] || ''}
+                    onChange={(e) => setDepositJointMemberIds(e.target.value ? [e.target.value] : [])}
+                    className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold text-ink"
+                  >
+                    <option value="">Koi Joint Holder Nahi (Single)</option>
+                    {members.filter(m => m.id !== depositOwnerMemberId).map(m => (
+                      <option key={m.id} value={m.id}>
+                        Joint with {m.name} ({m.relationship || m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Bank / Scheme Name & Amount */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                    Bank ya Sanstha Ka Naam
+                  </label>
+                  <select
+                    value={depositBankName}
+                    onChange={(e) => setDepositBankName(e.target.value)}
+                    className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold text-ink"
+                  >
+                    <option value="State Bank of India (SBI)">State Bank of India (SBI)</option>
+                    <option value="HDFC Bank">HDFC Bank</option>
+                    <option value="ICICI Bank">ICICI Bank</option>
+                    <option value="Punjab National Bank (PNB)">Punjab National Bank (PNB)</option>
+                    <option value="Post Office (Dak Ghar)">Post Office (डाक घर बचत / MIS)</option>
+                    <option value="Axis Bank">Axis Bank</option>
+                    <option value="Bank of Baroda (BOB)">Bank of Baroda (BOB)</option>
+                    <option value="Parag Parikh Mutual Fund">Parag Parikh Flexi Cap</option>
+                    <option value="Quant Mutual Fund">Quant Small Cap</option>
+                    <option value="Anya Sanstha">Anya Bank / Fund</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                    {depositType === 'fd' ? 'Kul Jama Rashi (Total Amount ₹)' : 'Har Mahine Ki Kist (Monthly Installment ₹)'}
+                  </label>
+                  <input
+                    type="number"
+                    value={depositAmountVal}
+                    onChange={(e) => setDepositAmountVal(e.target.value)}
+                    placeholder="e.g. 5000"
+                    className="w-full p-2.5 bg-paper-dim border border-emerald-500/40 rounded-xl text-xs font-bold font-mono text-emerald-800"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Interest Rate & Tenure */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                    {depositType === 'sip' ? 'Expected Return (% p.a.)' : 'Byaj Dar (% Interest Rate p.a.)'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={depositInterestRateVal}
+                    onChange={(e) => setDepositInterestRateVal(e.target.value)}
+                    placeholder="e.g. 7.1"
+                    className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                    Maturity Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={depositMaturityDateVal}
+                    onChange={(e) => setDepositMaturityDateVal(e.target.value)}
+                    className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold text-ink"
+                  />
+                </div>
+              </div>
+
+              {/* Custom Label */}
+              <div>
+                <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                  Khate Ka Naam / Label (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={depositCustomLabel}
+                  onChange={(e) => setDepositCustomLabel(e.target.value)}
+                  placeholder={`e.g. ${depositBankName} ${depositType.toUpperCase()} Account`}
+                  className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold"
+                />
+              </div>
+
+              {/* Kiraya Fund Link Checkbox */}
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  id="rentFundingCheck"
+                  checked={depositFundedByRent}
+                  onChange={(e) => setDepositFundedByRent(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                />
+                <label htmlFor="rentFundingCheck" className="text-xs font-bold text-emerald-900 cursor-pointer">
+                  Yeh FD/RD Kiraye ke funds se jama hoti hai (Auto-link with Monthly Rental Funds)
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-2 border-t border-paper-dim">
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsDepositModalOpen(false)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-paper font-black shadow-md">
+                  Save FD / RD / SIP
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: QUICK PASSBOOK KHARCHA MODAL (Ration & Staff Payment) */}
+      {quickKharchaType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-paper p-5 rounded-3xl border border-paper-dim shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-paper-dim pb-2.5">
+              <div>
+                <h3 className="text-sm font-black font-serif text-ink">
+                  {quickKharchaType === 'ration' ? '🛒 Ration & Saman Kharch Likhein' : '👨‍🍳 Staff Vetan (Salary) Payment'}
+                </h3>
+                <p className="text-[10px] text-ink-muted">
+                  {selectedMemberObj?.name || 'Member'} ke funds se kharcha darj hoga
+                </p>
+              </div>
+              <button onClick={() => setQuickKharchaType(null)} className="text-ink-muted hover:text-ink text-xs font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleQuickKharchaSubmit} className="space-y-3.5">
+              <div>
+                <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Rashi (Amount ₹)</label>
+                <input
+                  type="number"
+                  value={quickKharchaAmount}
+                  onChange={(e) => setQuickKharchaAmount(e.target.value)}
+                  className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold font-mono text-ink text-base"
+                  required
+                />
+              </div>
+
+              {quickKharchaType === 'ration' && (
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Kharid Ka Vivran (Note / Saman)</label>
+                  <input
+                    type="text"
+                    value={quickKharchaNote}
+                    onChange={(e) => setQuickKharchaNote(e.target.value)}
+                    placeholder="e.g. Mahine ka Kirana, Doodh, Dal, Chawal"
+                    className="w-full p-2.5 bg-paper-dim border border-paper-dim rounded-xl text-xs font-bold"
+                    required
+                  />
+                </div>
+              )}
+
+              {quickKharchaType === 'staff' && (
+                <div>
+                  <label className="text-[10px] font-bold text-ink-muted uppercase block mb-1">Staff Worker Chunein</label>
+                  <select
+                    value={quickKharchaStaffId}
+                    onChange={(e) => setQuickKharchaStaffId(e.target.value)}
+                    className="w-full p-2.5 bg-paper-dim border border-purple-500/50 rounded-xl text-xs font-bold text-ink"
+                    required
+                  >
+                    <option value="">Staff Worker Chunein...</option>
+                    {(staff || []).map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.role}) · Vetan: ₹{s.monthly_salary.toLocaleString('en-IN')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2 border-t border-paper-dim">
+                <Button type="button" variant="outline" size="sm" onClick={() => setQuickKharchaType(null)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" className="flex-1 bg-navy text-paper font-black shadow-md">
+                  Kharcha Darj Karein
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL: EDIT ASSET & REASSIGN OWNER MEMBER */}
       {editingAsset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
