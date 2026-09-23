@@ -344,7 +344,7 @@ export function UdharLedgerModule() {
     return []; // Clean empty slate by default for real user accounts!
   });
 
-  const [filter, setFilter] = useState<'all' | 'given' | 'taken' | 'settled'>('all');
+  const [filter, setFilter] = useState<'all' | 'given' | 'taken' | 'settled' | 'mandates'>('all');
 
   // Modals
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
@@ -713,6 +713,9 @@ export function UdharLedgerModule() {
     if (filter === 'given') return c.type === 'given' && c.status === 'active';
     if (filter === 'taken') return c.type === 'taken' && c.status === 'active';
     if (filter === 'settled') return c.status === 'settled';
+    if (filter === 'mandates') {
+      return Boolean(mandates[c.id]) || (c.type === 'given' && c.status === 'active');
+    }
     return true;
   });
 
@@ -1405,6 +1408,7 @@ export function UdharLedgerModule() {
         {[
           { key: 'all', label: 'सभी खाते' },
           { key: 'given', label: 'बाज़ार से लेना है (Receivable)' },
+          { key: 'mandates', label: '💳 रिकवरी मैंडेट (UPI Autopay)' },
           { key: 'taken', label: 'वेंडर को देना है (Payable)' },
           { key: 'settled', label: '✓ पूरा चुकता (Settled)' },
         ].map((t) => (
@@ -1827,6 +1831,103 @@ export function UdharLedgerModule() {
                   </div>
                 )}
 
+                {/* Task 5: Dedicated UPI Autopay Recovery Mandate Section Strip */}
+                {(isGiven || mandates[c.id]) && (
+                  <div className={`p-3 rounded-xl border transition-all ${
+                    mandates[c.id]?.status === 'active'
+                      ? 'bg-emerald-50/80 border-emerald-300'
+                      : mandates[c.id]?.status === 'bounced'
+                      ? 'bg-amber-50/80 border-amber-300'
+                      : activeMandateContactId === c.id
+                      ? 'bg-navy/5 border-navy/30'
+                      : 'bg-paper-dim/50 border-paper-dim'
+                  }`}>
+                    <div className="flex items-center justify-between gap-2.5 flex-wrap">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-xs ${
+                          mandates[c.id]?.status === 'active'
+                            ? 'bg-emerald-600 text-white'
+                            : mandates[c.id]?.status === 'bounced'
+                            ? 'bg-amber-600 text-white'
+                            : activeMandateContactId === c.id
+                            ? 'bg-navy text-paper'
+                            : 'bg-paper border border-paper-dim text-navy'
+                        }`}>
+                          <CreditCard size={16} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-bold text-ink flex items-center gap-1">
+                              💳 UPI Autopay रिकवरी मैंडेट
+                            </span>
+                            <span className="text-[10px] text-ink-muted">
+                              (AFA-Free ₹15,000 कैप)
+                            </span>
+
+                            {/* Live Mandate Status Badges */}
+                            {mandates[c.id]?.status === 'active' && (
+                              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 shadow-xs">
+                                <CheckCircle2 size={11} className="text-emerald-700" /> सक्रिय (Active) • ₹{mandates[c.id].max_amount.toLocaleString('en-IN')}
+                              </span>
+                            )}
+                            {mandates[c.id]?.status === 'pending' && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 animate-pulse shadow-xs">
+                                <Clock size={11} className="text-amber-700" /> ऑथराइजेशन पेंडिंग
+                              </span>
+                            )}
+                            {mandates[c.id]?.status === 'bounced' && (
+                              <span className="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded-full border border-red-300 flex items-center gap-1 shadow-xs">
+                                <AlertTriangle size={11} className="text-red-700" /> {mandates[c.id].is_exhausted ? 'विफल (Manual Follow-up)' : `बाउंस (प्रयास ${mandates[c.id].retry_count || 1}/2)`}
+                              </span>
+                            )}
+                            {mandates[c.id]?.status === 'executed' && (
+                              <span className="text-[10px] bg-green-100 text-green-800 font-bold px-2 py-0.5 rounded-full border border-green-300 flex items-center gap-1 shadow-xs">
+                                <CheckCircle2 size={11} className="text-green-700" /> चुकता (Executed)
+                              </span>
+                            )}
+                            {mandates[c.id]?.status === 'cancelled' && (
+                              <span className="text-[10px] bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-full border border-slate-300 shadow-xs">
+                                रद्द (Cancelled)
+                              </span>
+                            )}
+                            {!mandates[c.id] && (
+                              <span className="text-[10px] bg-paper text-ink-muted px-2 py-0.5 rounded-full border border-paper-dim">
+                                सेट नहीं है (उपलब्ध)
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-ink-muted mt-0.5">
+                            {mandates[c.id]?.status === 'active'
+                              ? `बैंक अकाउंट/VPA से स्वचालित ऑटो-डेबिट सक्षम है। देय तिथि (${c.due_date}) पर बिना OTP स्वतः कटेगा।`
+                              : mandates[c.id]?.status === 'bounced'
+                              ? `बैंक एरर: ${mandates[c.id]?.failure_reason || 'Insufficient funds'}`
+                              : mandates[c.id]?.status === 'cancelled'
+                              ? `मैंडेट रद्द किया जा चुका है (${mandates[c.id]?.cancellation_reason || 'मैन्युअल भुगतान'})`
+                              : `देय तिथि पर ग्राहक के खाते से सीधे ऑटो-डेबिट हेतु e-Mandate सेट करें।`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
+                        className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
+                          activeMandateContactId === c.id
+                            ? 'bg-paper text-ink border border-paper-dim hover:bg-paper-dim'
+                            : mandates[c.id]?.status === 'active'
+                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                            : 'bg-navy hover:bg-navy-light text-paper'
+                        }`}
+                      >
+                        <CreditCard size={13} />
+                        {activeMandateContactId === c.id ? 'मैंडेट छुपाएं ▲' : (
+                          mandates[c.id] ? '💳 मैंडेट डैशबोर्ड खोलें ▼' : '💳 रिकवरी मैंडेट सेट करें ▼'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Digital OTP Verification & Wealth Sync Bar */}
                 <div className="p-2.5 rounded-xl bg-paper-dim/40 border border-paper-dim flex items-center justify-between gap-2 flex-wrap text-xs">
                   <div className="flex items-center gap-2">
@@ -1954,6 +2055,24 @@ export function UdharLedgerModule() {
                       </button>
                     )}
 
+                    {!isFullySettled && !c.is_amended && isGiven && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
+                        className={`text-xs font-semibold py-1.5 px-3 rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer ${
+                          activeMandateContactId === c.id
+                            ? 'bg-navy text-paper ring-2 ring-emerald-400'
+                            : mandates[c.id]?.status === 'active'
+                            ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            : 'bg-paper hover:bg-paper-dim text-navy border border-paper-dim'
+                        }`}
+                        title="UPI Autopay रिकवरी मैंडेट डैशबोर्ड"
+                      >
+                        <CreditCard size={13} className={mandates[c.id]?.status === 'active' ? 'text-emerald-700' : 'text-navy'} />
+                        {activeMandateContactId === c.id ? 'मैंडेट खुला है' : '💳 रिकवरी मैंडेट'}
+                      </button>
+                    )}
+
                     {!isFullySettled && !c.is_amended && (
                       <button
                         type="button"
@@ -1961,7 +2080,7 @@ export function UdharLedgerModule() {
                           setSelectedContactId(c.id);
                           setSettleAmount(c.remaining_balance.toString());
                         }}
-                        className="bg-navy hover:bg-navy-light text-paper text-xs font-semibold py-1.5 px-3 rounded-xl shadow-sm"
+                        className="bg-navy hover:bg-navy-light text-paper text-xs font-semibold py-1.5 px-3 rounded-xl shadow-sm cursor-pointer"
                       >
                         + हिसाब चुकता करें / Partial Settle
                       </button>
