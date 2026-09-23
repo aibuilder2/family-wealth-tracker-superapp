@@ -33,6 +33,7 @@ import {
 import { saveBillProof, getBillProof } from '@/lib/utils/idbStorage';
 import { useFamilyStore } from '@/lib/store/familyStore';
 import { UdharMandateModule, UdharMandate } from './UdharMandateModule';
+import { UdharMandateHub } from './UdharMandateHub';
 
 export type UdharSettlementMode = 'cash_online' | 'samaan_goods' | 'kaam_service';
 
@@ -327,9 +328,20 @@ const DEFAULT_UDHAR_CONTACTS: UdharContact[] = [
   }
 ];
 
-export function UdharLedgerModule() {
+export interface UdharLedgerModuleProps {
+  initialView?: 'ledger' | 'mandates';
+}
+
+export function UdharLedgerModule({ initialView = 'ledger' }: UdharLedgerModuleProps = {}) {
   const familyStore = useFamilyStore();
   const members = familyStore?.members || [];
+  const [activeModuleView, setActiveModuleView] = useState<'ledger' | 'mandates'>(initialView);
+
+  useEffect(() => {
+    if (initialView) {
+      setActiveModuleView(initialView);
+    }
+  }, [initialView]);
 
   const [contacts, setContacts] = useState<UdharContact[]>(() => {
     if (typeof window !== 'undefined') {
@@ -1271,6 +1283,11 @@ export function UdharLedgerModule() {
       : ('https://wa.me/?text=' + encodeURIComponent(msg));
   };
 
+  const openInMandateHub = (contactId: string) => {
+    setActiveMandateContactId(contactId);
+    setActiveModuleView('mandates');
+  };
+
   const handleDelete = (id: string) => {
     if (confirm('क्या आप इस उधारी रिकॉर्ड को हटाना चाहते हैं?')) {
       setContacts(contacts.filter(c => c.id !== id));
@@ -1279,7 +1296,53 @@ export function UdharLedgerModule() {
 
   return (
     <div className="space-y-4">
-      {/* Top Banner */}
+      {/* Top Level Module Switcher: Khata vs Mandate Recovery Hub */}
+      <div className="flex items-center gap-2 p-1.5 bg-paper rounded-2xl border border-paper-dim shadow-xs">
+        <button
+          type="button"
+          onClick={() => setActiveModuleView('ledger')}
+          className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeModuleView === 'ledger'
+              ? 'bg-navy text-paper shadow-sm'
+              : 'text-ink-muted hover:text-ink hover:bg-paper-dim/60'
+          }`}
+        >
+          <HandCoins size={15} className={activeModuleView === 'ledger' ? 'text-gold' : 'text-ink-muted'} />
+          <span>📋 उधारी बहीखाता (Promissory & Khata)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveModuleView('mandates')}
+          className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeModuleView === 'mandates'
+              ? 'bg-navy text-paper shadow-sm'
+              : 'text-ink-muted hover:text-ink hover:bg-paper-dim/60'
+          }`}
+        >
+          <CreditCard size={15} className={activeModuleView === 'mandates' ? 'text-gold' : 'text-ink-muted'} />
+          <span>💳 UPI Autopay रिकवरी मैंडेट केंद्र (Mandate Hub)</span>
+          {Object.values(mandates).filter(m => m.status === 'active').length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white font-mono text-[10px]">
+              {Object.values(mandates).filter(m => m.status === 'active').length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {activeModuleView === 'mandates' ? (
+        <UdharMandateHub
+          contacts={contacts}
+          mandates={mandates}
+          selectedContactId={activeMandateContactId}
+          onSelectContact={setActiveMandateContactId}
+          onUpdateMandate={handleUpdateMandate}
+          onMandateCollect={handleMandateCollect}
+          onBackToLedger={() => setActiveModuleView('ledger')}
+        />
+      ) : (
+        <>
+          {/* Top Banner */}
       <div className="bg-navy text-paper p-4 rounded-2xl shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -1602,19 +1665,19 @@ export function UdharLedgerModule() {
                         </span>
                       )}
 
-                      {/* Task 5: Mandate Summary Badge (Click to open dedicated dashboard) */}
+                      {/* Task 5: Mandate Summary Badge (Click to open dedicated Mandate Hub) */}
                       {(() => {
                         const m = mandates[c.id];
                         if (m?.status === 'active') {
                           return (
                             <button
                               type="button"
-                              onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
+                              onClick={() => openInMandateHub(c.id)}
                               className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold border border-emerald-300 flex items-center gap-1 transition-all shadow-xs cursor-pointer"
-                              title="UPI Autopay रिकवरी मैंडेट सक्रिय है — क्लिक करके डैशबोर्ड देखें"
+                              title="UPI Autopay रिकवरी मैंडेट सक्रिय है — क्लिक करके मैंडेट केंद्र देखें"
                             >
                               <CreditCard size={10} className="text-emerald-700" />
-                              Mandate: Active ✅ (₹{m.max_amount.toLocaleString('en-IN')})
+                              Mandate: Active ✅ (₹{m.max_amount.toLocaleString('en-IN')}) ↗️
                             </button>
                           );
                         }
@@ -1622,12 +1685,12 @@ export function UdharLedgerModule() {
                           return (
                             <button
                               type="button"
-                              onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
+                              onClick={() => openInMandateHub(c.id)}
                               className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold border border-amber-300 flex items-center gap-1 transition-all shadow-xs cursor-pointer"
-                              title="मैंडेट स्वीकृति पेंडिंग है — ऑथराइज़ लिंक भेजने के लिए क्लिक करें"
+                              title="मैंडेट स्वीकृति पेंडिंग है — ऑथराइज़ लिंक भेजने हेतु मैंडेट केंद्र खोलें"
                             >
                               <Clock size={10} className="text-amber-700 animate-pulse" />
-                              Mandate: Pending ⏳
+                              Mandate: Pending ⏳ ↗️
                             </button>
                           );
                         }
@@ -1635,7 +1698,7 @@ export function UdharLedgerModule() {
                           return (
                             <button
                               type="button"
-                              onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
+                              onClick={() => openInMandateHub(c.id)}
                               className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
                                 m.is_exhausted
                                   ? 'bg-red-100 hover:bg-red-200 text-red-900 border-red-300 animate-pulse'
@@ -1645,8 +1708,8 @@ export function UdharLedgerModule() {
                             >
                               <AlertTriangle size={10} className={m.is_exhausted ? "text-red-700" : "text-amber-700"} />
                               {m.is_exhausted 
-                                ? '⚠️ Mandate Failed (Manual Follow-up)' 
-                                : `⚠️ Mandate Bounced (Retry ${m.retry_count || 1}/2)`}
+                                ? '⚠️ Mandate Failed (Follow-up) ↗️' 
+                                : `⚠️ Mandate Bounced (${m.retry_count || 1}/2) ↗️`}
                             </button>
                           );
                         }
@@ -1654,12 +1717,12 @@ export function UdharLedgerModule() {
                           return (
                             <button
                               type="button"
-                              onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
+                              onClick={() => openInMandateHub(c.id)}
                               className="text-[10px] px-2.5 py-0.5 rounded-full bg-green-100 hover:bg-green-200 text-green-900 font-bold border border-green-300 flex items-center gap-1 transition-all shadow-xs cursor-pointer"
                               title="मैंडेट द्वारा सफल ऑटो-डेबिट हो चुका है"
                             >
                               <CheckCircle2 size={10} className="text-green-700" />
-                              Mandate: Executed ✅
+                              Mandate: Executed ✅ ↗️
                             </button>
                           );
                         }
@@ -1667,12 +1730,12 @@ export function UdharLedgerModule() {
                           return (
                             <button
                               type="button"
-                              onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
+                              onClick={() => openInMandateHub(c.id)}
                               className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border border-slate-300 flex items-center gap-1 transition-all shadow-xs cursor-pointer"
                               title="मैंडेट स्वतः रद्द (मैन्युअल भुगतान प्राप्त)"
                             >
                               <CreditCard size={10} className="text-slate-500" />
-                              Mandate: Cancelled
+                              Mandate: Cancelled ↗️
                             </button>
                           );
                         }
@@ -1680,16 +1743,16 @@ export function UdharLedgerModule() {
                         return (
                           <button
                             type="button"
-                            onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
+                            onClick={() => openInMandateHub(c.id)}
                             className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border flex items-center gap-1 transition-all cursor-pointer ${
                               canSetup 
                                 ? 'bg-navy/10 hover:bg-navy/20 text-navy border-navy/30' 
                                 : 'bg-paper-dim text-ink-muted border-paper-dim'
                             }`}
-                            title={canSetup ? "UPI Autopay रिकवरी मैंडेट सेट करें" : "रिकवरी मैंडेट विवरण देखें"}
+                            title={canSetup ? "UPI Autopay रिकवरी मैंडेट केंद्र खोलें" : "रिकवरी मैंडेट विवरण देखें"}
                           >
                             <CreditCard size={10} className={canSetup ? "text-navy" : "text-ink-muted"} />
-                            {canSetup ? '💳 Set up Mandate' : '💳 No Mandate (₹15k Limit)'}
+                            {canSetup ? '💳 + मैंडेट केंद्र ↗️' : '💳 No Mandate (₹15k Limit)'}
                           </button>
                         );
                       })()}
@@ -1831,103 +1894,6 @@ export function UdharLedgerModule() {
                   </div>
                 )}
 
-                {/* Task 5: Dedicated UPI Autopay Recovery Mandate Section Strip */}
-                {(isGiven || mandates[c.id]) && (
-                  <div className={`p-3 rounded-xl border transition-all ${
-                    mandates[c.id]?.status === 'active'
-                      ? 'bg-emerald-50/80 border-emerald-300'
-                      : mandates[c.id]?.status === 'bounced'
-                      ? 'bg-amber-50/80 border-amber-300'
-                      : activeMandateContactId === c.id
-                      ? 'bg-navy/5 border-navy/30'
-                      : 'bg-paper-dim/50 border-paper-dim'
-                  }`}>
-                    <div className="flex items-center justify-between gap-2.5 flex-wrap">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-xs ${
-                          mandates[c.id]?.status === 'active'
-                            ? 'bg-emerald-600 text-white'
-                            : mandates[c.id]?.status === 'bounced'
-                            ? 'bg-amber-600 text-white'
-                            : activeMandateContactId === c.id
-                            ? 'bg-navy text-paper'
-                            : 'bg-paper border border-paper-dim text-navy'
-                        }`}>
-                          <CreditCard size={16} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-bold text-ink flex items-center gap-1">
-                              💳 UPI Autopay रिकवरी मैंडेट
-                            </span>
-                            <span className="text-[10px] text-ink-muted">
-                              (AFA-Free ₹15,000 कैप)
-                            </span>
-
-                            {/* Live Mandate Status Badges */}
-                            {mandates[c.id]?.status === 'active' && (
-                              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 shadow-xs">
-                                <CheckCircle2 size={11} className="text-emerald-700" /> सक्रिय (Active) • ₹{mandates[c.id].max_amount.toLocaleString('en-IN')}
-                              </span>
-                            )}
-                            {mandates[c.id]?.status === 'pending' && (
-                              <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1 animate-pulse shadow-xs">
-                                <Clock size={11} className="text-amber-700" /> ऑथराइजेशन पेंडिंग
-                              </span>
-                            )}
-                            {mandates[c.id]?.status === 'bounced' && (
-                              <span className="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded-full border border-red-300 flex items-center gap-1 shadow-xs">
-                                <AlertTriangle size={11} className="text-red-700" /> {mandates[c.id].is_exhausted ? 'विफल (Manual Follow-up)' : `बाउंस (प्रयास ${mandates[c.id].retry_count || 1}/2)`}
-                              </span>
-                            )}
-                            {mandates[c.id]?.status === 'executed' && (
-                              <span className="text-[10px] bg-green-100 text-green-800 font-bold px-2 py-0.5 rounded-full border border-green-300 flex items-center gap-1 shadow-xs">
-                                <CheckCircle2 size={11} className="text-green-700" /> चुकता (Executed)
-                              </span>
-                            )}
-                            {mandates[c.id]?.status === 'cancelled' && (
-                              <span className="text-[10px] bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-full border border-slate-300 shadow-xs">
-                                रद्द (Cancelled)
-                              </span>
-                            )}
-                            {!mandates[c.id] && (
-                              <span className="text-[10px] bg-paper text-ink-muted px-2 py-0.5 rounded-full border border-paper-dim">
-                                सेट नहीं है (उपलब्ध)
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-ink-muted mt-0.5">
-                            {mandates[c.id]?.status === 'active'
-                              ? `बैंक अकाउंट/VPA से स्वचालित ऑटो-डेबिट सक्षम है। देय तिथि (${c.due_date}) पर बिना OTP स्वतः कटेगा।`
-                              : mandates[c.id]?.status === 'bounced'
-                              ? `बैंक एरर: ${mandates[c.id]?.failure_reason || 'Insufficient funds'}`
-                              : mandates[c.id]?.status === 'cancelled'
-                              ? `मैंडेट रद्द किया जा चुका है (${mandates[c.id]?.cancellation_reason || 'मैन्युअल भुगतान'})`
-                              : `देय तिथि पर ग्राहक के खाते से सीधे ऑटो-डेबिट हेतु e-Mandate सेट करें।`}
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
-                        className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
-                          activeMandateContactId === c.id
-                            ? 'bg-paper text-ink border border-paper-dim hover:bg-paper-dim'
-                            : mandates[c.id]?.status === 'active'
-                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                            : 'bg-navy hover:bg-navy-light text-paper'
-                        }`}
-                      >
-                        <CreditCard size={13} />
-                        {activeMandateContactId === c.id ? 'मैंडेट छुपाएं ▲' : (
-                          mandates[c.id] ? '💳 मैंडेट डैशबोर्ड खोलें ▼' : '💳 रिकवरी मैंडेट सेट करें ▼'
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Digital OTP Verification & Wealth Sync Bar */}
                 <div className="p-2.5 rounded-xl bg-paper-dim/40 border border-paper-dim flex items-center justify-between gap-2 flex-wrap text-xs">
                   <div className="flex items-center gap-2">
@@ -2058,18 +2024,16 @@ export function UdharLedgerModule() {
                     {!isFullySettled && !c.is_amended && isGiven && (
                       <button
                         type="button"
-                        onClick={() => setActiveMandateContactId(activeMandateContactId === c.id ? null : c.id)}
-                        className={`text-xs font-semibold py-1.5 px-3 rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer ${
-                          activeMandateContactId === c.id
-                            ? 'bg-navy text-paper ring-2 ring-emerald-400'
-                            : mandates[c.id]?.status === 'active'
+                        onClick={() => openInMandateHub(c.id)}
+                        className={`text-xs font-semibold py-1.5 px-3 rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                          mandates[c.id]?.status === 'active'
                             ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
                             : 'bg-paper hover:bg-paper-dim text-navy border border-paper-dim'
                         }`}
-                        title="UPI Autopay रिकवरी मैंडेट डैशबोर्ड"
+                        title="UPI Autopay रिकवरी मैंडेट केंद्र में देखें"
                       >
                         <CreditCard size={13} className={mandates[c.id]?.status === 'active' ? 'text-emerald-700' : 'text-navy'} />
-                        {activeMandateContactId === c.id ? 'मैंडेट खुला है' : '💳 रिकवरी मैंडेट'}
+                        {mandates[c.id]?.status === 'active' ? '💳 मैंडेट एक्टिव ↗️' : '💳 रिकवरी मैंडेट ↗️'}
                       </button>
                     )}
 
@@ -2093,24 +2057,13 @@ export function UdharLedgerModule() {
                     )}
                   </div>
                 </div>
-
-                {/* Task 5: Dedicated Customer Recovery Mandate Section */}
-                {activeMandateContactId === c.id && (
-                  <div className="pt-3 border-t-2 border-navy/20">
-                    <UdharMandateModule
-                      contact={c}
-                      mandate={mandates[c.id]}
-                      onClose={() => setActiveMandateContactId(null)}
-                      onUpdateMandate={handleUpdateMandate}
-                      onMandateCollect={handleMandateCollect}
-                    />
-                  </div>
-                )}
               </div>
             );
           })
         )}
       </div>
+      </>
+      )}
 
       {/* OTP Verification Modal */}
       {otpVerifyContact && (

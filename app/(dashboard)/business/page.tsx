@@ -6,7 +6,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { 
   Truck, Gem, Flame, Building2, Store, PartyPopper, 
   Bed, ShieldCheck, Fuel, Landmark, TrendingUp, HandCoins,
-  Briefcase, Sprout, Scale, Users, Compass, HeartPulse, Car
+  Briefcase, Sprout, Scale, Users, Compass, HeartPulse, Car, CreditCard
 } from 'lucide-react';
 
 // Core Business & Financial Modules
@@ -37,6 +37,7 @@ import { BusinessFirmsModule } from '@/components/business-modules/business-firm
 const BUSINESS_TABS = [
   { id: 'bank-loans', label: 'बैंक लोन व EMI', icon: Landmark },
   { id: 'udhar-ledger', label: 'उधार प्रॉमिसरी OTP', icon: HandCoins },
+  { id: 'udhar-mandates', label: '💳 UPI रिकवरी मैंडेट', icon: CreditCard },
   { id: 'trips-splitter', label: 'Holiday & Trips', icon: Compass },
   { id: 'hospital-episodes', label: 'अस्पताल व सर्जरी', icon: HeartPulse },
   { id: 'family-hisab', label: 'आपसी लेन-देन', icon: Users },
@@ -103,7 +104,8 @@ function BusinessHubContent() {
       {/* Active Module Container */}
       <div className="px-4">
         {activeTab === 'bank-loans' && <BankLoansModule />}
-        {activeTab === 'udhar-ledger' && <UdharLedgerModule />}
+        {activeTab === 'udhar-ledger' && <UdharLedgerModule initialView="ledger" />}
+        {activeTab === 'udhar-mandates' && <UdharLedgerModule initialView="mandates" />}
         {activeTab === 'trips-splitter' && <TripsSplitterModule />}
         {activeTab === 'hospital-episodes' && <HospitalEpisodesModule />}
         {activeTab === 'family-hisab' && <FamilyHisabModule />}
