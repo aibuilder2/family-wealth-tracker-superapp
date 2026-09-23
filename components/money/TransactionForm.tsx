@@ -2,11 +2,10 @@
 
 import React, { useState } from 'react';
 import { useFamilyStore } from '@/lib/store/familyStore';
-import { TransactionType, PaymentMode, ExpenseScope, ExpenseCategoryType } from '@/types';
+import { TransactionType, PaymentMode, ExpenseScope } from '@/types';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
-import { useVoiceInput } from '@/lib/hooks/useVoiceInput';
-import { ArrowDownRight, ArrowUpRight, HandCoins, Check, Mic, MicOff, Sparkles } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, HandCoins, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface TransactionFormProps {
@@ -18,7 +17,7 @@ export function TransactionForm({
   initialType = 'expense',
   onSuccess,
 }: TransactionFormProps) {
-  const { members, addTransaction, currentUserId } = useFamilyStore();
+  const { members, addTransaction } = useFamilyStore();
 
   const [type, setType] = useState<TransactionType>(
     initialType === 'udhar' ? 'udhar_given' : initialType
@@ -26,30 +25,16 @@ export function TransactionForm({
   const [amount, setAmount] = useState<string>('');
   const [note, setNote] = useState<string>('');
   const [category, setCategory] = useState<string>('Ghar kharch');
-  const [categoryType, setCategoryType] = useState<ExpenseCategoryType>('main_ghar');
   const [mode, setMode] = useState<PaymentMode>('online');
   const [scope, setScope] = useState<ExpenseScope>('ghar');
   const [selectedMemberId, setSelectedMemberId] = useState<string>(
-    currentUserId || members[0]?.id || 'm-papa'
+    members[0]?.id || 'm-papa'
   );
   const [udharPerson, setUdharPerson] = useState<string>('');
   const [txnDate, setTxnDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
-  const [timeStamp, setTimeStamp] = useState<string>(
-    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  );
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const { isListening, transcript, startListening } = useVoiceInput((parsed) => {
-    if (parsed.amount) setAmount(parsed.amount.toString());
-    if (parsed.category) setCategory(parsed.category);
-    if (parsed.note) setNote(parsed.note);
-    if (parsed.member_name) {
-      const matchM = members.find(m => m.name.toLowerCase() === parsed.member_name?.toLowerCase());
-      if (matchM) setSelectedMemberId(matchM.id);
-    }
-  });
 
   const expenseCategories = [
     'Ghar kharch', 'Bahar kharch', 'Sabzi/Ration', 'Petrol/Fuel',
@@ -73,12 +58,10 @@ export function TransactionForm({
       type,
       amount: numAmount,
       category: type.startsWith('udhar') ? 'Udhar' : category,
-      category_type: categoryType,
       mode,
       scope,
-      note: note || (type.startsWith('udhar') ? (type === 'udhar_given' ? 'Udhar diya — ' + udharPerson : 'Udhar liya — ' + udharPerson) : category),
+      note: note || (type.startsWith('udhar') ? (type === 'udhar_given' ? `Udhar diya — ${udharPerson}` : `Udhar liya — ${udharPerson}`) : category),
       udhar_person: type.startsWith('udhar') ? udharPerson : undefined,
-      time_stamp: timeStamp,
       txn_date: txnDate,
     });
 
@@ -94,59 +77,77 @@ export function TransactionForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Voice Assistant */}
-      <div className="bg-gold/10 border border-gold/30 rounded-xl p-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles size={16} className="text-gold" />
-          <div>
-            <p className="text-xs font-semibold text-ink">Voice Input (Bolke Entry Karein)</p>
-            <p className="text-[11px] text-ink-muted">
-              {isListening ? '🎤 Sun rahe hain... boliye' : 'Mic dabayein aur bolkar add karein'}
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={startListening}
-          className={'w-9 h-9 rounded-full flex items-center justify-center transition-all shadow ' + (isListening ? 'bg-coral text-white animate-pulse' : 'bg-navy text-gold-soft hover:bg-navy-light')}
-          title="Start Voice Input"
-        >
-          {isListening ? <MicOff size={16} /> : <Mic size={16} />}
-        </button>
-      </div>
-
-      {transcript && (
-        <p className="text-xs text-ink-muted bg-paper p-2 rounded-lg border border-paper-dim italic">
-          &quot;{transcript}&quot;
-        </p>
-      )}
-
       {/* Type Selector */}
       <div className="grid grid-cols-3 gap-1.5 p-1 bg-paper-dim rounded-xl">
         <button
           type="button"
-          onClick={() => { setType('expense'); setCategory('Ghar kharch'); }}
-          className={'py-2 text-xs font-medium rounded-lg flex items-center justify-center gap-1 transition-all ' + (type === 'expense' ? 'bg-coral text-white shadow-sm' : 'text-ink-muted hover:text-ink')}
+          onClick={() => {
+            setType('expense');
+            setCategory('Ghar kharch');
+          }}
+          className={`py-2 text-xs font-medium rounded-lg flex items-center justify-center gap-1 transition-all ${
+            type === 'expense'
+              ? 'bg-coral text-white shadow-sm'
+              : 'text-ink-muted hover:text-ink'
+          }`}
         >
           <ArrowDownRight size={14} /> Kharch
         </button>
 
         <button
           type="button"
-          onClick={() => { setType('income'); setCategory('Salary'); }}
-          className={'py-2 text-xs font-medium rounded-lg flex items-center justify-center gap-1 transition-all ' + (type === 'income' ? 'bg-green text-white shadow-sm' : 'text-ink-muted hover:text-ink')}
+          onClick={() => {
+            setType('income');
+            setCategory('Salary');
+          }}
+          className={`py-2 text-xs font-medium rounded-lg flex items-center justify-center gap-1 transition-all ${
+            type === 'income'
+              ? 'bg-green text-white shadow-sm'
+              : 'text-ink-muted hover:text-ink'
+          }`}
         >
           <ArrowUpRight size={14} /> Income
         </button>
 
         <button
           type="button"
-          onClick={() => { setType('udhar_given'); setCategory('Udhar'); }}
-          className={'py-2 text-xs font-medium rounded-lg flex items-center justify-center gap-1 transition-all ' + (type.startsWith('udhar') ? 'bg-gold text-white shadow-sm' : 'text-ink-muted hover:text-ink')}
+          onClick={() => {
+            setType('udhar_given');
+            setCategory('Udhar');
+          }}
+          className={`py-2 text-xs font-medium rounded-lg flex items-center justify-center gap-1 transition-all ${
+            type.startsWith('udhar')
+              ? 'bg-gold text-white shadow-sm'
+              : 'text-ink-muted hover:text-ink'
+          }`}
         >
           <HandCoins size={14} /> Udhar
         </button>
       </div>
+
+      {/* Sub-toggle for Udhar */}
+      {type.startsWith('udhar') && (
+        <div className="flex gap-2 p-1 bg-paper-dim/60 rounded-lg">
+          <button
+            type="button"
+            onClick={() => setType('udhar_given')}
+            className={`flex-1 py-1 text-xs rounded-md font-medium transition-all ${
+              type === 'udhar_given' ? 'bg-paper text-coral shadow-sm' : 'text-ink-muted'
+            }`}
+          >
+            Maine diya (Lena hai)
+          </button>
+          <button
+            type="button"
+            onClick={() => setType('udhar_taken')}
+            className={`flex-1 py-1 text-xs rounded-md font-medium transition-all ${
+              type === 'udhar_taken' ? 'bg-paper text-green shadow-sm' : 'text-ink-muted'
+            }`}
+          >
+            Maine liya (Dena hai)
+          </button>
+        </div>
+      )}
 
       {/* Amount Input */}
       <div className="bg-paper p-4 rounded-xl border border-paper-dim text-center">
@@ -181,7 +182,11 @@ export function TransactionForm({
                 key={m.id}
                 type="button"
                 onClick={() => setSelectedMemberId(m.id)}
-                className={'p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ' + (isSelected ? 'border-gold bg-gold/10 shadow-sm' : 'border-paper-dim bg-paper hover:bg-paper-dim/40')}
+                className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                  isSelected
+                    ? 'border-gold bg-gold/10 shadow-sm'
+                    : 'border-paper-dim bg-paper hover:bg-paper-dim/40'
+                }`}
               >
                 <Avatar m={m} size={28} />
                 <span className="text-xs font-medium text-ink truncate w-full text-center">
@@ -193,85 +198,22 @@ export function TransactionForm({
         </div>
       </div>
 
-      {/* Expense Sub-classification */}
-      {type === 'expense' && (
-        <div>
-          <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
-            Kharch Type (Classification)
-          </label>
-          <div className="grid grid-cols-2 gap-1.5">
-            {[
-              { id: 'main_ghar', label: '🏠 Main Ghar (Common)' },
-              { id: 'personal', label: '🛍️ Personal (Apna)' },
-              { id: 'child', label: '🎒 Child Specific' },
-              { id: 'long_term', label: '🚗 Long-term / EMI' },
-            ].map((ct) => (
-              <button
-                key={ct.id}
-                type="button"
-                onClick={() => setCategoryType(ct.id as any)}
-                className={'text-[11px] p-2 rounded-lg border text-left font-medium transition-all ' + (categoryType === ct.id ? 'bg-navy text-paper border-navy shadow-sm' : 'bg-paper text-ink-muted border-paper-dim hover:bg-paper-dim')}
-              >
-                {ct.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Note / Bill Description Field */}
-      <div>
-        <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
-          📝 Bill Details / Note (Kiska Bill Hai ya Details)
-        </label>
-        <input
-          type="text"
-          placeholder="e.g. Bijli Bill, Doodh, Ration, Medical Parchi, Amazon Order..."
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className="w-full px-3.5 py-2.5 text-xs bg-paper border border-paper-dim rounded-xl focus:outline-none focus:border-gold font-medium text-ink placeholder:text-ink-muted/50 shadow-sm"
-        />
-      </div>
-
-      {/* Udhar Person Name if type is Udhar */}
+      {/* Udhar Person Input */}
       {type.startsWith('udhar') && (
         <div>
           <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
-            👤 Kisko Diya / Kisse Liya? (Person Name)
+            Kisko Diya / Kisse Liya? (Person Name)
           </label>
           <input
             type="text"
-            placeholder="e.g. Ramesh Kumar, Chacha Ji, Dukaan Wala..."
+            placeholder="e.g. Ramesh Uncle, Chacha ji, Dost"
             value={udharPerson}
             onChange={(e) => setUdharPerson(e.target.value)}
-            className="w-full px-3.5 py-2.5 text-xs bg-paper border border-paper-dim rounded-xl focus:outline-none focus:border-gold font-medium text-ink shadow-sm"
+            className="w-full px-3 py-2 text-sm bg-paper border border-paper-dim rounded-xl focus:outline-none focus:border-gold"
             required
           />
         </div>
       )}
-
-      {/* Payment Mode (Online vs Offline Cash) */}
-      <div>
-        <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
-          Payment Mode (Bhugtan Ka Tarika)
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setMode('online')}
-            className={'py-2 text-xs rounded-xl border font-medium flex items-center justify-center gap-1.5 transition-all ' + (mode === 'online' ? 'bg-navy text-paper border-navy shadow-sm' : 'bg-paper text-ink-muted border-paper-dim hover:bg-paper-dim')}
-          >
-            💳 Online (UPI / Card / Netbanking)
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('offline')}
-            className={'py-2 text-xs rounded-xl border font-medium flex items-center justify-center gap-1.5 transition-all ' + (mode === 'offline' ? 'bg-navy text-paper border-navy shadow-sm' : 'bg-paper text-ink-muted border-paper-dim hover:bg-paper-dim')}
-          >
-            💵 Cash (Nagad / Offline)
-          </button>
-        </div>
-      </div>
 
       {/* Category Selection */}
       {!type.startsWith('udhar') && (
@@ -285,7 +227,11 @@ export function TransactionForm({
                 key={cat}
                 type="button"
                 onClick={() => setCategory(cat)}
-                className={'text-xs px-2.5 py-1 rounded-lg border transition-all ' + (category === cat ? 'bg-navy text-paper border-navy' : 'bg-paper text-ink-muted border-paper-dim hover:bg-paper-dim')}
+                className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                  category === cat
+                    ? 'bg-navy text-paper border-navy'
+                    : 'bg-paper text-ink-muted border-paper-dim hover:bg-paper-dim'
+                }`}
               >
                 {cat}
               </button>
@@ -294,31 +240,88 @@ export function TransactionForm({
         </div>
       )}
 
-      {/* Date & Time */}
+      {/* Mode & Scope (Online vs Offline / Ghar vs Bahar) */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
-            Tarikh (Date)
+            Payment Mode
           </label>
-          <input
-            type="date"
-            value={txnDate}
-            onChange={(e) => setTxnDate(e.target.value)}
-            className="w-full px-3 py-2 text-xs bg-paper border border-paper-dim rounded-xl focus:outline-none focus:border-gold"
-          />
+          <div className="flex bg-paper-dim p-0.5 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setMode('online')}
+              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                mode === 'online' ? 'bg-paper text-navy shadow-sm' : 'text-ink-muted'
+              }`}
+            >
+              Online
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('offline')}
+              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                mode === 'offline' ? 'bg-paper text-navy shadow-sm' : 'text-ink-muted'
+              }`}
+            >
+              Offline (Cash)
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
-            Waqt (Time)
-          </label>
-          <input
-            type="text"
-            placeholder="e.g. 10:30 AM"
-            value={timeStamp}
-            onChange={(e) => setTimeStamp(e.target.value)}
-            className="w-full px-3 py-2 text-xs bg-paper border border-paper-dim rounded-xl focus:outline-none focus:border-gold"
-          />
-        </div>
+
+        {type === 'expense' && (
+          <div>
+            <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
+              Ghar / Bahar
+            </label>
+            <div className="flex bg-paper-dim p-0.5 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setScope('ghar')}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  scope === 'ghar' ? 'bg-paper text-navy shadow-sm' : 'text-ink-muted'
+                }`}
+              >
+                Ghar
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope('bahar')}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  scope === 'bahar' ? 'bg-paper text-navy shadow-sm' : 'text-ink-muted'
+                }`}
+              >
+                Bahar
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Note / Description */}
+      <div>
+        <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
+          Note / Vivran
+        </label>
+        <input
+          type="text"
+          placeholder="e.g. Sabzi Mandi, Amazon order, Petrol"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="w-full px-3 py-2 text-sm bg-paper border border-paper-dim rounded-xl focus:outline-none focus:border-gold"
+        />
+      </div>
+
+      {/* Date */}
+      <div>
+        <label className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider block mb-1">
+          Tarikh (Date)
+        </label>
+        <input
+          type="date"
+          value={txnDate}
+          onChange={(e) => setTxnDate(e.target.value)}
+          className="w-full px-3 py-2 text-sm bg-paper border border-paper-dim rounded-xl focus:outline-none focus:border-gold"
+        />
       </div>
 
       <Button

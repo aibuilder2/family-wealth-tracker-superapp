@@ -6,7 +6,7 @@ import { Mono } from '@/components/ui/Mono';
 import { ArrowUpRight, Plus } from 'lucide-react';
 
 export function NetWealthCard() {
-  const { totalWealth, totalIncomeThisMonth, openQuickAdd } = useFamilyStore();
+  const { totalWealth, openQuickAdd } = useFamilyStore();
 
   return (
     <div className="rounded-2xl p-5 bg-navy shadow-md text-paper">
@@ -18,9 +18,7 @@ export function NetWealthCard() {
       </Mono>
       <div className="flex items-center gap-1 mt-1">
         <ArrowUpRight size={14} className="text-gold-soft" />
-        <span className="text-xs text-gold-soft">
-          {totalIncomeThisMonth > 0 ? `+₹${totalIncomeThisMonth.toLocaleString('en-IN')} aamadni is mahine` : 'Aapka private parivar vault'}
-        </span>
+        <span className="text-xs text-gold-soft">₹18,400 is mahine</span>
       </div>
 
       <div className="flex gap-2 mt-4">

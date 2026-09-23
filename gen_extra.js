@@ -210,9 +210,9 @@ export default function AnalyticsPage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyComparison} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <XAxis dataKey="month" stroke="#6B7A80" fontSize={11} />
-                <YAxis stroke="#6B7A80" fontSize={10} tickFormatter={(v) => `₹${v/1000}k`} />
+                <YAxis stroke="#6B7A80" fontSize={10} tickFormatter={(v) => \`₹\${v/1000}k\`} />
                 <Tooltip
-                  formatter={(v) => [`₹${Number(v).toLocaleString('en-IN')}`, '']}
+                  formatter={(v) => [\`₹\${Number(v).toLocaleString('en-IN')}\`, '']}
                   contentStyle={{ backgroundColor: '#FBF8F2', borderRadius: '10px', border: '1px solid #E9E2D0', fontSize: '11px' }}
                 />
                 <Bar dataKey="income" fill="#4C7A5E" name="Income" radius={[4, 4, 0, 0]} />
@@ -244,7 +244,7 @@ export default function AnalyticsPage() {
               <div className="h-1.5 rounded-full bg-paper-dim overflow-hidden">
                 <div
                   className="h-1.5 rounded-full"
-                  style={{ width: `${(c.amt / 58200) * 100}%`, backgroundColor: c.color }}
+                  style={{ width: \`\${(c.amt / 58200) * 100}%\`, backgroundColor: c.color }}
                 />
               </div>
             </div>

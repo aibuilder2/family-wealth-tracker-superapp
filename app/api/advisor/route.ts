@@ -1,82 +1,92 @@
 import { NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { question, wealthData } = body;
+    const { totalIncome, totalExpense, totalWealth, liquidWealth, fixedWealth, goals, recentTransactions } = body;
 
-    const liquid = Number(wealthData?.liquidWealth || 0);
-    const fixed = Number(wealthData?.fixedWealth || 0);
-    const total = liquid + fixed;
-    const monthlyIncome = Number(wealthData?.totalIncome || 0);
-    const monthlyExpense = Number(wealthData?.totalExpense || 0);
-    const savingsRate = monthlyIncome > 0 ? Math.round(((monthlyIncome - monthlyExpense) / monthlyIncome) * 100) : 0;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-    // AI Financial & Stock Advisory Synthesis
-    let recommendations = [
-      {
-        title: "Asset Allocation Strategy",
-        desc: total > 0 
-          ? `Current portfolio is ${Math.round((liquid/total)*100)}% Liquid (₹${liquid.toLocaleString('en-IN')}) and ${Math.round((fixed/total)*100)}% Fixed (₹${fixed.toLocaleString('en-IN')}). Recommended ideal allocation is 40% Liquid, 40% Growth Equity, 20% Safe Fixed.`
-          : "Start building your family emergency fund of 6 months expenses in high-yield liquid instruments.",
-        tag: "Portfolio Allocation",
-        color: "#B98B2A"
-      },
-      {
-        title: "Monthly Cashflow & Savings Rate",
-        desc: monthlyIncome > 0 
-          ? `Your net savings rate this month is ${savingsRate}%. Target minimum 25% savings to deploy into SIPs and bluechip equity index funds.`
-          : "Record regular monthly income and recurring expenses to unlock automated tax & cashflow optimization.",
-        tag: "Cashflow",
-        color: "#34D399"
-      },
-      {
-        title: "Equity & Stock Market Strategy",
-        desc: "For current market environment with Nifty near benchmark highs, prefer staggered SIPs in Nifty 50 / Large-cap leaders (Reliance, TCS, HDFC Bank) with strict stop-losses.",
-        tag: "Stock Market AI",
-        color: "#60A5FA"
-      },
-      {
-        title: "Risk & Debt Management",
-        desc: "Ensure zero high-interest credit card revolving debt and keep term insurance + family health coverage up to date.",
-        tag: "Protection",
-        color: "#FB7185"
-      }
-    ];
+    if (!apiKey) {
+      return NextResponse.json({
+        success: false,
+        error: 'Gemini API key not configured'
+      }, { status: 500 });
+    }
 
-    if (question && question.trim().length > 0) {
-      const q = question.toLowerCase();
-      let customAnswer = "";
+    const prompt = `
+Aap ek anubhavi aur samajhdaar Indian Family Financial Advisor aur Chartered Accountant hain.
+Aapka kaam ek Bharatiya Parivar ko unke real income, expense aur wealth data ke aadhar par aasan Hinglish/Hindi me practical, actionable aur smart financial insights dena hai.
 
-      if (q.includes("stock") || q.includes("share") || q.includes("nifty") || q.includes("market")) {
-        customAnswer = "Market momentum indicates positive strength in Banking & IT sectors. Focus on fundamentally strong bluechips with PE under 25 and ROCE > 15%. Keep F&O positions strictly risk-hedged.";
-      } else if (q.includes("tax") || q.includes("save") || q.includes("80c") || q.includes("80d")) {
-        customAnswer = "Maximize Section 80C limit (₹1.5 Lakh via ELSS/PPF/EPF) and Section 80D for family medical insurance (₹25,000 - ₹50,000 for parents) to optimize total family taxable income.";
-      } else if (q.includes("child") || q.includes("education") || q.includes("goal")) {
-        customAnswer = "For goals > 5 years out, deploy funds into a combination of Nifty 50 Index Funds (60%), Midcap Funds (20%), and Sovereign Gold Bonds (20%).";
-      } else {
-        customAnswer = `Based on your current family profile (₹${total.toLocaleString('en-IN')} total net wealth), maintain a disciplined 70:30 long-term compounding vs liquid safety approach.`;
-      }
+Parivar ka Current Financial Summary:
+- Total Net Wealth: ₹${(totalWealth || 0).toLocaleString('en-IN')}
+- Liquid Wealth (Bank/Cash/Shares): ₹${(liquidWealth || 0).toLocaleString('en-IN')}
+- Fixed Wealth (Gold/Land/Property): ₹${(fixedWealth || 0).toLocaleString('en-IN')}
+- Is Mahine ki Total Income: ₹${(totalIncome || 0).toLocaleString('en-IN')}
+- Is Mahine ka Total Kharch (Expense): ₹${(totalExpense || 0).toLocaleString('en-IN')}
+- Active Parivar Goals: ${JSON.stringify(goals || [])}
+- Hal hi ke Kharch (Transactions Sample): ${JSON.stringify(recentTransactions || [])}
 
-      recommendations.unshift({
-        title: `AI Response: "${question}"`,
-        desc: customAnswer,
-        tag: "Custom Query",
-        color: "#E5C378"
-      });
+Kripya parivar ke liye 3-4 vishesh insights/recommandations tayyar karein.
+Response strictly JSON format me hona chahiye jisme ek array 'insights' ho:
+{
+  "insights": [
+    {
+      "title": "Short title in Hinglish (e.g. Bachat ka mauka, Emergency Fund, Goal Strategy)",
+      "desc": "2-3 sentences practical detail aur specific amount advice ke saath.",
+      "tag": "Category like Goal Strategy, Budget Alert, Asset Allocation, Emergency Fund",
+      "color": "gold" | "green" | "coral" | "navy"
+    }
+  ]
+}
+Sirf valid JSON return karein, koi extra markdown ya codeblocks ke bina agar sambhav ho.
+`;
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const res = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      })
+    });
+
+    if (!res.ok) {
+      const errorData = await res.text();
+      console.error('Gemini API call failed:', errorData);
+      return NextResponse.json({
+        success: false,
+        error: 'Gemini API call failed',
+        details: errorData
+      }, { status: 502 });
+    }
+
+    const data = await res.json();
+    const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    let parsedInsights = [];
+    try {
+      const cleanJson = replyText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      parsedInsights = parsed.insights || parsed;
+    } catch (parseErr) {
+      console.warn('JSON parsing error on Gemini response, fallback used:', parseErr);
     }
 
     return NextResponse.json({
       success: true,
-      timestamp: new Date().toISOString(),
-      insights: recommendations
+      insights: parsedInsights
     });
-  } catch (error: any) {
+
+  } catch (err: any) {
+    console.error('Advisor route error:', err);
     return NextResponse.json({
       success: false,
-      error: error.message || "Failed to process advisor request"
+      error: err?.message || 'Internal server error'
     }, { status: 500 });
   }
 }

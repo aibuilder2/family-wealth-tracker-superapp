@@ -1,104 +1,137 @@
-# Family Wealth App — Complete Project Status & Architecture Log
+# Family Wealth App — Project Status & Handover Documentation
 
-## 📌 Project Overview
-- **App Name**: Family Wealth App
-- **Location**: `C:\Users\Lenovo1\.gemini\antigravity\scratch\family-wealth-app`
-- **Tech Stack**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Lucide Icons, Recharts, Canvas Confetti, Supabase (SQL schema ready).
-- **Design System**: Royal Heritage Palette (Navy `#10263A`, Paper `#FBF8F2`, Gold `#B98B2A`, Green `#4C7A5E`, Coral `#C1502E`), Typography (`Fraunces`, `Inter`, `IBM Plex Mono`).
-
----
-
-## 📁 Complete File & Folder Structure
-
+**Project Location on Your Computer:**
 ```text
-family-wealth-app/
-├── app/
-│   ├── (auth)/
-│   │   ├── login/page.tsx                     # Member login simulation
-│   │   ├── signup/page.tsx                    # Family creation & join
-│   │   └── invite/[code]/page.tsx             # Invite family members
-│   │
-│   ├── (dashboard)/
-│   │   ├── layout.tsx                         # Header with SOS Emergency button + Bottom Navigation
-│   │   ├── home/page.tsx                      # Summary Dashboard (Wealth, Income/Expense, Goals, Quick Add)
-│   │   ├── money/
-│   │   │   ├── page.tsx                       # Daily transactions ledger with Online/Offline/Member filter
-│   │   │   ├── add/page.tsx                   # Full transaction entry page
-│   │   │   └── udhar/page.tsx                 # Advanced Udhar Manager (Cash, Samaan, Kaam Settlement)
-│   │   ├── wealth/page.tsx                    # Liquid vs Fixed Wealth, Live Shares, Net Wealth
-│   │   ├── calendar/page.tsx                  # Calendar Hub (Timestamped expenses, Bills, Court dates)
-│   │   ├── agriculture/page.tsx               # Krishi Land, Kheti Costs, Mandi Fasal Bikri & Bonus
-│   │   ├── vehicles/page.tsx                  # Personal Garage (Car, Bike, Scooty, Service Log, Insurance)
-│   │   ├── fleet/page.tsx                     # Commercial Fleet (Mining Trucks, School Buses, Cabs, ROI, EMI)
-│   │   ├── firms/page.tsx                     # Registered Business Firms, GST/TDS & Partner Drawings to Family
-│   │   ├── staff/page.tsx                     # Household Staff (Maid, Driver daily 1-15 attendance & salary)
-│   │   ├── cases/page.tsx                     # Court Case Tracker (Hearing countdown & Lawyer Peshi Fees)
-│   │   ├── vault/page.tsx                     # Digital Documents Vault & Expiry alerts
-│   │   ├── family/
-│   │   │   ├── page.tsx                       # Family members list & Invite code
-│   │   │   └── tree/page.tsx                  # Visual Generational Family Tree
-│   │   ├── medical/page.tsx                   # Health Records, Blood Group & Verified Badges
-│   │   ├── advisor/page.tsx                   # Smart AI Financial Advisory suggestions
-│   │   ├── reminders/page.tsx                 # General reminders & Notification timeline
-│   │   ├── settings/
-│   │   │   ├── page.tsx                       # App settings & Profile
-│   │   │   └── members/page.tsx               # Granular Member Permissions & Role Access
-│   │   └── analytics/page.tsx                 # Detailed income/expense charts
-│   │
-│   ├── api/                                   # Next.js Serverless API routes (Assets, Docs, Goals, Medical, Reminders, Txns)
-│   ├── globals.css                            # Tailored fonts, custom scrollbars, palette
-│   └── layout.tsx                             # Root layout wrapping FamilyProvider
-│
-├── components/
-│   ├── ui/                                    # Reusable UI primitives (Button, Card, ScreenHeader, BottomNav, Mono, Chip, Avatar)
-│   ├── home/                                  # Dashboard specific cards & summary components
-│   └── money/                                 # TransactionList, MemberFilter, TransactionForm (Voice Input), AddTransactionModal
-│
-├── lib/
-│   ├── hooks/useVoiceInput.ts                 # Web Speech API Voice Recognition (Hindi/English parsing)
-│   ├── store/familyStore.tsx                  # Single Source of Truth state store (localStorage sync)
-│   └── utils/                                 # Currency, Date, and Tailwind CN utility helpers
-│
-├── supabase/
-│   └── schema.sql                             # Complete PostgreSQL schema (15 tables with RLS & indexes)
-│
-├── APP_FEATURES_AND_USER_GUIDE.md             # End-user master manual for all modules
-└── PROJECT_STATUS.md                          # This architecture and status document
+C:\Users\Lenovo1\.gemini\antigravity\scratch\family-wealth-app
 ```
 
 ---
 
-## 🚀 All Implemented Modules & Capabilities
+## 📌 Summary: Ab Tak Kya-Kya Complete Ho Chuka Hai (Completed Work)
 
-1. **Voice Input (Bolke Kharch Add Karna)**: Web Speech API microphone integration with Hindi/English entity parsing (Amount, Category, Member).
-2. **Udhar & Settlement Manager (`/money/udhar`)**:
-   - Outside contact creation (e.g. Ramesh Uncle, Sunil Kirana).
-   - Settlement options: **Cash/GPay**, **Samaan/Anaaj dekar**, **Kaam/Service karke**.
-   - Auto-updating remaining balance & settlement history.
-3. **Krishi & Agricultural Land (`/agriculture`)**:
-   - 3 Modes: **Khud ki Kheti** (Beej, Khaad, Diesel, Labor costs), **Theka** (Annual contract), **Adhiya** (Sharecropping).
-   - Mandi Fasal Bikri & **Sarkari Bonus/Subsidy** tracking with net profit calculation.
-4. **Personal Vehicles & Garage (`/vehicles`)**:
-   - Number plate, Purchase date, Fuel type, Owner member.
-   - Document validity countdown (Insurance, PUC, Next service).
-   - Service & Repair history log.
-5. **Commercial Fleet & Transport Business (`/fleet`)**:
-   - Supports 1 to 50 Vehicles: Mining Tipper Trucks, School Buses, Route Buses, Tourist Cabs.
-   - **Financials & ROI**: Total Acquisition Cost + Body Making vs Monthly Loan EMI vs Annual Depreciation vs Lifetime Net Profit.
-   - **Trip Dispatcher**: Gross Bill − [Diesel + Tolls + Driver Bhata + Repairs] = Net Trip Profit.
-6. **Registered Business Firms & GST Hub (`/firms`)**:
-   - Formal entities: Proprietorship, Partnership, Pvt Ltd, LLP.
-   - GST (5% RCM, 12%, 18%) & TDS 194C (1%, 2%) tracking.
-   - **Partner Drawings**: Transfer business profit to personal Family Income.
-7. **Court Case & Legal Tracker (`/cases`)**:
-   - Case number, Court name, Advocate name, Next hearing countdown.
-   - **Lawyer Fee Breakdown**: Agreed fee, Starting advance, Per-peshi fee, Munshiana, and Balance due.
-8. **Household Staff (`/staff`)**:
-   - Maid & Driver 1-15 daily attendance (Present/Absent/Half-day) and advance ledger.
-9. **Emergency SOS & Medical Vault (`/medical`)**:
-   - Header SOS button for instant broadcast simulation.
-   - Blood groups, daily medicines with **Verified (Green)** vs **Unverified** toggle.
-10. **Calendar Central Hub (`/calendar`)**:
-    - Aggregated timeline of timestamped expenses, bill dues, hearing dates, insurance renewals, and birthdays.
-11. **Granular Permissions & Dual Dashboard (`/settings/members`)**:
-    - Family Head controls access for investments, bills, vault, staff, and court cases.
+### 1. Frontend Architecture & Design System (100% Done)
+- **Tech Stack**: Next.js 14 (App Router) + TypeScript + Tailwind CSS + Lucide Icons + Recharts + Canvas Confetti.
+- **Royal Theme Tokens**:
+  - `navy` (`#10263A`), `paper` (`#FBF8F2`), `gold` (`#B98B2A`), `green` (`#4C7A5E`), `coral` (`#C1502E`), `ink` (`#1B2A33`).
+- **Typography**: Google Fonts `Fraunces` (Serif), `Inter` (Sans), `IBM Plex Mono` (Tabular Rupee Amounts).
+- **Indian Currency Formatter**: Lakhs & Crores formatting (`₹42,18,600`, `₹85,000`).
+- **Responsive Frame**: Mobile shell simulator on desktop + 100% native responsiveness on mobile devices.
+
+### 2. All 26 Routes & Pages Built (100% Done)
+- **Auth Routes**:
+  - `/login` — Member & Admin login form.
+  - `/signup` — Create new family vault.
+  - `/invite/[code]` — Join family via invite code.
+- **Dashboard Routes**:
+  - `/home` — Total Family Wealth, Monthly Income vs Expense, Active Goal Progress Ring, Recent Activity, Quick Action Modals (`+ Expense`, `+ Income`, `+ Udhar`).
+  - `/money` — Grouped date-wise transactions (Aaj, Kal), Filter chips (`Sab`, `Online`, `Offline`, `Udhar`, `Income`), Member filter bar (Papa, Mummy, Rohan, Priya), and inline delete.
+  - `/money/add` — Full standalone transaction entry form.
+  - `/wealth` — Liquid Wealth (Bank deposits, Shares) vs Fixed Wealth (Gold/Silver, Land/Property) split + Goal progress bars.
+  - `/vault` — Documents list with expiry warning badges (e.g. *12 din me expire*) + upcoming reminders.
+  - `/family` — Member cards with roles (Owner/Admin vs Member) + Family invite code box.
+  - `/family/tree` — Generational Family Tree (Vansh) hierarchy view.
+  - `/medical` — Emergency medical records (Blood groups, medicine timings, chronic condition notes).
+  - `/analytics` — Recharts Income vs Expense bar graph + Category breakdown.
+  - `/advisor` — AI Investment & Savings recommendations.
+  - `/settings` — Family configuration, invite code, and database status.
+- **API Endpoints Skeleton**:
+  - `/api/transactions`, `/api/assets`, `/api/goals`, `/api/documents`, `/api/reminders`, `/api/reminders/cron`, `/api/medical`, `/api/advisor`.
+
+### 3. Client State & Local Persistence (100% Done)
+- Interactive React Context store in `lib/store/familyStore.tsx` with `localStorage` backup.
+- New transactions, expenses, incomes, and udhar entries update live totals immediately.
+
+### 4. Supabase Database Schema (100% Done)
+- File located at: `supabase/schema.sql`.
+- Complete tables with relations, constraints, foreign keys, and indexes:
+  - `families`, `members`, `transactions`, `assets`, `goals`, `reminders`, `documents`, `family_tree_nodes`, `medical_records`.
+- **Postgres Row Level Security (RLS)** policies ensuring family data privacy with isolated medical permissions.
+- Demo seed data for Sharma Parivar.
+
+---
+
+## 🛠️ To-Do Checklist: Bacha Hua Kaam (Remaining Work)
+
+Jab aap is project ko live production me convert karne ke liye aage badhenge, ye step-by-step tasks karne honge:
+
+### Step 1: Live Supabase Database Connection
+- [ ] [Supabase.com](https://supabase.com) par free project banayein.
+- [ ] Supabase Dashboard ke SQL Editor me ja kar `supabase/schema.sql` ka code run karein.
+- [ ] Project Settings se `Project URL` aur `anon public API Key` copy karein.
+- [ ] Project ke root me `.env.local` file banakar paste karein:
+  ```env
+  NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+  ```
+
+### Step 2: Supabase Auth & Session Handling
+- [ ] Phone OTP / Email Magic Link Auth enable karein Supabase Auth dashboard me.
+- [ ] `lib/supabase/server.ts` aur `middleware.ts` connect karke live user authentication bind karein.
+
+### Step 3: Supabase Storage Bucket for Vault Documents
+- [ ] Supabase Storage me `family-documents` private bucket banayein.
+- [ ] `app/(dashboard)/vault/upload/page.tsx` par real PDF/Image upload feature attach karein.
+
+### Step 4: Vercel Cron for Reminders
+- [ ] `vercel.json` add karke `/api/reminders/cron` ko daily trigger set karein.
+- [ ] 1 month / 1 week pehle auto-notification / email bhejne ka logic bind karein.
+
+### Step 5: Special Expense Modules (PRD Feature #10)
+- [ ] *New Business Setup* module (Business kharch alag track karna).
+- [ ] *House Construction* module (Foundation, Structure, Finishing stage-wise expense).
+- [ ] *Trips / Events* module (Shaadi/Party me kisne kitna shagun/kharch diya).
+
+### Step 6: Real AI Financial Advisor
+- [ ] Gemini API / OpenAI API key add karein `app/api/advisor/route.ts` me.
+- [ ] Real-time family monthly savings aur portfolio analysis prompt connect karein.
+
+### Step 7: Advanced Data Automation (Future Phase 9)
+- [ ] Account Aggregator (AA) framework (Bank/FD auto-sync).
+- [ ] MF Central / CAS (Mutual Funds auto-sync).
+- [ ] Broker API (Zerodha Kite / Upstox for Shares auto-sync).
+
+---
+
+## 🚀 How to Run the App (Command Reference)
+
+Jab bhi aapko dubara app start karni ho:
+
+```bash
+# 1. Folder me jayein:
+cd C:\Users\Lenovo1\.gemini\antigravity\scratch\family-wealth-app
+
+# 2. Server start karein:
+npm run dev
+
+# 3. Browser me open karein:
+http://localhost:3000
+```
+
+---
+
+## 📁 File Structure Reference
+
+```text
+family-wealth-app/
+├── app/
+│   ├── (auth)/login, signup, invite
+│   ├── (dashboard)/home, money, wealth, vault, family, medical, analytics, advisor, settings
+│   ├── api/transactions, assets, goals, documents, reminders, medical, advisor
+│   ├── layout.tsx
+│   └── globals.css
+├── components/
+│   ├── ui/ (Button, Card, Chip, Avatar, ProgressRing, BottomNav, ScreenHeader, Mono)
+│   ├── money/ (TransactionList, TransactionForm, MemberFilter, AddTransactionModal)
+│   ├── wealth/ (AssetCard, NetWealthCard, GoalCard)
+│   ├── vault/ (DocumentCard)
+│   ├── reminders/ (ReminderCard)
+│   ├── family/ (MemberCard, FamilyTreeView)
+│   └── medical/ (MedicalRecordCard)
+├── lib/
+│   ├── store/familyStore.tsx (Reactive State + LocalStorage)
+│   ├── supabase/client.ts
+│   └── utils/ (formatCurrency, dateHelpers, cn)
+├── types/index.ts
+├── supabase/schema.sql
+└── PROJECT_STATUS.md
+```
