@@ -2,6 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Family, Member, Transaction, Asset, Goal, Reminder, DocumentItem, MedicalRecord } from '@/types';
+import { initUserScopedStorage, getActiveUser } from '@/lib/storage/userScopedStorage';
+
+// Ensure storage scoping is initialized before initial state reads
+if (typeof window !== 'undefined') {
+  initUserScopedStorage();
+}
 
 export const INITIAL_MEMBERS: Member[] = [
   { id: 'm-self', family_id: 'fam-1', name: 'Self (Me)', role: 'owner', color: '#B98B2A', initials: 'S' },

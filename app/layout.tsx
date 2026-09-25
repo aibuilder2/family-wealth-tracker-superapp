@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { FamilyProvider } from '@/lib/store/familyStore';
+import { UserScopedStorageInit } from '@/components/storage/UserScopedStorageInit';
 
 export const metadata: Metadata = {
   title: 'Family Wealth App — Parivar Finance & Vault',
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="hi">
       <body className="min-h-screen bg-[#E7E1D2] antialiased">
+        <UserScopedStorageInit />
         <FamilyProvider>
           {children}
         </FamilyProvider>
