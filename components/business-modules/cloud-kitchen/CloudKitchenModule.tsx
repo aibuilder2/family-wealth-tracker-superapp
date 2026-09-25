@@ -40,60 +40,9 @@ export interface KitchenDayRecord {
   notes?: string;
 }
 
-const INITIAL_TIFFIN_CUSTOMERS: TiffinCustomer[] = [
-  {
-    id: 'tif-1',
-    name: 'अमित वर्मा (स्टूडेंट हॉस्टल)',
-    phone: '9829011223',
-    planType: 'MONTHLY',
-    monthlyRate: 3200,
-    deliveryAddress: 'रूम 104, लैंडमार्क सिटी, कुन्हाड़ी',
-    status: 'ACTIVE',
-    paymentStatus: 'PAID',
-    dueAmount: 0,
-  },
-  {
-    id: 'tif-2',
-    name: 'राहुल शर्मा (बैंक कर्मचारी)',
-    phone: '9414055667',
-    planType: 'MONTHLY',
-    monthlyRate: 3000,
-    deliveryAddress: 'HDFC बैंक ब्रांच, स्टेशन रोड',
-    status: 'ACTIVE',
-    paymentStatus: 'DUE',
-    dueAmount: 3000,
-  },
-  {
-    id: 'tif-3',
-    name: 'प्रदीप यादव',
-    phone: '9828899001',
-    planType: 'MONTHLY',
-    monthlyRate: 2800,
-    deliveryAddress: 'कोचिंग एरिया, तलवंडी',
-    status: 'ACTIVE',
-    paymentStatus: 'PAID',
-    dueAmount: 0,
-  }
-];
+const INITIAL_TIFFIN_CUSTOMERS: TiffinCustomer[] = [];
 
-const INITIAL_RECORDS: KitchenDayRecord[] = [
-  {
-    id: 'k-1',
-    date: new Date().toISOString().split('T')[0],
-    counterSale: 5600,
-    swiggyZomatoSale: 12400,
-    tiffinDailyCollection: 3200,
-    totalSales: 21200,
-    vegetablesDairyCost: 4800,
-    grocerySpicesCost: 3200,
-    packagingBoxCost: 1100,
-    gasFuelCost: 1200,
-    staffSalaryBhatta: 1800,
-    totalExpenses: 12100,
-    netMargin: 9100,
-    notes: 'लंच में पनीर बटर मसाला व थाली की भारी डिमांड',
-  }
-];
+const INITIAL_RECORDS: KitchenDayRecord[] = [];
 
 export default function CloudKitchenModule() {
   const [activeTab, setActiveTab] = useState<'DAILY_SALES' | 'TIFFIN_CUSTOMERS' | 'RECIPES'>('DAILY_SALES');
@@ -125,9 +74,19 @@ export default function CloudKitchenModule() {
   useEffect(() => {
     try {
       const savedRecs = localStorage.getItem('fwa_kitchen_records_v2');
-      if (savedRecs) setRecords(JSON.parse(savedRecs));
+      if (savedRecs) {
+        const parsed = JSON.parse(savedRecs);
+        if (Array.isArray(parsed)) {
+          setRecords(parsed.filter((r: any) => r?.id !== 'k-1'));
+        }
+      }
       const savedTif = localStorage.getItem('fwa_tiffin_customers_v2');
-      if (savedTif) setTiffinList(JSON.parse(savedTif));
+      if (savedTif) {
+        const parsed = JSON.parse(savedTif);
+        if (Array.isArray(parsed)) {
+          setTiffinList(parsed.filter((t: any) => !['tif-1', 'tif-2', 'tif-3'].includes(t?.id)));
+        }
+      }
     } catch (e) {}
   }, []);
 
@@ -323,44 +282,67 @@ export default function CloudKitchenModule() {
       {/* TAB 1: DAILY SALES & EXPENSES */}
       {activeTab === 'DAILY_SALES' && (
         <div className="space-y-2.5">
-          {records.map(r => (
-            <div key={r.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs space-y-2 text-xs">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-ink text-xs">तारीख: {r.date}</span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-orange-100 text-orange-900">
-                      मार्जिन: {Math.round((r.netMargin / (r.totalSales || 1)) * 100)}%
-                    </span>
-                  </div>
-                  {r.notes && <p className="text-[11px] text-ink-muted mt-0.5">{r.notes}</p>}
-                </div>
-                <div className="text-right">
-                  <Mono className="font-bold text-emerald-700 text-sm block">
-                    +₹{r.netMargin.toLocaleString('en-IN')}
-                  </Mono>
-                  <span className="text-[10px] text-ink-muted">कुल सेल: ₹{r.totalSales.toLocaleString('en-IN')}</span>
-                </div>
-              </div>
-
-              {/* Breakdown Pill Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 bg-paper-dim/40 rounded-lg p-2 text-[10px] text-ink-muted">
-                <span>📱 Zomato/Swiggy: <b className="text-ink">₹{r.swiggyZomatoSale}</b></span>
-                <span>💵 काउंटर सेल: <b className="text-ink">₹{r.counterSale}</b></span>
-                <span>🍱 टिफ़िन जमा: <b className="text-ink">₹{r.tiffinDailyCollection}</b></span>
-                <span>🥦 सब्ज़ी/दूध: <b className="text-rose-700">₹{r.vegetablesDairyCost}</b></span>
-                <span>🍚 राशन/किराना: <b className="text-rose-700">₹{r.grocerySpicesCost}</b></span>
-                <span>📦 पैकेजिंग डिब्बे: <b className="text-rose-700">₹{r.packagingBoxCost}</b></span>
-              </div>
+          {records.length === 0 ? (
+            <div className="p-8 bg-paper border border-paper-dim rounded-2xl text-center shadow-sm space-y-2">
+              <p className="text-xs text-ink-muted">कोई दैनिक किचन बिक्री रिकॉर्ड दर्ज नहीं है।</p>
+              <button
+                onClick={() => setShowAddDayModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs inline-flex items-center gap-1"
+              >
+                <Plus size={14} /> + दैनिक हिसाब जोड़ें
+              </button>
             </div>
-          ))}
+          ) : (
+            records.map(r => (
+              <div key={r.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs space-y-2 text-xs">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-ink text-xs">तारीख: {r.date}</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-orange-100 text-orange-900">
+                        मार्जिन: {Math.round((r.netMargin / (r.totalSales || 1)) * 100)}%
+                      </span>
+                    </div>
+                    {r.notes && <p className="text-[11px] text-ink-muted mt-0.5">{r.notes}</p>}
+                  </div>
+                  <div className="text-right">
+                    <Mono className="font-bold text-emerald-700 text-sm block">
+                      +₹{r.netMargin.toLocaleString('en-IN')}
+                    </Mono>
+                    <span className="text-[10px] text-ink-muted">कुल सेल: ₹{r.totalSales.toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+
+                {/* Breakdown Pill Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 bg-paper-dim/40 rounded-lg p-2 text-[10px] text-ink-muted">
+                  <span>📱 Zomato/Swiggy: <b className="text-ink">₹{r.swiggyZomatoSale}</b></span>
+                  <span>💵 काउंटर सेल: <b className="text-ink">₹{r.counterSale}</b></span>
+                  <span>🍱 टिफ़िन जमा: <b className="text-ink">₹{r.tiffinDailyCollection}</b></span>
+                  <span>🥦 सब्ज़ी/दूध: <b className="text-rose-700">₹{r.vegetablesDairyCost}</b></span>
+                  <span>🍚 राशन/किराना: <b className="text-rose-700">₹{r.grocerySpicesCost}</b></span>
+                  <span>📦 पैकेजिंग डिब्बे: <b className="text-rose-700">₹{r.packagingBoxCost}</b></span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
       {/* TAB 2: TIFFIN SUBSCRIPTION REGISTER */}
       {activeTab === 'TIFFIN_CUSTOMERS' && (
         <div className="space-y-2.5">
-          {tiffinList.map(t => (
+          {tiffinList.length === 0 ? (
+            <div className="p-8 bg-paper border border-paper-dim rounded-2xl text-center shadow-sm space-y-2">
+              <p className="text-xs text-ink-muted">कोई टिफ़िन ग्राहक दर्ज नहीं है।</p>
+              <button
+                onClick={() => setShowAddTiffinModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs inline-flex items-center gap-1"
+              >
+                <Users size={13} /> + नया टिफ़िन ग्राहक जोड़ें
+              </button>
+            </div>
+          ) : (
+            tiffinList.map(t => (
             <div key={t.id} className="p-3 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
@@ -386,7 +368,7 @@ export default function CloudKitchenModule() {
                 </button>
               </div>
             </div>
-          ))}
+          )))}
         </div>
       )}
 

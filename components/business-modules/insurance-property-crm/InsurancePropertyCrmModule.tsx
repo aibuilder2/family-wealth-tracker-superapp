@@ -19,30 +19,7 @@ export interface LeadCustomer {
   stage: 'INTERESTED' | 'DOCS_PENDING' | 'CLOSED_WON';
 }
 
-const INITIAL_LEADS: LeadCustomer[] = [
-  {
-    id: 'ld-1',
-    clientName: 'राजेश सिंघल',
-    clientPhone: '9829044556',
-    type: 'INSURANCE',
-    dealDetails: 'स्टार हेल्थ फॅमिली फ्लोटर (₹10 लाख कवर)',
-    budgetOrPremium: 22000,
-    commissionExpected: 3300,
-    nextFollowupDate: new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0],
-    stage: 'DOCS_PENDING',
-  },
-  {
-    id: 'ld-2',
-    clientName: 'दिनेश शर्मा (प्रॉपर्टी बायर)',
-    clientPhone: '9414088990',
-    type: 'PROPERTY_PLOT',
-    dealDetails: 'कुन्हाड़ी रीको एरिया में 200 गज कमर्शियल प्लॉट',
-    budgetOrPremium: 3500000,
-    commissionExpected: 70000, // 2% Brokerage
-    nextFollowupDate: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
-    stage: 'INTERESTED',
-  }
-];
+const INITIAL_LEADS: LeadCustomer[] = [];
 
 export default function InsurancePropertyCrmModule() {
   const [leads, setLeads] = useState<LeadCustomer[]>(INITIAL_LEADS);
@@ -60,7 +37,12 @@ export default function InsurancePropertyCrmModule() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('fwa_crm_leads_v1');
-      if (saved) setLeads(JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setLeads(parsed.filter((l: any) => !['ld-1', 'ld-2'].includes(l?.id)));
+        }
+      }
     } catch (e) {}
   }, []);
 
@@ -133,31 +115,46 @@ export default function InsurancePropertyCrmModule() {
 
       {/* Leads List */}
       <div className="space-y-2.5">
-        {leads.map(lead => (
-          <div key={lead.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <h4 className="font-bold text-ink">{lead.clientName}</h4>
-                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
-                  lead.type === 'INSURANCE' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  {lead.type === 'INSURANCE' ? '🛡️ बीमा पॉलिसी' : '🏡 जमीन/प्लॉट'}
-                </span>
-              </div>
-              <p className="text-[11px] text-ink-muted">📞 {lead.clientPhone} • {lead.dealDetails}</p>
-              <div className="text-[10px] text-rose-700 font-bold flex items-center gap-1">
-                <Clock size={11} /> अगला फॉलोअप: {lead.nextFollowupDate}
-              </div>
+        {leads.length === 0 ? (
+          <div className="p-8 bg-paper border border-paper-dim rounded-2xl text-center shadow-sm space-y-2">
+            <div className="w-10 h-10 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+              <ShieldCheck size={20} />
             </div>
-
-            <div className="text-right space-y-0.5">
-              <span className="text-[10px] text-ink-muted block">कमीशन कमाई</span>
-              <Mono className="font-bold text-emerald-700 text-sm block">
-                +₹{lead.commissionExpected.toLocaleString('en-IN')}
-              </Mono>
-            </div>
+            <p className="text-xs text-ink-muted">कोई बीमा या प्रॉपर्टी ग्राहक लीड दर्ज नहीं है।</p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-3 py-1.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs inline-flex items-center gap-1"
+            >
+              <Plus size={14} /> + नई लीड जोड़ें
+            </button>
           </div>
-        ))}
+        ) : (
+          leads.map(lead => (
+            <div key={lead.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-ink">{lead.clientName}</h4>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
+                    lead.type === 'INSURANCE' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {lead.type === 'INSURANCE' ? '🛡️ बीमा पॉलिसी' : '🏡 जमीन/प्लॉट'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-ink-muted">📞 {lead.clientPhone} • {lead.dealDetails}</p>
+                <div className="text-[10px] text-rose-700 font-bold flex items-center gap-1">
+                  <Clock size={11} /> अगला फॉलोअप: {lead.nextFollowupDate}
+                </div>
+              </div>
+
+              <div className="text-right space-y-0.5">
+                <span className="text-[10px] text-ink-muted block">कमीशन कमाई</span>
+                <Mono className="font-bold text-emerald-700 text-sm block">
+                  +₹{lead.commissionExpected.toLocaleString('en-IN')}
+                </Mono>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* ➕ MODAL */}

@@ -27,32 +27,19 @@ interface HospitalEpisode {
   bills: HospitalBill[];
 }
 
-const DEFAULT_EPISODES: HospitalEpisode[] = [
-  {
-    id: 'ep-1',
-    title: 'मम्मी की नी-रिप्लेसमेंट (Knee Surgery)',
-    patientName: 'मम्मी',
-    episodeType: 'surgery',
-    hospitalName: 'मैक्स सुपर स्पेशियलिटी हॉस्पिटल, दिल्ली',
-    doctorName: 'डॉ. संजीव कपूर (ऑर्थोपेडिक)',
-    startDate: '2026-04-10',
-    status: 'recovered',
-    hasInsurance: true,
-    insuranceClaimedAmount: 180000,
-    bills: [
-      { id: 'b1', title: 'सर्जरी पैकेज व इम्प्लांट', category: 'surgery_operation', amount: 165000, date: '2026-04-11', isInsuranceClaimable: true },
-      { id: 'b2', title: 'ICU व प्राइवेट रूम 3 दिन', category: 'room_icu', amount: 45000, date: '2026-04-13', isInsuranceClaimable: true },
-      { id: 'b3', title: 'दवाइयां व फिजियोथेरेपी', category: 'pharmacy_medicine', amount: 18500, date: '2026-04-18', isInsuranceClaimable: true }
-    ]
-  }
-];
+const DEFAULT_EPISODES: HospitalEpisode[] = [];
 
 export function HospitalEpisodesModule() {
   const [episodes, setEpisodes] = useState<HospitalEpisode[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_hospital_episodes_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((e: any) => e?.id !== 'ep-1');
+          }
+        } catch (e) {}
       }
     }
     return DEFAULT_EPISODES;
@@ -190,6 +177,24 @@ export function HospitalEpisodesModule() {
           </div>
         )}
       </div>
+
+      {episodes.length === 0 && (
+        <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center shadow-sm space-y-3">
+          <div className="w-12 h-12 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+            <HeartPulse size={24} />
+          </div>
+          <h3 className="text-sm font-bold text-ink">कोई मेडिकल एपिसोड दर्ज नहीं है</h3>
+          <p className="text-xs text-ink-muted max-w-xs mx-auto">
+            परिवार के किसी सदस्य की सर्जरी, डिलीवरी या अस्पताल भर्ती व मेडिकल बिल ट्रैक करने के लिए एपिसोड जोड़ें।
+          </p>
+          <button
+            onClick={() => setIsAddEpOpen(true)}
+            className="mt-2 px-4 py-2 bg-gold text-navy text-xs font-bold rounded-xl inline-flex items-center gap-1 hover:bg-gold-light"
+          >
+            <Plus size={15} /> नया एपिसोड जोड़ें
+          </button>
+        </div>
+      )}
 
       {activeEp && (
         <div className="space-y-3">

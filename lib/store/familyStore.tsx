@@ -4,52 +4,15 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Family, Member, Transaction, Asset, Goal, Reminder, DocumentItem, MedicalRecord } from '@/types';
 
 export const INITIAL_MEMBERS: Member[] = [
-  { id: 'm-papa', family_id: 'fam-1', name: 'Papa', role: 'owner', color: '#B98B2A', initials: 'P' },
-  { id: 'm-mummy', family_id: 'fam-1', name: 'Mummy', role: 'member', color: '#8A5A6B', initials: 'M' },
-  { id: 'm-rohan', family_id: 'fam-1', name: 'Rohan', role: 'member', color: '#3E6E8E', initials: 'R' },
-  { id: 'm-priya', family_id: 'fam-1', name: 'Priya', role: 'member', color: '#5C8A6B', initials: 'Pr' },
+  { id: 'm-self', family_id: 'fam-1', name: 'Self (Me)', role: 'owner', color: '#B98B2A', initials: 'S' },
 ];
 
-export const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: 't-1', family_id: 'fam-1', member_id: 'm-mummy', type: 'expense', amount: 840, category: 'Ghar kharch', mode: 'offline', scope: 'ghar', note: 'Sabzi Mandi', txn_date: new Date().toISOString().split('T')[0] },
-  { id: 't-2', family_id: 'fam-1', member_id: 'm-rohan', type: 'expense', amount: 1200, category: 'Bahar kharch', mode: 'offline', scope: 'bahar', note: 'Petrol', txn_date: new Date().toISOString().split('T')[0] },
-  { id: 't-3', family_id: 'fam-1', member_id: 'm-papa', type: 'income', amount: 85000, category: 'Salary', mode: 'online', scope: 'ghar', note: 'Salary credited', txn_date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
-  { id: 't-4', family_id: 'fam-1', member_id: 'm-priya', type: 'expense', amount: 3500, category: 'Education', mode: 'online', scope: 'ghar', note: 'Tuition fee', txn_date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
-  { id: 't-5', family_id: 'fam-1', member_id: 'm-priya', type: 'expense', amount: 1450, category: 'Shopping', mode: 'online', scope: 'bahar', note: 'Amazon order', txn_date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
-  { id: 't-6', family_id: 'fam-1', member_id: 'm-papa', type: 'udhar_given', amount: 5000, category: 'Udhar', mode: 'online', scope: 'bahar', note: 'Udhar diya — Chacha ji', udhar_person: 'Chacha ji', txn_date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
-];
-
-export const INITIAL_ASSETS: Asset[] = [
-  { id: 'a-1', family_id: 'fam-1', category: 'liquid', type: 'bank_deposit', label: 'Bank Deposits', value: 840000, color: '#3E6E8E' },
-  { id: 'a-2', family_id: 'fam-1', category: 'fixed', type: 'gold', label: 'Gold & Silver', value: 620000, color: '#B98B2A' },
-  { id: 'a-3', family_id: 'fam-1', category: 'liquid', type: 'shares', label: 'Shares', value: 458600, color: '#4C7A5E' },
-  { id: 'a-4', family_id: 'fam-1', category: 'fixed', type: 'land', label: 'Land / Property', value: 2300000, color: '#8A5A6B' },
-];
-
-export const INITIAL_GOALS: Goal[] = [
-  { id: 'g-1', family_id: 'fam-1', title: 'Priya ki Education', target_amount: 500000, saved_amount: 310000, category: 'education' },
-  { id: 'g-2', family_id: 'fam-1', title: 'Naya Car', target_amount: 800000, saved_amount: 240000, category: 'vehicle' },
-];
-
-export const INITIAL_REMINDERS: Reminder[] = [
-  { id: 'r-1', family_id: 'fam-1', title: 'Car servicing due', category: 'service', due_date: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0], color: '#C1502E' },
-  { id: 'r-2', family_id: 'fam-1', title: 'Car insurance renewal', category: 'insurance', due_date: new Date(Date.now() + 12 * 86400000).toISOString().split('T')[0], color: '#B98B2A' },
-  { id: 'r-3', family_id: 'fam-1', title: 'Dentist appointment — Mummy', category: 'appointment', due_date: new Date(Date.now() + 20 * 86400000).toISOString().split('T')[0], color: '#6B7A80' },
-];
-
-export const INITIAL_DOCUMENTS: DocumentItem[] = [
-  { id: 'd-1', family_id: 'fam-1', title: 'Car Insurance', category: 'insurance', file_url: '#', expiry_date: new Date(Date.now() + 12 * 86400000).toISOString().split('T')[0], notes: '12 din me expire', alert: true },
-  { id: 'd-2', family_id: 'fam-1', title: 'Health Insurance — Papa', category: 'insurance', file_url: '#', expiry_date: new Date(Date.now() + 240 * 86400000).toISOString().split('T')[0], notes: 'Valid', alert: false },
-  { id: 'd-3', family_id: 'fam-1', title: 'Land Documents', category: 'property', file_url: '#', notes: '4 files', alert: false },
-  { id: 'd-4', family_id: 'fam-1', title: 'Driving Licence — Rohan', category: 'id_proof', file_url: '#', notes: 'Valid', alert: false },
-];
-
-export const INITIAL_MEDICAL: MedicalRecord[] = [
-  { id: 'med-1', family_id: 'fam-1', member_id: 'm-papa', member_name: 'Papa', blood_group: 'B+', condition: 'Blood Pressure', medicine_name: 'Telmisartan 40mg', medicine_time: 'Subah khane ke baad (8:30 AM)', notes: 'Regular BP checkup har 2 hafte me' },
-  { id: 'med-2', family_id: 'fam-1', member_id: 'm-mummy', member_name: 'Mummy', blood_group: 'O+', condition: 'Thyroid', medicine_name: 'Thyronorm 50mcg', medicine_time: 'Khali pet subah (7:00 AM)', notes: 'Har 3 mahine me TSH test karwayein' },
-  { id: 'med-3', family_id: 'fam-1', member_id: 'm-rohan', member_name: 'Rohan', blood_group: 'B+', condition: 'Dust Allergy', medicine_name: 'Levocetirizine', medicine_time: 'Jab zaroorat ho (Raat me)', notes: 'Inhaler / Anti-dust mask' },
-  { id: 'med-4', family_id: 'fam-1', member_id: 'm-priya', member_name: 'Priya', blood_group: 'A+', condition: 'None', medicine_name: 'Vitamin D3 & Calcium', medicine_time: 'Hafte me 1 baar (Sunday)', notes: 'General wellness' },
-];
+export const INITIAL_TRANSACTIONS: Transaction[] = [];
+export const INITIAL_ASSETS: Asset[] = [];
+export const INITIAL_GOALS: Goal[] = [];
+export const INITIAL_REMINDERS: Reminder[] = [];
+export const INITIAL_DOCUMENTS: DocumentItem[] = [];
+export const INITIAL_MEDICAL: MedicalRecord[] = [];
 
 interface FamilyContextType {
   family: Family;
@@ -104,32 +67,179 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     };
   });
 
-  const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
-  const [goals, setGoals] = useState<Goal[]>(INITIAL_GOALS);
-  const [reminders, setReminders] = useState<Reminder[]>(INITIAL_REMINDERS);
-  const [documents, setDocuments] = useState<DocumentItem[]>(INITIAL_DOCUMENTS);
-  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>(INITIAL_MEDICAL);
+  const [members, setMembers] = useState<Member[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_members');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (e) {}
+      }
+    }
+    return INITIAL_MEMBERS;
+  });
+
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_transactions');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            // Filter out old dummy transactions (t-1 to t-6)
+            return parsed.filter(t => !['t-1', 't-2', 't-3', 't-4', 't-5', 't-6'].includes(t.id));
+          }
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const [assets, setAssets] = useState<Asset[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_assets');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter(a => !['a-1', 'a-2', 'a-3', 'a-4'].includes(a.id));
+          }
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const [goals, setGoals] = useState<Goal[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_goals');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter(g => !['g-1', 'g-2'].includes(g.id));
+          }
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const [reminders, setReminders] = useState<Reminder[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_reminders');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter(r => !['r-1', 'r-2', 'r-3'].includes(r.id));
+          }
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const [documents, setDocuments] = useState<DocumentItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_documents');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter(d => !['d-1', 'd-2', 'd-3', 'd-4'].includes(d.id));
+          }
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_medical_records');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter(m => !['med-1', 'med-2', 'med-3', 'med-4'].includes(m.id));
+          }
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
+
   const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
 
   // Quick Add modal state
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'expense' | 'income' | 'udhar'>('expense');
 
-  // Load from localStorage on client side
+  // Automatic one-time cleanup of legacy demo/dummy data across all modules
   useEffect(() => {
     try {
-      const savedTx = localStorage.getItem('fwa_transactions');
-      if (savedTx) setTransactions(JSON.parse(savedTx));
-      const savedAssets = localStorage.getItem('fwa_assets');
-      if (savedAssets) setAssets(JSON.parse(savedAssets));
-      const savedGoals = localStorage.getItem('fwa_goals');
-      if (savedGoals) setGoals(JSON.parse(savedGoals));
-      const savedDocs = localStorage.getItem('fwa_documents');
-      if (savedDocs) setDocuments(JSON.parse(savedDocs));
+      const isPurged = localStorage.getItem('fwa_dummy_purged_v3');
+      if (!isPurged) {
+        const cleanKey = (key: string, dummyIds: string[]) => {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            try {
+              const list = JSON.parse(raw);
+              if (Array.isArray(list)) {
+                const cleaned = list.filter((item: any) => !dummyIds.includes(item?.id));
+                localStorage.setItem(key, JSON.stringify(cleaned));
+              }
+            } catch (e) {}
+          }
+        };
+
+        cleanKey('fwa_members', ['m-1', 'm-2', 'm-3', 'm-4']);
+        cleanKey('fwa_transactions', ['t-1', 't-2', 't-3', 't-4', 't-5', 't-6']);
+        cleanKey('fwa_assets', ['a-1', 'a-2', 'a-3', 'a-4']);
+        cleanKey('fwa_goals', ['g-1', 'g-2']);
+        cleanKey('fwa_reminders', ['r-1', 'r-2', 'r-3']);
+        cleanKey('fwa_documents', ['d-1', 'd-2', 'd-3', 'd-4']);
+        cleanKey('fwa_medical_records', ['med-1', 'med-2', 'med-3', 'med-4']);
+        cleanKey('fwa_bank_loans_v1', ['loan-1', 'loan-2']);
+        cleanKey('fwa_investments_v1', ['inv-1', 'inv-2', 'inv-3', 'inv-4']);
+        cleanKey('fwa_garage_vehicles_v1', ['veh-1', 'veh-2']);
+        cleanKey('fwa_biz_firms_v1', ['firm-1', 'firm-2']);
+        cleanKey('fwa_court_cases_v1', ['case-1']);
+        cleanKey('fwa_family_hisab_v1', ['mle-1', 'mle-2', 'mle-3']);
+        cleanKey('fwa_hospital_episodes_v1', ['ep-1']);
+        cleanKey('fwa_trips_v1', ['trip-1']);
+        cleanKey('fwa_staff_v1', ['st-1', 'st-2']);
+        cleanKey('fwa_agri_v1', ['land-1', 'land-2']);
+        cleanKey('fwa_gold_loans_v2', ['g-1', 'g-2']);
+        cleanKey('fwa_kitchen_records_v2', ['k-1']);
+        cleanKey('fwa_tiffin_customers_v2', ['tif-1', 'tif-2', 'tif-3']);
+        cleanKey('fwa_petrol_shifts_v1', ['pmp-1']);
+        cleanKey('fwa_hostel_tenants_v1', ['ten-1', 'ten-2', 'ten-3']);
+        cleanKey('fwa_crm_leads_v1', ['ld-1', 'ld-2']);
+        cleanKey('fwa_transport_vehicles_v2', ['v-1', 'v-2', 'v-3']);
+        cleanKey('fwa_transport_trips_v2', ['t-1', 't-2', 't-3', 'trip-1']);
+        cleanKey('fwa_udhar_b2b_retail_v6', ['u-1', 'u-2', 'u-3', 'u-4', 'u-5']);
+        cleanKey('fwa_const_stages', ['c-1', 'c-2', 'c-3']);
+        cleanKey('fwa_const_materials', ['mat-1', 'mat-2', 'mat-3', 'm-1', 'm-2']);
+        cleanKey('fwa_const_labour', ['lab-1', 'l-1']);
+        cleanKey('fwa_retail_khata_v1', ['s-1', 's-2']);
+        cleanKey('fwa_events_shagun_v1', ['sh-1', 'sh-2']);
+
+        // Remove dummy project if matches proj-1
+        const setup = localStorage.getItem('fwa_biz_setup_v1');
+        if (setup) {
+          try {
+            const p = JSON.parse(setup);
+            if (p?.id === 'proj-1') localStorage.removeItem('fwa_biz_setup_v1');
+          } catch (e) {}
+        }
+
+        localStorage.setItem('fwa_dummy_purged_v3', 'true');
+      }
     } catch (e) {
-      console.warn('LocalStorage load warning', e);
+      console.warn('Cleanup error:', e);
     }
   }, []);
 
@@ -164,7 +274,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const addReminder = (r: Omit<Reminder, 'id' | 'family_id'>) => {
     const newR: Reminder = { ...r, id: 'r-' + Date.now(), family_id: family.id };
-    setReminders([...reminders, newR]);
+    const updated = [...reminders, newR];
+    setReminders(updated);
+    try { localStorage.setItem('fwa_reminders', JSON.stringify(updated)); } catch (e) {}
   };
 
   const addAsset = (a: Omit<Asset, 'id' | 'family_id'>) => {
@@ -176,7 +288,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const addMember = (m: Omit<Member, 'id' | 'family_id'>) => {
     const newM: Member = { ...m, id: 'm-' + Date.now(), family_id: family.id };
-    setMembers([...members, newM]);
+    const updated = [...members, newM];
+    setMembers(updated);
+    try { localStorage.setItem('fwa_members', JSON.stringify(updated)); } catch (e) {}
   };
 
   const addDocument = (d: Omit<DocumentItem, 'id' | 'family_id'>) => {

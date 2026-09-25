@@ -26,48 +26,19 @@ interface BusinessFirm {
   drawingsHistory: FirmDrawing[];
 }
 
-const DEFAULT_FIRMS: BusinessFirm[] = [
-  {
-    id: 'firm-1',
-    firmName: 'शर्मा रोडवेज & लॉजिस्टिक्स (Proprietorship)',
-    entityType: 'Proprietorship',
-    gstin: '09AAACS1234F1Z5',
-    pan: 'AAACS1234F',
-    bankAccount: 'HDFC Current A/c - 50200012345678',
-    totalRevenueThisYear: 3200000,
-    totalExpensesThisYear: 1850000,
-    currentBankBalance: 750000,
-    drawingsHistory: [
-      {
-        id: 'dr-1',
-        amount: 150000,
-        type: 'profit_dividend',
-        targetMember: 'पापा',
-        date: '2026-08-31',
-        note: 'अगस्त माह का मुनाफ़ा फैमिली फंड में ट्रांसफर'
-      }
-    ]
-  },
-  {
-    id: 'firm-2',
-    firmName: 'श्री राम एग्रो ट्रेडिंग & फार्म्स',
-    entityType: 'Partnership',
-    gstin: '09AABFS8912P1ZV',
-    pan: 'AABFS8912P',
-    bankAccount: 'SBI Current A/c - 30891234567',
-    totalRevenueThisYear: 1400000,
-    totalExpensesThisYear: 900000,
-    currentBankBalance: 380000,
-    drawingsHistory: []
-  }
-];
+const DEFAULT_FIRMS: BusinessFirm[] = [];
 
 export function BusinessFirmsModule() {
   const [firms, setFirms] = useState<BusinessFirm[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_biz_firms_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((f: any) => !['firm-1', 'firm-2'].includes(f?.id));
+          }
+        } catch (e) {}
       }
     }
     return DEFAULT_FIRMS;
@@ -191,6 +162,24 @@ export function BusinessFirmsModule() {
           ))}
         </div>
       </div>
+
+      {firms.length === 0 && (
+        <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center shadow-sm space-y-3">
+          <div className="w-12 h-12 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+            <Building2 size={24} />
+          </div>
+          <h3 className="text-sm font-bold text-ink">कोई फर्म दर्ज नहीं है</h3>
+          <p className="text-xs text-ink-muted max-w-xs mx-auto">
+            अपनी प्रोपराइटरशिप या पार्टनरशिप फर्म जोड़ें ताकि व्यापारिक मुनाफ़ा और फैमिली ट्रांसफर ट्रैक हो सके।
+          </p>
+          <button
+            onClick={() => setIsAddFirmOpen(true)}
+            className="mt-2 px-4 py-2 bg-gold text-navy text-xs font-bold rounded-xl inline-flex items-center gap-1 hover:bg-gold-light"
+          >
+            <Plus size={15} /> नई फर्म जोड़ें
+          </button>
+        </div>
+      )}
 
       {activeFirm && (
         <div className="space-y-3">

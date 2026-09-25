@@ -16,41 +16,19 @@ interface AgriLand {
   sales: { id: string; cropName: string; quintals: number; ratePerQuintal: number; govtBonus: number; totalAmount: number; date: string }[];
 }
 
-const DEFAULT_AGRI: AgriLand[] = [
-  {
-    id: 'land-1',
-    name: 'नहर वाला खेत (12 बीघा)',
-    areaAcres: 5,
-    mode: 'self',
-    currentCrop: 'गेहूं (Wheat)',
-    expenses: [
-      { id: 'e1', title: 'डीजल ट्रैक्टर जुताई', amount: 8500, category: 'डीजल', date: '2026-08-15' },
-      { id: 'e2', title: 'यूरिया व DAP खाद', amount: 6200, category: 'खाद', date: '2026-08-20' },
-      { id: 'e3', title: 'उन्नत बीज', amount: 4500, category: 'बीज', date: '2026-08-25' }
-    ],
-    sales: [
-      { id: 's1', cropName: 'गेहूं मंडी बिक्री', quintals: 80, ratePerQuintal: 2275, govtBonus: 12000, totalAmount: 194000, date: '2026-05-10' }
-    ]
-  },
-  {
-    id: 'land-2',
-    name: 'सड़क किनारे वाला 4 एकड़ खेत',
-    areaAcres: 4,
-    mode: 'theka',
-    thekaAmountPerYear: 160000,
-    thekedaarName: 'बलबीर सिंह',
-    currentCrop: 'धान / सरसो',
-    expenses: [],
-    sales: []
-  }
-];
+const DEFAULT_AGRI: AgriLand[] = [];
 
 export function AgricultureModule() {
   const [lands, setLands] = useState<AgriLand[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_agri_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) { }
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((l: any) => !['land-1', 'land-2'].includes(l?.id));
+          }
+        } catch (e) { }
       }
     }
     return DEFAULT_AGRI;
@@ -216,6 +194,24 @@ export function AgricultureModule() {
           </button>
         ))}
       </div>
+
+      {lands.length === 0 && (
+        <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center shadow-sm space-y-3">
+          <div className="w-12 h-12 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+            <Sprout size={24} />
+          </div>
+          <h3 className="text-sm font-bold text-ink">कोई कृषि भूमि दर्ज नहीं है</h3>
+          <p className="text-xs text-ink-muted max-w-xs mx-auto">
+            अपने खेत, ठेका/बटाई, खाद-बीज के ख़र्चे और मंडी की फसल बिक्री ट्रैक करने के लिए खेत जोड़ें।
+          </p>
+          <button
+            onClick={() => setIsAddLandOpen(true)}
+            className="mt-2 px-4 py-2 bg-gold text-navy text-xs font-bold rounded-xl inline-flex items-center gap-1 hover:bg-gold-light"
+          >
+            <Plus size={15} /> नया खेत जोड़ें
+          </button>
+        </div>
+      )}
 
       {activeLand && (
         <div className="space-y-3">

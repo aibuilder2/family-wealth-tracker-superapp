@@ -14,33 +14,19 @@ interface StaffMember {
   attendance: { [day: number]: 'P' | 'A' | 'H' }; // Day 1 to 31: Present, Absent, Half-day
 }
 
-const DEFAULT_STAFF: StaffMember[] = [
-  {
-    id: 'st-1',
-    name: 'सुनीता दीदी (कामवाली बाई)',
-    role: 'maid',
-    monthlySalary: 4500,
-    advanceTaken: 1000,
-    phone: '9893012345',
-    attendance: { 1: 'P', 2: 'P', 3: 'P', 4: 'A', 5: 'P', 6: 'P', 7: 'P', 8: 'H', 9: 'P', 10: 'P' }
-  },
-  {
-    id: 'st-2',
-    name: 'रामू काका (ड्राइवर)',
-    role: 'driver',
-    monthlySalary: 14000,
-    advanceTaken: 2500,
-    phone: '9826198765',
-    attendance: { 1: 'P', 2: 'P', 3: 'P', 4: 'P', 5: 'P', 6: 'P', 7: 'P', 8: 'P', 9: 'P', 10: 'P' }
-  }
-];
+const DEFAULT_STAFF: StaffMember[] = [];
 
 export function HouseholdStaffModule() {
   const [staffList, setStaffList] = useState<StaffMember[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_staff_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) { }
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((s: any) => !['st-1', 'st-2'].includes(s?.id));
+          }
+        } catch (e) { }
       }
     }
     return DEFAULT_STAFF;
@@ -151,7 +137,24 @@ export function HouseholdStaffModule() {
 
       {/* Staff List */}
       <div className="space-y-3">
-        {staffList.map(st => {
+        {staffList.length === 0 ? (
+          <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center shadow-sm space-y-3">
+            <div className="w-12 h-12 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+              <Users size={24} />
+            </div>
+            <h3 className="text-sm font-bold text-ink">कोई घरेलू स्टाफ दर्ज नहीं है</h3>
+            <p className="text-xs text-ink-muted max-w-xs mx-auto">
+              घर की बाई, ड्राइवर, कुक या माली की हाजिरी, सैलरी और एडवांस हिसाब रखने के लिए स्टाफ जोड़ें।
+            </p>
+            <button
+              onClick={() => setIsAddOpen(true)}
+              className="mt-2 px-4 py-2 bg-gold text-navy text-xs font-bold rounded-xl inline-flex items-center gap-1 hover:bg-gold-light"
+            >
+              <Plus size={15} /> नया स्टाफ जोड़ें
+            </button>
+          </div>
+        ) : (
+          staffList.map(st => {
           const presentDays = Object.values(st.attendance).filter(v => v === 'P').length;
           const halfDays = Object.values(st.attendance).filter(v => v === 'H').length;
           const absentDays = Object.values(st.attendance).filter(v => v === 'A').length;
@@ -230,7 +233,7 @@ export function HouseholdStaffModule() {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* Add Staff Modal */}

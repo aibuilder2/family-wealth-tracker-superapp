@@ -133,200 +133,7 @@ export interface UdharContact {
   settlements: UdharSettlement[];
 }
 
-const DEFAULT_UDHAR_CONTACTS: UdharContact[] = [
-  {
-    id: 'u-1',
-    our_business_name: 'शर्मा ट्रेडर्स & सप्लायर्स',
-    our_business_gstin: '09AAACS1234F1Z5',
-    linked_member_name: 'पापा',
-    person_name: 'रमेश किराना स्टोर',
-    father_name: 'श्री रामस्वरूप जी',
-    address: 'दुकान नं 14, सदर बाजार, लखनऊ',
-    phone: '9876543210',
-    party_gstin: '09BBTPS4580K1Z2',
-    party_pan: 'BBTPS4580K',
-    photo_urls: ['https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'],
-    type: 'given',
-    original_amount: 45000,
-    remaining_balance: 15000,
-    credit_limit: 50000,
-    payment_mode: 'cash',
-    tenure_days: 30,
-    start_date: '2026-08-15',
-    due_date: '2026-09-15',
-    promised_return_date: '2026-09-15',
-    sync_to_family_wealth: false,
-    delivery_type: 'hand_to_hand',
-    pipeline_stage: 'confirmed',
-    promised_tenure_days: 30,
-    delivery_feedback: 'all_ok',
-    otp_code: '849201',
-    is_otp_verified: true,
-    notes: 'किराना होलसेल माल उधार दिया था (30 दिन की उधारी शर्त)',
-    status: 'active',
-    settlements: [
-      {
-        id: 's-1',
-        amount: 20000,
-        mode: 'cash_online',
-        date: '2026-08-25',
-        note: 'UPI द्वारा आंशिक बैंक ट्रांसफर'
-      },
-      {
-        id: 's-2',
-        amount: 10000,
-        mode: 'samaan_goods',
-        date: '2026-09-02',
-        note: '5 बोरी उत्तम बासमती चावल देकर हिसाब काटा'
-      }
-    ]
-  },
-  {
-    id: 'u-2',
-    our_business_name: 'आर.के. हार्डवेयर मार्ट',
-    our_business_gstin: '09AAACS1234F1Z5',
-    linked_member_name: 'रोहन',
-    person_name: 'सुनील हार्डवेयर सप्लायर्स',
-    father_name: '',
-    address: 'वार्ड 4, इंडस्ट्रियल एरिया',
-    phone: '9811223344',
-    party_gstin: '09CCWPS9911L1Z8',
-    party_pan: 'CCWPS9911L',
-    photo_urls: ['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'],
-    type: 'taken',
-    original_amount: 22000,
-    remaining_balance: 22000,
-    credit_limit: 30000,
-    payment_mode: 'cheque',
-    tenure_days: 45,
-    start_date: '2026-08-10',
-    due_date: '2026-09-25',
-    promised_return_date: '2026-09-25',
-    sync_to_family_wealth: false,
-    delivery_type: 'transport',
-    pipeline_stage: 'in_transit',
-    promised_tenure_days: 45,
-    bilty_number: 'BL-84920',
-    transport_name: 'VRL लॉजिस्टिक्स',
-    dispatch_date: '2026-08-11',
-    expected_arrival_date: '2026-08-14',
-    dispatch_otp: '517392',
-    is_dispatch_otp_verified: true,
-    delivery_otp: '930182',
-    otp_code: '517392',
-    is_otp_verified: false,
-    notes: 'प्लंबिंग व PVC पाइप का बिल (ट्रांसपोर्ट द्वारा डिस्पैच)',
-    status: 'active',
-    settlements: []
-  },
-  {
-    id: 'u-3',
-    our_business_name: 'शर्मा एग्रो वर्क्स',
-    linked_member_name: 'पापा',
-    person_name: 'बलबीर ट्रैक्टर रिपेयर',
-    father_name: 'श्री हरनाम सिंह',
-    address: 'ग्राम रामपुर',
-    phone: '9826019283',
-    type: 'given',
-    original_amount: 12000,
-    remaining_balance: 0,
-    payment_mode: 'cash',
-    tenure_days: 60,
-    start_date: '2026-05-10',
-    due_date: '2026-07-10',
-    promised_return_date: '2026-07-10',
-    sync_to_family_wealth: false,
-    delivery_type: 'hand_to_hand',
-    pipeline_stage: 'settled',
-    promised_tenure_days: 60,
-    actual_settled_days: 58,
-    actual_settled_date: '2026-07-08',
-    delivery_feedback: 'all_ok',
-    otp_code: '639104',
-    is_otp_verified: true,
-    status: 'settled',
-    settlements: [
-      {
-        id: 's-3',
-        amount: 12000,
-        mode: 'kaam_service',
-        date: '2026-07-08',
-        note: 'खेत की 3 बार जुताई व बुवाई का काम करके पूरा हिसाब चुकता किया'
-      }
-    ]
-  },
-  {
-    id: 'u-4',
-    our_business_name: 'शर्मा ट्रेडर्स & सप्लायर्स',
-    our_business_gstin: '09AAACS1234F1Z5',
-    linked_member_name: 'पापा',
-    person_name: 'गुप्ता बिल्डिंग मैटेरियल्स',
-    father_name: 'श्री राधेश्याम गुप्ता',
-    address: 'बायपास रोड, उन्नाव',
-    phone: '9839012345',
-    party_gstin: '09AABCG7890M1Z3',
-    type: 'given',
-    original_amount: 85000,
-    remaining_balance: 85000,
-    credit_limit: 100000,
-    payment_mode: 'bank_transfer',
-    tenure_days: 30,
-    start_date: '2026-09-20',
-    due_date: '2026-10-20',
-    promised_return_date: '2026-10-20',
-    sync_to_family_wealth: false,
-    delivery_type: 'transport',
-    pipeline_stage: 'quotation',
-    estimated_amount: 85000,
-    material_description: '150 बैग अल्ट्राटेक सीमेंट व 2 ट्रॉली मौरंग',
-    quotation_date: '2026-09-20',
-    promised_tenure_days: 30,
-    dispatch_otp: '394812',
-    otp_code: '394812',
-    is_otp_verified: false,
-    notes: 'प्रारंभिक कोटेशन (ऑटो व कार्टेज खर्चा माल डिस्पैच पर जुड़ेगा)',
-    status: 'active',
-    settlements: []
-  },
-  {
-    id: 'u-5',
-    our_business_name: 'शर्मा ट्रेडर्स & सप्लायर्स',
-    linked_member_name: 'रोहन',
-    person_name: 'वर्मा इलेक्ट्रिकल्स',
-    address: 'मेन मार्केट, कानपुर',
-    phone: '9792001122',
-    type: 'given',
-    original_amount: 30000,
-    remaining_balance: 0,
-    payment_mode: 'upi',
-    tenure_days: 30,
-    start_date: '2026-07-01',
-    due_date: '2026-07-31',
-    promised_return_date: '2026-07-31',
-    sync_to_family_wealth: false,
-    delivery_type: 'transport',
-    pipeline_stage: 'settled',
-    promised_tenure_days: 30,
-    actual_settled_days: 42,
-    actual_settled_date: '2026-08-12',
-    bilty_number: 'BL-71201',
-    transport_name: 'न्यू इंडिया कार्गो',
-    delivery_feedback: 'all_ok',
-    otp_code: '419082',
-    is_otp_verified: true,
-    notes: 'केबल व स्विच गियर (12 दिन विलंब से चुकता हुआ)',
-    status: 'settled',
-    settlements: [
-      {
-        id: 's-5',
-        amount: 30000,
-        mode: 'cash_online',
-        date: '2026-08-12',
-        note: 'विलंब के बाद NEFT से पूरा भुगतान प्राप्त'
-      }
-    ]
-  }
-];
+const DEFAULT_UDHAR_CONTACTS: UdharContact[] = [];
 
 export interface UdharLedgerModuleProps {
   initialView?: 'ledger' | 'mandates';
@@ -349,11 +156,13 @@ export function UdharLedgerModule({ initialView = 'ledger' }: UdharLedgerModuleP
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed)) {
+            return parsed.filter((c: any) => !['u-1', 'u-2', 'u-3', 'u-4', 'u-5'].includes(c?.id));
+          }
         } catch (e) {}
       }
     }
-    return []; // Clean empty slate by default for real user accounts!
+    return DEFAULT_UDHAR_CONTACTS;
   });
 
   const [filter, setFilter] = useState<'all' | 'given' | 'taken' | 'settled' | 'mandates'>('all');

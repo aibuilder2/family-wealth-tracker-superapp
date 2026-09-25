@@ -32,62 +32,19 @@ export interface GoldLoanRecord {
   status: 'ACTIVE' | 'RELEASED' | 'FORFEITED'; // Forfeited = doob gaya / zabt
 }
 
-const DEFAULT_GOLD_LOANS: GoldLoanRecord[] = [
-  {
-    id: 'g-1',
-    customerName: 'सुरेश गुर्जर',
-    fatherName: 'श्री रामचरण गुर्जर',
-    phone: '9829012345',
-    address: 'ग्राम रामपुर, तहसील सदर',
-    metalType: 'gold',
-    purity: '22K',
-    itemDescription: 'सोने की चेन (1 हॉलमार्क) व अंगूठी',
-    grossWeightGrams: 30.5,
-    netWeightGrams: 28.5,
-    estimatedMarketValue: 195000,
-    principalAmount: 110000,
-    monthlyInterestPct: 1.5,
-    interestType: 'monthly',
-    startDate: '2026-06-15',
-    dueDate: '2026-12-15',
-    tenurePreset: '6_months',
-    forfeitureClause: 'तय तारीख 15/12/2026 तक संपूर्ण मूलधन व ब्याज चुकता न करने पर गिरवी रखी सोने की चैन व अंगूठी पूर्णतः ज़ब्त/डूब मानी जाएगी और दुकान/फर्म का उस पर पूर्ण मालिकाना हक होगा।',
-    customLegalTerms: 'ऋणी ने गिरवी आभूषण की शुद्धता स्वयं परखी है और किसी भी वाद की स्थिति में स्थानीय न्याय क्षेत्र मान्य होगा।',
-    otpCode: '742918',
-    isOtpVerified: true,
-    status: 'ACTIVE'
-  },
-  {
-    id: 'g-2',
-    customerName: 'दिनेश वर्मा',
-    fatherName: 'श्री मूलचंद वर्मा',
-    phone: '9826114455',
-    address: 'वार्ड 8, मेन मार्केट',
-    metalType: 'silver',
-    purity: '925_silver',
-    itemDescription: 'चाँदी की भारी पायल (जोड़ी)',
-    grossWeightGrams: 260,
-    netWeightGrams: 250,
-    estimatedMarketValue: 24000,
-    principalAmount: 15000,
-    monthlyInterestPct: 2,
-    interestType: 'monthly',
-    startDate: '2026-08-01',
-    dueDate: '2026-11-01',
-    tenurePreset: '3_months',
-    forfeitureClause: 'तय तारीख 01/11/2026 तक ब्याज व मूलधन न मिलने पर चाँदी की पायल ज़ब्त मानी जाएगी।',
-    otpCode: '319804',
-    isOtpVerified: false,
-    status: 'ACTIVE'
-  }
-];
+const DEFAULT_GOLD_LOANS: GoldLoanRecord[] = [];
 
 export default function JewelleryLoanModule() {
   const [loans, setLoans] = useState<GoldLoanRecord[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_gold_loans_v2');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((l: any) => !['g-1', 'g-2'].includes(l?.id));
+          }
+        } catch (e) {}
       }
     }
     return DEFAULT_GOLD_LOANS;
@@ -273,8 +230,25 @@ export default function JewelleryLoanModule() {
 
       {/* Loans List */}
       <div className="space-y-3">
-        {loans.map(l => {
-          const isOverdue = new Date() > new Date(l.dueDate) && l.status === 'ACTIVE';
+        {loans.length === 0 ? (
+          <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center shadow-sm space-y-3">
+            <div className="w-12 h-12 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+              <Gem size={24} />
+            </div>
+            <h3 className="text-sm font-bold text-ink">कोई गिरवी लोन दर्ज नहीं है</h3>
+            <p className="text-xs text-ink-muted max-w-xs mx-auto">
+              सोना-चाँदी गिरवी रखकर दिया गया कर्ज़, मासिक ब्याज दर (सैकड़ा) और ज़ब्ती शर्तें ट्रैक करने के लिए लोन जोड़ें।
+            </p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="mt-2 px-4 py-2 bg-gold text-navy text-xs font-bold rounded-xl inline-flex items-center gap-1 hover:bg-gold-light"
+            >
+              <Plus size={15} /> नया गिरवी लोन जोड़ें
+            </button>
+          </div>
+        ) : (
+          loans.map(l => {
+            const isOverdue = new Date() > new Date(l.dueDate) && l.status === 'ACTIVE';
 
           return (
             <div key={l.id} className="bg-paper border border-paper-dim rounded-2xl p-4 shadow-sm space-y-3">
@@ -373,7 +347,7 @@ export default function JewelleryLoanModule() {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* Add Gold Loan Modal */}

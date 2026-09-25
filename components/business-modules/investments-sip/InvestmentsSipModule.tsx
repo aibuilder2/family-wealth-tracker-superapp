@@ -18,60 +18,20 @@ interface InvestmentRecord {
   member: string; // Papa, Rohan, Mummy, Priya
 }
 
-const DEFAULT_INVESTMENTS: InvestmentRecord[] = [
-  {
-    id: 'inv-1',
-    title: 'Nifty 50 Index Fund',
-    type: 'sip',
-    institution: 'HDFC Mutual Fund',
-    investedAmount: 240000,
-    currentValue: 312000,
-    monthlySipAmount: 10000,
-    sipDate: 5,
-    member: 'रोहन'
-  },
-  {
-    id: 'inv-2',
-    title: 'Parag Parikh Flexi Cap',
-    type: 'sip',
-    institution: 'PPFAS',
-    investedAmount: 180000,
-    currentValue: 245000,
-    monthlySipAmount: 7500,
-    sipDate: 10,
-    member: 'पापा'
-  },
-  {
-    id: 'inv-3',
-    title: 'SBI 3-Year Fixed Deposit',
-    type: 'fd',
-    institution: 'State Bank of India',
-    investedAmount: 500000,
-    currentValue: 585000,
-    interestRate: 7.1,
-    maturityDate: '2027-03-15',
-    member: 'मम्मी'
-  },
-  {
-    id: 'inv-4',
-    title: 'Bluechip Stock Portfolio',
-    type: 'stock',
-    institution: 'Zerodha Kite',
-    investedAmount: 350000,
-    currentValue: 460000,
-    member: 'रोहन'
-  }
-];
+const DEFAULT_INVESTMENTS: InvestmentRecord[] = [];
 
 export function InvestmentsSipModule() {
   const [investments, setInvestments] = useState<InvestmentRecord[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_investments_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) { }
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed.filter(i => !['inv-1', 'inv-2', 'inv-3', 'inv-4'].includes(i.id));
+        } catch (e) { }
       }
     }
-    return DEFAULT_INVESTMENTS;
+    return [];
   });
 
   const [filterType, setFilterType] = useState<string>('all');

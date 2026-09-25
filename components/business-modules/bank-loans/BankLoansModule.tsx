@@ -20,52 +20,20 @@ interface LoanRecord {
   notes?: string;
 }
 
-const DEFAULT_LOANS: LoanRecord[] = [
-  {
-    id: 'loan-1',
-    name: 'Ghar Ka Home Loan',
-    bank: 'SBI Home Finance',
-    type: 'home',
-    principal: 4500000,
-    remainingAmount: 3450000,
-    interestRate: 8.4,
-    tenureMonths: 180,
-    monthlyEmi: 44050,
-    emiDueDay: 10,
-    memberSplits: [
-      { member: 'पापा', percentage: 60, amount: 26430 },
-      { member: 'रोहन', percentage: 40, amount: 17620 },
-    ],
-    startDate: '2023-01-10',
-    notes: 'Joint home loan with Papa & Rohan'
-  },
-  {
-    id: 'loan-2',
-    name: 'Ertiga Car Loan',
-    bank: 'HDFC Bank',
-    type: 'car',
-    principal: 800000,
-    remainingAmount: 420000,
-    interestRate: 9.1,
-    tenureMonths: 60,
-    monthlyEmi: 16640,
-    emiDueDay: 5,
-    memberSplits: [
-      { member: 'रोहन', percentage: 100, amount: 16640 }
-    ],
-    startDate: '2023-08-05'
-  }
-];
+const DEFAULT_LOANS: LoanRecord[] = [];
 
 export function BankLoansModule() {
   const [loans, setLoans] = useState<LoanRecord[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_bank_loans_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) { }
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed.filter(l => !['loan-1', 'loan-2'].includes(l.id));
+        } catch (e) { }
       }
     }
-    return DEFAULT_LOANS;
+    return [];
   });
 
   const [isAddOpen, setIsAddOpen] = useState(false);

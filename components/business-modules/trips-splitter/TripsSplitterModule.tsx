@@ -28,32 +28,19 @@ interface TripRecord {
   expenses: TripExpense[];
 }
 
-const DEFAULT_TRIPS: TripRecord[] = [
-  {
-    id: 'trip-1',
-    title: 'मनाली & शिमला फैमिली वेकेशन',
-    destination: 'Manali, Himachal Pradesh',
-    startDate: '2026-06-10',
-    endDate: '2026-06-16',
-    members: [
-      { name: 'पापा', advanceContributed: 25000 },
-      { name: 'रोहन', advanceContributed: 20000 },
-      { name: 'अमित भैया', advanceContributed: 20000 }
-    ],
-    expenses: [
-      { id: 'te-1', title: 'इनोवा टैक्सी हायर 5 दिन', category: 'transport', amount: 28000, paidBy: 'रोहन', date: '2026-06-10' },
-      { id: 'te-2', title: 'होटल स्नो वैली रिज़ॉर्ट रूम्स', category: 'hotel', amount: 22500, paidBy: 'पापा', date: '2026-06-11' },
-      { id: 'te-3', title: 'मॉल रोड डिनर & लंच', category: 'food', amount: 6800, paidBy: 'अमित भैया', date: '2026-06-12' }
-    ]
-  }
-];
+const DEFAULT_TRIPS: TripRecord[] = [];
 
 export function TripsSplitterModule() {
   const [trips, setTrips] = useState<TripRecord[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_trips_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((t: any) => t?.id !== 'trip-1');
+          }
+        } catch (e) {}
       }
     }
     return DEFAULT_TRIPS;
@@ -218,6 +205,24 @@ export function TripsSplitterModule() {
           </div>
         )}
       </div>
+
+      {trips.length === 0 && (
+        <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center shadow-sm space-y-3">
+          <div className="w-12 h-12 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+            <Compass size={24} />
+          </div>
+          <h3 className="text-sm font-bold text-ink">कोई ट्रिप दर्ज नहीं है</h3>
+          <p className="text-xs text-ink-muted max-w-xs mx-auto">
+            फैमिली वेकेशन, दोस्तों के साथ टूर, होटल-टैक्सी के बिल और प्रति व्यक्ति हिसाब ट्रैक करने के लिए ट्रिप जोड़ें।
+          </p>
+          <button
+            onClick={() => setIsAddTripOpen(true)}
+            className="mt-2 px-4 py-2 bg-gold text-navy text-xs font-bold rounded-xl inline-flex items-center gap-1 hover:bg-gold-light"
+          >
+            <Plus size={15} /> नई ट्रिप जोड़ें
+          </button>
+        </div>
+      )}
 
       {activeTrip && (
         <div className="space-y-3">

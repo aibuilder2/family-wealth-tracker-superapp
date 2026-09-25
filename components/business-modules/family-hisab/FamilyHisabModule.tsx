@@ -15,45 +15,19 @@ interface MemberLedgerEntry {
   isSettled: boolean;
 }
 
-const DEFAULT_ENTRIES: MemberLedgerEntry[] = [
-  {
-    id: 'mle-1',
-    fromMember: 'रोहन',
-    toMember: 'पापा',
-    amount: 3500,
-    type: 'online_bill',
-    title: 'घर का बिजली बिल ऑनलाइन भरा',
-    date: '2026-09-08',
-    isSettled: false
-  },
-  {
-    id: 'mle-2',
-    fromMember: 'पापा',
-    toMember: 'रोहन',
-    amount: 10000,
-    type: 'cash_transfer',
-    title: 'गाड़ी सर्विस के लिए कैश दिया',
-    date: '2026-09-02',
-    isSettled: false
-  },
-  {
-    id: 'mle-3',
-    fromMember: 'रोहन',
-    toMember: 'मम्मी',
-    amount: 1800,
-    type: 'bought_item',
-    title: 'मम्मी की थायराइड व बीपी की दवाइयां',
-    date: '2026-09-12',
-    isSettled: false
-  }
-];
+const DEFAULT_ENTRIES: MemberLedgerEntry[] = [];
 
 export function FamilyHisabModule() {
   const [entries, setEntries] = useState<MemberLedgerEntry[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_family_hisab_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((e: any) => !['mle-1', 'mle-2', 'mle-3'].includes(e?.id));
+          }
+        } catch (e) {}
       }
     }
     return DEFAULT_ENTRIES;

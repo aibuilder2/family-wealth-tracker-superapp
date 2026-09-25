@@ -27,46 +27,19 @@ interface PersonalVehicle {
   serviceHistory: ServiceLog[];
 }
 
-const DEFAULT_VEHICLES: PersonalVehicle[] = [
-  {
-    id: 'veh-1',
-    type: 'car',
-    brandModel: 'Maruti Suzuki Brezza ZXi',
-    regNumber: 'UP 32 CD 4580',
-    owner: 'पापा',
-    fuelType: 'Petrol',
-    insuranceExpiry: '2026-11-20',
-    pucExpiry: '2026-10-15',
-    serviceDueKm: 30000,
-    currentOdometerKm: 26400,
-    serviceHistory: [
-      { id: 'sl-1', date: '2026-05-10', odometerKm: 20000, cost: 5400, garageName: 'Maruti Arena Service, Gomti Nagar', workDone: '20K Periodic Service + Engine Oil' },
-      { id: 'sl-2', date: '2025-11-04', odometerKm: 10000, cost: 3800, garageName: 'Maruti Authorized Workshop', workDone: '10K Service + Wheel Alignment' }
-    ]
-  },
-  {
-    id: 'veh-2',
-    type: 'bike',
-    brandModel: 'Hero Splendor Plus',
-    regNumber: 'UP 32 BK 7821',
-    owner: 'रोहन',
-    fuelType: 'Petrol',
-    insuranceExpiry: '2027-02-14',
-    pucExpiry: '2026-09-28',
-    serviceDueKm: 15000,
-    currentOdometerKm: 12500,
-    serviceHistory: [
-      { id: 'sl-3', date: '2026-04-18', odometerKm: 10000, cost: 1200, garageName: 'Sharma Auto Garage', workDone: 'Mobil Oil + Brake Shoe change' }
-    ]
-  }
-];
+const DEFAULT_VEHICLES: PersonalVehicle[] = [];
 
 export function VehiclesGarageModule() {
   const [vehicles, setVehicles] = useState<PersonalVehicle[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_garage_vehicles_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((v: any) => !['veh-1', 'veh-2'].includes(v?.id));
+          }
+        } catch (e) {}
       }
     }
     return DEFAULT_VEHICLES;
@@ -194,6 +167,24 @@ export function VehiclesGarageModule() {
           ))}
         </div>
       </div>
+
+      {vehicles.length === 0 && (
+        <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center shadow-sm space-y-3">
+          <div className="w-12 h-12 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+            <Car size={24} />
+          </div>
+          <h3 className="text-sm font-bold text-ink">कोई गाड़ी दर्ज नहीं है</h3>
+          <p className="text-xs text-ink-muted max-w-xs mx-auto">
+            अपनी कार, बाइक या अन्य वाहन जोड़ें ताकि सर्विस रिकॉर्ड्स और इंश्योरेंस एक्सपायरी ट्रैक हो सके।
+          </p>
+          <button
+            onClick={() => setIsAddVehOpen(true)}
+            className="mt-2 px-4 py-2 bg-gold text-navy text-xs font-bold rounded-xl inline-flex items-center gap-1 hover:bg-gold-light"
+          >
+            <Plus size={15} /> नई गाड़ी जोड़ें
+          </button>
+        </div>
+      )}
 
       {activeVeh && (
         <div className="space-y-3">

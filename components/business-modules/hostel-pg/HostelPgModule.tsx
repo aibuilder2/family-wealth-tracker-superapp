@@ -21,44 +21,7 @@ export interface RoomTenant {
   joiningDate: string;
 }
 
-const INITIAL_TENANTS: RoomTenant[] = [
-  {
-    id: 'ten-1',
-    roomNumber: 'रूम 101 (Double Bed)',
-    tenantName: 'रोहित मीणा (Allen Student)',
-    tenantPhone: '9829011445',
-    monthlyRent: 8500,
-    securityDeposit: 8500,
-    dueDayOfMonth: 5,
-    paymentStatus: 'PAID',
-    dueAmount: 0,
-    joiningDate: '2026-07-01',
-  },
-  {
-    id: 'ten-2',
-    roomNumber: 'रूम 102 (Single Bed)',
-    tenantName: 'विकास कुमार',
-    tenantPhone: '9414022334',
-    monthlyRent: 6500,
-    securityDeposit: 6500,
-    dueDayOfMonth: 1,
-    paymentStatus: 'DUE',
-    dueAmount: 6500,
-    joiningDate: '2026-08-15',
-  },
-  {
-    id: 'ten-3',
-    roomNumber: 'दुकान 1 (Ground Floor)',
-    tenantName: 'शर्मा जी स्टेशनरी',
-    tenantPhone: '9828811223',
-    monthlyRent: 12000,
-    securityDeposit: 25000,
-    dueDayOfMonth: 10,
-    paymentStatus: 'PAID',
-    dueAmount: 0,
-    joiningDate: '2026-01-10',
-  }
-];
+const INITIAL_TENANTS: RoomTenant[] = [];
 
 export default function HostelPgModule() {
   const [tenants, setTenants] = useState<RoomTenant[]>(INITIAL_TENANTS);
@@ -74,7 +37,12 @@ export default function HostelPgModule() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('fwa_hostel_tenants_v1');
-      if (saved) setTenants(JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setTenants(parsed.filter((t: any) => !['ten-1', 'ten-2', 'ten-3'].includes(t?.id)));
+        }
+      }
     } catch (e) {}
   }, []);
 
@@ -177,35 +145,50 @@ export default function HostelPgModule() {
 
       {/* Tenants List */}
       <div className="space-y-2.5">
-        {tenants.map(t => (
-          <div key={t.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="font-mono font-bold text-navy bg-navy/10 px-1.5 py-0.5 rounded text-[10px]">
-                  {t.roomNumber}
-                </span>
-                <h4 className="font-bold text-ink">{t.tenantName}</h4>
-              </div>
-              <p className="text-[11px] text-ink-muted">📞 {t.tenantPhone} • शामिल: {t.joiningDate}</p>
-              <div className="text-[10px] text-ink-muted">
-                किराया: <b className="text-ink">₹{t.monthlyRent}/माह</b> • सिक्योरिटी: ₹{t.securityDeposit}
-              </div>
+        {tenants.length === 0 ? (
+          <div className="p-8 bg-paper border border-paper-dim rounded-2xl text-center shadow-sm space-y-2">
+            <div className="w-10 h-10 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+              <Bed size={20} />
             </div>
-
-            <div className="text-right space-y-1">
-              <button
-                onClick={() => toggleRentStatus(t.id)}
-                className={`px-3 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                  t.paymentStatus === 'PAID'
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                    : 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
-                }`}
-              >
-                {t.paymentStatus === 'PAID' ? '✓ किराया जमा' : `बाकी ₹${t.dueAmount}`}
-              </button>
-            </div>
+            <p className="text-xs text-ink-muted">कोई किरायेदार या रूम दर्ज नहीं है।</p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs inline-flex items-center gap-1"
+            >
+              <Plus size={14} /> + नया किरायेदार जोड़ें
+            </button>
           </div>
-        ))}
+        ) : (
+          tenants.map(t => (
+            <div key={t.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-navy bg-navy/10 px-1.5 py-0.5 rounded text-[10px]">
+                    {t.roomNumber}
+                  </span>
+                  <h4 className="font-bold text-ink">{t.tenantName}</h4>
+                </div>
+                <p className="text-[11px] text-ink-muted">📞 {t.tenantPhone} • शामिल: {t.joiningDate}</p>
+                <div className="text-[10px] text-ink-muted">
+                  किराया: <b className="text-ink">₹{t.monthlyRent}/माह</b> • सिक्योरिटी: ₹{t.securityDeposit}
+                </div>
+              </div>
+
+              <div className="text-right space-y-1">
+                <button
+                  onClick={() => toggleRentStatus(t.id)}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                    t.paymentStatus === 'PAID'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
+                  }`}
+                >
+                  {t.paymentStatus === 'PAID' ? '✓ किराया जमा' : `बाकी ₹${t.dueAmount}`}
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* ➕ MODAL */}

@@ -26,31 +26,19 @@ interface CourtCase {
   hearings: HearingRecord[];
 }
 
-const DEFAULT_CASES: CourtCase[] = [
-  {
-    id: 'case-1',
-    title: 'तहसीलदार ज़मीन सीमांकन व मेढ़ विवाद',
-    caseNumber: 'TS-2024/842',
-    courtName: 'एसडीएम कोर्ट, सदर',
-    advocateName: 'एडवोकेट के. के. त्रिवेदी',
-    advocatePhone: '9826011223',
-    totalAgreedFee: 65000,
-    feePaidSoFar: 35000,
-    nextHearingDate: '2026-10-14',
-    status: 'running',
-    hearings: [
-      { id: 'h1', date: '2026-08-10', purpose: 'पटवारी रिपोर्ट तलब', peshiFeePaid: 2000, outcomeNotes: 'पटवारी को मौका मुआयना का आदेश दिया' },
-      { id: 'h2', date: '2026-09-02', purpose: 'विपक्षी हाजिरी व बहस', peshiFeePaid: 2000, outcomeNotes: 'विपक्षी ने जवाब दावा दाखिल करने हेतु समय मांगा' }
-    ]
-  }
-];
+const DEFAULT_CASES: CourtCase[] = [];
 
 export function CourtCasesModule() {
   const [cases, setCases] = useState<CourtCase[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_court_cases_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) { }
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((c: any) => c?.id !== 'case-1');
+          }
+        } catch (e) { }
       }
     }
     return DEFAULT_CASES;
@@ -167,11 +155,28 @@ export function CourtCasesModule() {
 
       {/* Cases List */}
       <div className="space-y-3">
-        {cases.map(cs => {
-          const lawyerBalance = Math.max(0, cs.totalAgreedFee - cs.feePaidSoFar);
+        {cases.length === 0 ? (
+          <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center shadow-sm space-y-3">
+            <div className="w-12 h-12 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+              <Scale size={24} />
+            </div>
+            <h3 className="text-sm font-bold text-ink">कोई कोर्ट केस दर्ज नहीं है</h3>
+            <p className="text-xs text-ink-muted max-w-xs mx-auto">
+              ज़मीन या पारिवारिक कोर्ट केस, अगली पेशी तारीख और वकील फीस ट्रैक करने के लिए केस जोड़ें।
+            </p>
+            <button
+              onClick={() => setIsAddCaseOpen(true)}
+              className="mt-2 px-4 py-2 bg-gold text-navy text-xs font-bold rounded-xl inline-flex items-center gap-1 hover:bg-gold-light"
+            >
+              <Plus size={15} /> नया केस जोड़ें
+            </button>
+          </div>
+        ) : (
+          cases.map(cs => {
+            const lawyerBalance = Math.max(0, cs.totalAgreedFee - cs.feePaidSoFar);
 
-          return (
-            <div key={cs.id} className="bg-paper border border-paper-dim rounded-2xl p-4 shadow-sm space-y-3">
+            return (
+              <div key={cs.id} className="bg-paper border border-paper-dim rounded-2xl p-4 shadow-sm space-y-3">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -243,7 +248,7 @@ export function CourtCasesModule() {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* Add Case Modal */}

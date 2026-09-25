@@ -30,20 +30,7 @@ export interface PetrolPumpShift {
   tankDipDieselLtrs: number;
 }
 
-const INITIAL_SHIFTS: PetrolPumpShift[] = [
-  {
-    id: 'pmp-1',
-    shiftDate: new Date().toISOString().split('T')[0],
-    shiftName: 'DAY',
-    managerName: 'रामनिवास ऑपरेटर',
-    totalCashCollected: 185000,
-    totalOnlineCardPayment: 92000,
-    totalPartyUdharCredit: 64000, // Transporter credit diesel
-    totalShiftRevenue: 341000,
-    tankDipPetrolLtrs: 14200,
-    tankDipDieselLtrs: 22800,
-  }
-];
+const INITIAL_SHIFTS: PetrolPumpShift[] = [];
 
 export default function PetrolPumpModule() {
   const [shifts, setShifts] = useState<PetrolPumpShift[]>(INITIAL_SHIFTS);
@@ -59,7 +46,12 @@ export default function PetrolPumpModule() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('fwa_petrol_shifts_v1');
-      if (saved) setShifts(JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setShifts(parsed.filter((s: any) => s?.id !== 'pmp-1'));
+        }
+      }
     } catch (e) {}
   }, []);
 
@@ -143,28 +135,43 @@ export default function PetrolPumpModule() {
 
       {/* Shifts List */}
       <div className="space-y-2.5">
-        {shifts.map(sh => (
-          <div key={sh.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs space-y-2 text-xs">
-            <div className="flex items-start justify-between">
-              <div>
-                <h4 className="font-bold text-ink">शिफ्ट: {sh.shiftDate} ({sh.shiftName})</h4>
-                <p className="text-[11px] text-ink-muted">मैनेजर: {sh.managerName}</p>
-              </div>
-              <div className="text-right">
-                <Mono className="font-bold text-emerald-700 text-sm block">
-                  ₹{sh.totalShiftRevenue.toLocaleString('en-IN')}
-                </Mono>
-                <span className="text-[9px] text-ink-muted">कुल गल्ला वसूली</span>
-              </div>
+        {shifts.length === 0 ? (
+          <div className="p-8 bg-paper border border-paper-dim rounded-2xl text-center shadow-sm space-y-2">
+            <div className="w-10 h-10 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+              <Fuel size={20} />
             </div>
-
-            <div className="grid grid-cols-3 gap-1 bg-paper-dim/40 rounded-lg p-2 text-[10px]">
-              <span>💵 नकद कैश: <b>₹{sh.totalCashCollected}</b></span>
-              <span>💳 POS/UPI: <b>₹{sh.totalOnlineCardPayment}</b></span>
-              <span>🚛 फ्लीट उधार: <b className="text-rose-700">₹{sh.totalPartyUdharCredit}</b></span>
-            </div>
+            <p className="text-xs text-ink-muted">कोई पेट्रोल पम्प शिफ्ट क्लोजिंग दर्ज नहीं है।</p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs inline-flex items-center gap-1"
+            >
+              <Plus size={14} /> + शिफ्ट क्लोजिंग दर्ज करें
+            </button>
           </div>
-        ))}
+        ) : (
+          shifts.map(sh => (
+            <div key={sh.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs space-y-2 text-xs">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-bold text-ink">शिफ्ट: {sh.shiftDate} ({sh.shiftName})</h4>
+                  <p className="text-[11px] text-ink-muted">मैनेजर: {sh.managerName}</p>
+                </div>
+                <div className="text-right">
+                  <Mono className="font-bold text-emerald-700 text-sm block">
+                    ₹{sh.totalShiftRevenue.toLocaleString('en-IN')}
+                  </Mono>
+                  <span className="text-[9px] text-ink-muted">कुल गल्ला वसूली</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1 bg-paper-dim/40 rounded-lg p-2 text-[10px]">
+                <span>💵 नकद कैश: <b>₹{sh.totalCashCollected}</b></span>
+                <span>💳 POS/UPI: <b>₹{sh.totalOnlineCardPayment}</b></span>
+                <span>🚛 फ्लीट उधार: <b className="text-rose-700">₹{sh.totalPartyUdharCredit}</b></span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* ➕ MODAL */}

@@ -37,79 +37,11 @@ export interface DailyLabourRecord {
   workDone: string;
 }
 
-const INITIAL_STAGES: ConstructionStage[] = [
-  {
-    id: 'c-1',
-    stageName: 'नींव व प्लिंथ वर्क (Foundation & Plinth)',
-    budgetAmount: 450000,
-    spentAmount: 435000,
-    contractorName: 'मुकेश ठेकेदार',
-    contractorPending: 25000,
-    targetFinishDate: '2026-06-30',
-    status: 'COMPLETED',
-  },
-  {
-    id: 'c-2',
-    stageName: 'आरसीसी लेंटर व दीवारें (Structure & Lenter)',
-    budgetAmount: 850000,
-    spentAmount: 620000,
-    contractorName: 'मुकेश ठेकेदार',
-    contractorPending: 75000,
-    targetFinishDate: '2026-10-15',
-    status: 'IN_PROGRESS',
-  },
-  {
-    id: 'c-3',
-    stageName: 'प्लास्टर व फ्लोरिंग (Plaster & Tiles)',
-    budgetAmount: 500000,
-    spentAmount: 80000,
-    contractorName: 'सुरेश टाइल्स कांट्रैक्टर',
-    contractorPending: 0,
-    targetFinishDate: '2026-12-30',
-    status: 'IN_PROGRESS',
-  },
-];
+const INITIAL_STAGES: ConstructionStage[] = [];
 
-const INITIAL_MATERIALS: MaterialOrder[] = [
-  {
-    id: 'mat-1',
-    materialName: 'अल्ट्राटेक सीमेंट (300 कट्टे)',
-    vendorName: 'श्री श्याम बिल्डिंग मैटेरियल',
-    totalAmount: 114000,
-    advancePaid: 60000,
-    balanceDue: 54000,
-    deliveryStatus: 'PARTIAL',
-  },
-  {
-    id: 'mat-2',
-    materialName: 'टाटा टिस्कॉन सरिया (4 टन - 12mm & 10mm)',
-    vendorName: 'अग्रवाल स्टील कॉर्पोरेशन',
-    totalAmount: 264000,
-    advancePaid: 264000,
-    balanceDue: 0,
-    deliveryStatus: 'DELIVERED',
-  },
-  {
-    id: 'mat-3',
-    materialName: 'लाल ईंटें (15,000 ईंट भट्टा)',
-    vendorName: 'महावीर ईंट उद्योग',
-    totalAmount: 90000,
-    advancePaid: 40000,
-    balanceDue: 50000,
-    deliveryStatus: 'ORDERED',
-  },
-];
+const INITIAL_MATERIALS: MaterialOrder[] = [];
 
-const INITIAL_LABOUR: DailyLabourRecord[] = [
-  {
-    id: 'lab-1',
-    date: new Date().toISOString().split('T')[0],
-    masonCount: 3,
-    labourCount: 6,
-    dailyWagesPaid: 6300,
-    workDone: 'पहली मंजिल की बाहरी दीवारों की चिनाई व कॉलम ढलाई',
-  }
-];
+const INITIAL_LABOUR: DailyLabourRecord[] = [];
 
 export default function ConstructionModule() {
   const [stages, setStages] = useState<ConstructionStage[]>(INITIAL_STAGES);
@@ -145,11 +77,26 @@ export default function ConstructionModule() {
   useEffect(() => {
     try {
       const s = localStorage.getItem('fwa_const_stages');
-      if (s) setStages(JSON.parse(s));
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) {
+          setStages(parsed.filter((st: any) => !['c-1', 'c-2', 'c-3'].includes(st?.id)));
+        }
+      }
       const m = localStorage.getItem('fwa_const_materials');
-      if (m) setMaterials(JSON.parse(m));
+      if (m) {
+        const parsed = JSON.parse(m);
+        if (Array.isArray(parsed)) {
+          setMaterials(parsed.filter((mat: any) => !['mat-1', 'mat-2', 'mat-3'].includes(mat?.id)));
+        }
+      }
       const l = localStorage.getItem('fwa_const_labour');
-      if (l) setLabourRecords(JSON.parse(l));
+      if (l) {
+        const parsed = JSON.parse(l);
+        if (Array.isArray(parsed)) {
+          setLabourRecords(parsed.filter((lab: any) => lab?.id !== 'lab-1'));
+        }
+      }
     } catch (e) {}
   }, []);
 
@@ -271,91 +218,109 @@ export default function ConstructionModule() {
       {/* TAB 1: STAGES & CONTRACTOR */}
       {activeSubTab === 'STAGES' && (
         <div className="space-y-2.5">
-          {stages.map(st => {
-            const pct = Math.min(100, Math.round((st.spentAmount / (st.budgetAmount || 1)) * 100));
-            return (
-              <div key={st.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs space-y-2 text-xs">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-bold text-ink text-sm">{st.stageName}</h4>
-                    <p className="text-[11px] text-ink-muted mt-0.5">
-                      ठेकेदार: <b>{st.contractorName}</b> • लक्ष्य तारीख: {st.targetFinishDate}
-                    </p>
+          {stages.length === 0 ? (
+            <div className="p-8 text-center text-ink-muted text-xs bg-paper rounded-xl border border-paper-dim">
+              कोई निर्माण चरण (Stage) दर्ज नहीं है। ऊपर '+ नया चरण / लेंटर जोड़ें' दबाएं।
+            </div>
+          ) : (
+            stages.map(st => {
+              const pct = Math.min(100, Math.round((st.spentAmount / (st.budgetAmount || 1)) * 100));
+              return (
+                <div key={st.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs space-y-2 text-xs">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-bold text-ink text-sm">{st.stageName}</h4>
+                      <p className="text-[11px] text-ink-muted mt-0.5">
+                        ठेकेदार: <b>{st.contractorName}</b> • लक्ष्य तारीख: {st.targetFinishDate}
+                      </p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      st.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {st.status === 'COMPLETED' ? '✓ पूरा हुआ' : 'चल रहा है'}
+                    </span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    st.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {st.status === 'COMPLETED' ? '✓ पूरा हुआ' : 'चल रहा है'}
-                  </span>
-                </div>
 
-                {/* Progress Bar */}
-                <div className="w-full bg-paper-dim rounded-full h-2 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-emerald-600' : 'bg-amber-600'}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
+                  {/* Progress Bar */}
+                  <div className="w-full bg-paper-dim rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-emerald-600' : 'bg-amber-600'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
 
-                <div className="flex justify-between items-center text-[11px] text-ink-muted pt-0.5">
-                  <span>खर्च: <b className="text-ink">₹{st.spentAmount.toLocaleString('en-IN')}</b> / ₹{st.budgetAmount.toLocaleString('en-IN')}</span>
-                  <span>ठेकेदार बकाया: <b className="text-rose-700">₹{st.contractorPending.toLocaleString('en-IN')}</b></span>
+                  <div className="flex justify-between items-center text-[11px] text-ink-muted pt-0.5">
+                    <span>खर्च: <b className="text-ink">₹{st.spentAmount.toLocaleString('en-IN')}</b> / ₹{st.budgetAmount.toLocaleString('en-IN')}</span>
+                    <span>ठेकेदार बकाया: <b className="text-rose-700">₹{st.contractorPending.toLocaleString('en-IN')}</b></span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
 
       {/* TAB 2: MATERIALS & SUPPLIERS */}
       {activeSubTab === 'MATERIALS' && (
         <div className="space-y-2.5">
-          {materials.map(mat => (
-            <div key={mat.id} className="p-3 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs">
-              <div className="space-y-0.5">
-                <h4 className="font-bold text-ink">{mat.materialName}</h4>
-                <p className="text-[11px] text-ink-muted">सप्लायर: <b>{mat.vendorName}</b></p>
-                <div className="text-[10px] text-ink-muted">
-                  एडवांस दिया: ₹{mat.advancePaid.toLocaleString('en-IN')} • कुल: ₹{mat.totalAmount.toLocaleString('en-IN')}
+          {materials.length === 0 ? (
+            <div className="p-8 text-center text-ink-muted text-xs bg-paper rounded-xl border border-paper-dim">
+              कोई सामग्री / सामान ऑर्डर दर्ज नहीं है। ऊपर '+ सामान आर्डर जोड़ें' दबाएं।
+            </div>
+          ) : (
+            materials.map(mat => (
+              <div key={mat.id} className="p-3 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs">
+                <div className="space-y-0.5">
+                  <h4 className="font-bold text-ink">{mat.materialName}</h4>
+                  <p className="text-[11px] text-ink-muted">सप्लायर: <b>{mat.vendorName}</b></p>
+                  <div className="text-[10px] text-ink-muted">
+                    एडवांस दिया: ₹{mat.advancePaid.toLocaleString('en-IN')} • कुल: ₹{mat.totalAmount.toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div className="text-right space-y-1">
+                  <Mono className="font-bold text-sm block text-rose-700">
+                    {mat.balanceDue > 0 ? `बाकी ₹${mat.balanceDue.toLocaleString('en-IN')}` : '✓ पूरा चुकता'}
+                  </Mono>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
+                    mat.deliveryStatus === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {mat.deliveryStatus === 'DELIVERED' ? 'साइट पर पहुंच गया' : 'आना बाकी'}
+                  </span>
                 </div>
               </div>
-              <div className="text-right space-y-1">
-                <Mono className="font-bold text-sm block text-rose-700">
-                  {mat.balanceDue > 0 ? `बाकी ₹${mat.balanceDue.toLocaleString('en-IN')}` : '✓ पूरा चुकता'}
-                </Mono>
-                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
-                  mat.deliveryStatus === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  {mat.deliveryStatus === 'DELIVERED' ? 'साइट पर पहुंच गया' : 'आना बाकी'}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
       {/* TAB 3: DAILY LABOUR WAGES */}
       {activeSubTab === 'LABOUR' && (
         <div className="space-y-2.5">
-          {labourRecords.map(rec => (
-            <div key={rec.id} className="p-3 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-ink">{rec.date}</span>
-                  <span className="text-[10px] bg-paper-dim px-1.5 py-0.2 rounded font-medium">
-                    {rec.masonCount} मिस्त्री + {rec.labourCount} मजदूर
-                  </span>
-                </div>
-                <p className="text-[11px] text-ink-muted">{rec.workDone}</p>
-              </div>
-              <div className="text-right">
-                <Mono className="font-bold text-rose-700 text-sm block">
-                  -₹{rec.dailyWagesPaid.toLocaleString('en-IN')}
-                </Mono>
-                <span className="text-[9px] text-ink-muted">दैनिक नकद भुगतान</span>
-              </div>
+          {labourRecords.length === 0 ? (
+            <div className="p-8 text-center text-ink-muted text-xs bg-paper rounded-xl border border-paper-dim">
+              कोई दैनिक लेबर हाजिरी या दिहाड़ी दर्ज नहीं है। ऊपर '+ दैनिक लेबर खर्च' दबाएं।
             </div>
-          ))}
+          ) : (
+            labourRecords.map(rec => (
+              <div key={rec.id} className="p-3 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-ink">{rec.date}</span>
+                    <span className="text-[10px] bg-paper-dim px-1.5 py-0.2 rounded font-medium">
+                      {rec.masonCount} मिस्त्री + {rec.labourCount} मजदूर
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-ink-muted">{rec.workDone}</p>
+                </div>
+                <div className="text-right">
+                  <Mono className="font-bold text-rose-700 text-sm block">
+                    -₹{rec.dailyWagesPaid.toLocaleString('en-IN')}
+                  </Mono>
+                  <span className="text-[9px] text-ink-muted">दैनिक नकद भुगतान</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 

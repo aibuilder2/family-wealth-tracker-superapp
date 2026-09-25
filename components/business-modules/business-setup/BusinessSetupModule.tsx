@@ -28,62 +28,19 @@ interface SetupProject {
   expenses: SetupExpense[];
 }
 
-const DEFAULT_PROJECT: SetupProject = {
-  id: 'proj-1',
-  name: 'न्यू बेकरी एंड कैफ़े प्रोजेक्ट',
-  type: 'Bakery & Cafe',
-  targetLaunchDate: '2026-11-01',
-  budgetCapEx: 1500000,
-  fundingSources: [
-    { name: 'खुद की बचत (Self Capital)', allocatedAmount: 700000, disbursedAmount: 700000 },
-    { name: 'PMEGP / Mudra Bank Loan', allocatedAmount: 800000, disbursedAmount: 400000 }
-  ],
-  expenses: [
-    {
-      id: 'exp-1',
-      title: 'दुकान का सिक्योरिटी एडवांस (Pagdi/Deposit)',
-      category: 'advance_deposit',
-      amount: 250000,
-      paidBy: 'खुद की बचत',
-      vendorName: 'दुकान मालिक गुप्ता जी',
-      date: '2026-08-10'
-    },
-    {
-      id: 'exp-2',
-      title: 'कमर्शियल ओवन और डीप फ्रीजर',
-      category: 'machinery',
-      amount: 320000,
-      paidBy: 'Mudra Bank Loan',
-      vendorName: 'दिल्ली किचन इक्विपमेंट',
-      date: '2026-08-28'
-    },
-    {
-      id: 'exp-3',
-      title: 'इंटीरियर काउंटर, लकड़ी का रैक और लाइटिंग',
-      category: 'interior',
-      amount: 180000,
-      paidBy: 'Mudra Bank Loan',
-      vendorName: 'कारपेंटर रफ़ीक',
-      date: '2026-09-05'
-    },
-    {
-      id: 'exp-4',
-      title: 'FSSAI फ़ूड लाइसेंस और GST रजिस्ट्रेशन',
-      category: 'licence',
-      amount: 15000,
-      paidBy: 'खुद की बचत',
-      vendorName: 'CA वर्मा जी',
-      date: '2026-09-12'
-    }
-  ]
-};
+const DEFAULT_PROJECT: SetupProject | null = null;
 
 export function BusinessSetupModule() {
-  const [project, setProject] = useState<SetupProject>(() => {
+  const [project, setProject] = useState<SetupProject | null>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_biz_setup_v1');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) { }
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.id !== 'proj-1' && parsed.name) {
+            return parsed;
+          }
+        } catch (e) { }
       }
     }
     return DEFAULT_PROJECT;
@@ -91,7 +48,13 @@ export function BusinessSetupModule() {
 
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
 
-  // Form State
+  // New Project Form State
+  const [newProjName, setNewProjName] = useState('');
+  const [newProjType, setNewProjType] = useState('');
+  const [newProjBudget, setNewProjBudget] = useState<number | ''>('');
+  const [newProjDate, setNewProjDate] = useState('');
+
+  // Form State: Expense
   const [expTitle, setExpTitle] = useState('');
   const [expCategory, setExpCategory] = useState<SetupExpense['category']>('interior');
   const [expAmount, setExpAmount] = useState<number | ''>('');
@@ -100,12 +63,31 @@ export function BusinessSetupModule() {
   const [expDate, setExpDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    localStorage.setItem('fwa_biz_setup_v1', JSON.stringify(project));
+    if (project) {
+      localStorage.setItem('fwa_biz_setup_v1', JSON.stringify(project));
+    }
   }, [project]);
+
+  const handleCreateProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjName || !newProjBudget) return;
+    const newProj: SetupProject = {
+      id: `proj-${Date.now()}`,
+      name: newProjName,
+      type: newProjType || 'Business Setup',
+      targetLaunchDate: newProjDate || new Date().toISOString().split('T')[0],
+      budgetCapEx: Number(newProjBudget),
+      fundingSources: [
+        { name: 'खुद की बचत (Self Capital)', allocatedAmount: Number(newProjBudget), disbursedAmount: 0 }
+      ],
+      expenses: []
+    };
+    setProject(newProj);
+  };
 
   const handleAddExpense = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!expTitle || !expAmount) return;
+    if (!project || !expTitle || !expAmount) return;
 
     const newExp: SetupExpense = {
       id: `exp-${Date.now()}`,
@@ -129,6 +111,7 @@ export function BusinessSetupModule() {
   };
 
   const handleDeleteExpense = (id: string) => {
+    if (!project) return;
     if (confirm('क्या आप इस ख़र्च को हटाना चाहते हैं?')) {
       setProject({
         ...project,
@@ -137,10 +120,92 @@ export function BusinessSetupModule() {
     }
   };
 
+  if (!project) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-navy text-paper p-4 rounded-2xl shadow-sm space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="p-2 bg-gold/20 text-gold rounded-xl">
+              <Briefcase size={20} />
+            </span>
+            <div>
+              <h2 className="text-base font-bold font-serif">Business Setup & CapEx Tracker</h2>
+              <p className="text-[11px] text-paper-dim/80">Day-0 प्री-लॉन्च ख़र्चे, मशीनरी, इंटीरियर व फंडिंग ट्रैकर</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-paper border border-paper-dim rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-full bg-paper-dim/50 flex items-center justify-center mx-auto text-ink-muted">
+              <Briefcase size={24} />
+            </div>
+            <h3 className="text-sm font-bold text-ink">कोई सक्रिय बिज़नेस प्रोजेक्ट नहीं है</h3>
+            <p className="text-xs text-ink-muted max-w-sm mx-auto">
+              नई दुकान, शोरूम, फ़ैक्टरी या कैफ़े का सेटअप बजट और प्री-लॉन्च ख़र्चे ट्रैक करने के लिए प्रोजेक्ट बनाएं।
+            </p>
+          </div>
+
+          <form onSubmit={handleCreateProject} className="space-y-3 max-w-md mx-auto pt-2 text-xs">
+            <div>
+              <label className="block text-ink-muted mb-1">प्रोजेक्ट / व्यापार का नाम</label>
+              <input
+                type="text"
+                placeholder="उदा. न्यू बेकरी या बुटीक शॉप"
+                value={newProjName}
+                onChange={e => setNewProjName(e.target.value)}
+                required
+                className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-semibold"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-ink-muted mb-1">बिज़नेस का प्रकार</label>
+                <input
+                  type="text"
+                  placeholder="उदा. Cafe, Bakery, Retail"
+                  value={newProjType}
+                  onChange={e => setNewProjType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim"
+                />
+              </div>
+              <div>
+                <label className="block text-ink-muted mb-1">कुल CapEx बजट (₹)</label>
+                <input
+                  type="number"
+                  placeholder="उदा. 1000000"
+                  value={newProjBudget}
+                  onChange={e => setNewProjBudget(Number(e.target.value))}
+                  required
+                  className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-bold"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-ink-muted mb-1">टारगेट ओपनिंग / लॉन्च डेट</label>
+              <input
+                type="date"
+                value={newProjDate}
+                onChange={e => setNewProjDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-xl bg-gold text-navy font-bold hover:bg-gold-light mt-2 transition-all shadow-sm"
+            >
+              + नया बिज़नेस प्रोजेक्ट शुरू करें
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   const totalSpent = project.expenses.reduce((sum, e) => sum + e.amount, 0);
   const totalFunding = project.fundingSources.reduce((sum, f) => sum + f.allocatedAmount, 0);
   const budgetRemaining = Math.max(0, project.budgetCapEx - totalSpent);
-  const spentPct = Math.min(100, Math.round((totalSpent / project.budgetCapEx) * 100));
+  const spentPct = project.budgetCapEx > 0 ? Math.min(100, Math.round((totalSpent / project.budgetCapEx) * 100)) : 0;
 
   return (
     <div className="space-y-4">
@@ -210,7 +275,12 @@ export function BusinessSetupModule() {
           प्री-लॉन्च ख़र्चे व बिल ({project.expenses.length})
         </h3>
 
-        {project.expenses.map(exp => (
+        {project.expenses.length === 0 ? (
+          <div className="bg-paper border border-paper-dim rounded-2xl p-6 text-center shadow-sm text-xs text-ink-muted">
+            अभी तक कोई प्री-ऑप ख़र्च दर्ज नहीं किया गया है। ऊपर '+ नया ख़र्च' पर क्लिक करें।
+          </div>
+        ) : (
+          project.expenses.map(exp => (
           <div key={exp.id} className="bg-paper border border-paper-dim rounded-2xl p-4 shadow-sm space-y-2">
             <div className="flex items-start justify-between">
               <div>
@@ -238,7 +308,7 @@ export function BusinessSetupModule() {
               </button>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* Add Expense Modal */}

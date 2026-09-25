@@ -45,91 +45,9 @@ export interface TransportTrip {
   date: string;
 }
 
-const INITIAL_VEHICLES: VehicleMaster[] = [
-  {
-    id: 'v-1',
-    vehicleNumber: 'RJ-20-TA-1008',
-    name: 'Ertiga Taxi (Company Contract)',
-    type: 'TAXI_AUTO',
-    emiAmount: 14500,
-    emiDueDate: '10th',
-    insuranceExpiry: new Date(Date.now() + 45 * 86400000).toISOString().split('T')[0],
-    fitnessExpiry: new Date(Date.now() + 180 * 86400000).toISOString().split('T')[0],
-  },
-  {
-    id: 'v-2',
-    vehicleNumber: 'RJ-20-GA-4581',
-    name: '14-Wheeler Heavy Trailer',
-    type: 'TRUCK_TRAILER',
-    emiAmount: 42000,
-    emiDueDate: '15th',
-    insuranceExpiry: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0], // Alert soon
-    fitnessExpiry: new Date(Date.now() + 120 * 86400000).toISOString().split('T')[0],
-  },
-  {
-    id: 'v-3',
-    vehicleNumber: 'RJ-20-EA-9922',
-    name: 'JCB 3DX Excavator',
-    type: 'JCB_HEAVY',
-    emiAmount: 28000,
-    emiDueDate: '5th',
-    defaultHourlyRate: 1400,
-    insuranceExpiry: new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0],
-  },
-];
+const INITIAL_VEHICLES: VehicleMaster[] = [];
 
-const INITIAL_TRIPS: TransportTrip[] = [
-  {
-    id: 't-1',
-    vehicleId: 'v-2',
-    vehicleNumber: 'RJ-20-GA-4581',
-    type: 'TRUCK_TRAILER',
-    partyName: 'Shree Ram Cement Logistics',
-    routeOrSite: 'Kota ➔ Ahmedabad',
-    billingMode: 'FIXED_FREIGHT',
-    grossEarnings: 52000,
-    dieselExpense: 19500,
-    tollExpense: 3400,
-    driverBhatta: 2500,
-    maintenanceExpense: 800,
-    status: 'RECEIVED',
-    date: new Date().toISOString().split('T')[0],
-  },
-  {
-    id: 't-2',
-    vehicleId: 'v-3',
-    vehicleNumber: 'RJ-20-EA-9922',
-    type: 'JCB_HEAVY',
-    partyName: 'Highway Fourlane Construction',
-    routeOrSite: 'Bypass Flyover Excavation',
-    billingMode: 'HOURLY',
-    hoursWorked: 8.5,
-    hourlyRate: 1400,
-    grossEarnings: 11900,
-    dieselExpense: 4200,
-    tollExpense: 0,
-    driverBhatta: 800,
-    maintenanceExpense: 500,
-    status: 'PENDING',
-    date: new Date().toISOString().split('T')[0],
-  },
-  {
-    id: 't-3',
-    vehicleId: 'v-1',
-    vehicleNumber: 'RJ-20-TA-1008',
-    type: 'TAXI_AUTO',
-    partyName: 'Tata Power Corp (Staff Duty)',
-    routeOrSite: 'Kota Plant Local Duty',
-    billingMode: 'FIXED_FREIGHT',
-    grossEarnings: 2800,
-    dieselExpense: 900,
-    tollExpense: 120,
-    driverBhatta: 300,
-    maintenanceExpense: 0,
-    status: 'RECEIVED',
-    date: new Date().toISOString().split('T')[0],
-  },
-];
+const INITIAL_TRIPS: TransportTrip[] = [];
 
 export default function TransportModule() {
   const [vehicles, setVehicles] = useState<VehicleMaster[]>(INITIAL_VEHICLES);
@@ -167,9 +85,19 @@ export default function TransportModule() {
   useEffect(() => {
     try {
       const savedV = localStorage.getItem('fwa_transport_vehicles_v2');
-      if (savedV) setVehicles(JSON.parse(savedV));
+      if (savedV) {
+        const parsedV = JSON.parse(savedV);
+        if (Array.isArray(parsedV)) {
+          setVehicles(parsedV.filter((v: any) => !['v-1', 'v-2', 'v-3'].includes(v?.id)));
+        }
+      }
       const savedT = localStorage.getItem('fwa_transport_trips_v2');
-      if (savedT) setTrips(JSON.parse(savedT));
+      if (savedT) {
+        const parsedT = JSON.parse(savedT);
+        if (Array.isArray(parsedT)) {
+          setTrips(parsedT.filter((t: any) => !['t-1', 't-2', 't-3'].includes(t?.id)));
+        }
+      }
     } catch (e) {}
   }, []);
 
@@ -421,41 +349,47 @@ export default function TransportModule() {
       {/* TAB 2: FLEET VEHICLES & MACHINE MASTER */}
       {activeTab === 'FLEET_VEHICLES' && (
         <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {vehicles.map(v => {
-              const vTrips = trips.filter(t => t.vehicleId === v.id);
-              const vEarn = vTrips.reduce((s, t) => s + t.grossEarnings, 0);
-              const vExp = vTrips.reduce((s, t) => s + t.dieselExpense + t.tollExpense + t.driverBhatta + t.maintenanceExpense, 0);
+          {vehicles.length === 0 ? (
+            <div className="p-8 text-center text-ink-muted text-xs bg-paper rounded-xl border border-paper-dim">
+              कोई गाड़ी या मशीन दर्ज नहीं है। ऊपर '+ नई गाड़ी/जेसीबी जोड़ें' दबाएं।
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {vehicles.map(v => {
+                const vTrips = trips.filter(t => t.vehicleId === v.id);
+                const vEarn = vTrips.reduce((s, t) => s + t.grossEarnings, 0);
+                const vExp = vTrips.reduce((s, t) => s + t.dieselExpense + t.tollExpense + t.driverBhatta + t.maintenanceExpense, 0);
 
-              return (
-                <div key={v.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs space-y-2 text-xs">
-                  <div className="flex items-center justify-between border-b border-paper-dim pb-2">
-                    <div>
-                      <h4 className="font-bold text-ink">{v.name}</h4>
-                      <p className="font-mono text-gold font-semibold text-[11px]">{v.vehicleNumber}</p>
+                return (
+                  <div key={v.id} className="p-3.5 bg-paper rounded-xl border border-paper-dim shadow-xs space-y-2 text-xs">
+                    <div className="flex items-center justify-between border-b border-paper-dim pb-2">
+                      <div>
+                        <h4 className="font-bold text-ink">{v.name}</h4>
+                        <p className="font-mono text-gold font-semibold text-[11px]">{v.vehicleNumber}</p>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-900">
+                        {v.type === 'JCB_HEAVY' ? '🏗️ जेसीबी/मशीन' : (v.type === 'TAXI_AUTO' ? '🚖 टैक्सी' : '🚛 ट्रेलर')}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-900">
-                      {v.type === 'JCB_HEAVY' ? '🏗️ जेसीबी/मशीन' : (v.type === 'TAXI_AUTO' ? '🚖 टैक्सी' : '🚛 ट्रेलर')}
-                    </span>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                    <span className="text-ink-muted">मासिक EMI: <b className="text-ink">₹{v.emiAmount?.toLocaleString('en-IN') || 0}</b></span>
-                    <span className="text-ink-muted">किस्त तारीख: <b className="text-ink">{v.emiDueDate || 'N/A'}</b></span>
-                    {v.defaultHourlyRate && (
-                      <span className="text-ink-muted">घंटा रेट: <b className="text-emerald-700">₹{v.defaultHourlyRate}/hr</b></span>
-                    )}
-                    <span className="text-ink-muted">बीमा एक्सपायरी: <b className="text-ink">{v.insuranceExpiry || 'N/A'}</b></span>
-                  </div>
+                    <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                      <span className="text-ink-muted">मासिक EMI: <b className="text-ink">₹{v.emiAmount?.toLocaleString('en-IN') || 0}</b></span>
+                      <span className="text-ink-muted">किस्त तारीख: <b className="text-ink">{v.emiDueDate || 'N/A'}</b></span>
+                      {v.defaultHourlyRate && (
+                        <span className="text-ink-muted">घंटा रेट: <b className="text-emerald-700">₹{v.defaultHourlyRate}/hr</b></span>
+                      )}
+                      <span className="text-ink-muted">बीमा एक्सपायरी: <b className="text-ink">{v.insuranceExpiry || 'N/A'}</b></span>
+                    </div>
 
-                  <div className="pt-1.5 border-t border-paper-dim flex justify-between text-[11px] font-medium">
-                    <span>कुल ट्रिप्स: <b>{vTrips.length}</b></span>
-                    <span>नेट मुनाफा: <b className="text-emerald-700">₹{(vEarn - vExp).toLocaleString('en-IN')}</b></span>
+                    <div className="pt-1.5 border-t border-paper-dim flex justify-between text-[11px] font-medium">
+                      <span>कुल ट्रिप्स: <b>{vTrips.length}</b></span>
+                      <span>नेट मुनाफा: <b className="text-emerald-700">₹{(vEarn - vExp).toLocaleString('en-IN')}</b></span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
