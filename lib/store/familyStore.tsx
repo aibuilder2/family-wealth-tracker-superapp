@@ -11,7 +11,94 @@ if (typeof window !== 'undefined') {
 }
 
 export const INITIAL_MEMBERS: Member[] = [
-  { id: 'm-self', family_id: 'fam-1', name: 'Self (Me)', role: 'owner', color: '#B98B2A', initials: 'S' },
+  {
+    id: 'm-ankush',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    name: 'Ankush kesharwani',
+    relationship: 'Mukhiya (Self)',
+    role: 'owner',
+    color: '#B98B2A',
+    initials: 'A',
+    phone: '9425574230',
+    permissions: {
+      is_admin: true,
+      can_view_bills: true,
+      can_view_investments: true,
+      can_view_medical: true,
+      can_view_vault: true,
+    },
+  },
+  {
+    id: 'm-1789566304528',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    name: 'Ganesh Prasad kesharwani',
+    relationship: 'Pita (Father)',
+    role: 'member',
+    color: '#34D399',
+    initials: 'G',
+    phone: '9425574230',
+    dob: '1955-07-01',
+    permissions: { is_admin: false, can_view_bills: true, can_view_medical: true, can_view_investments: true },
+  },
+  {
+    id: 'm-1789566394503',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    name: 'Neeta kesharwani',
+    relationship: 'Mata (Mother)',
+    role: 'member',
+    color: '#60A5FA',
+    initials: 'N',
+    phone: '79873 54040',
+    dob: '1966-09-19',
+    permissions: { is_admin: false, can_view_bills: true, can_view_medical: true, can_view_investments: true },
+  },
+  {
+    id: 'm-1789566826735',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    name: 'Neha kesharwani',
+    relationship: 'Patni (Wife)',
+    role: 'member',
+    color: '#F472B6',
+    initials: 'N',
+    phone: '99815 57740',
+    dob: '1990-05-27',
+    permissions: { is_admin: false, can_view_bills: true, can_view_medical: true, can_view_investments: true },
+  },
+  {
+    id: 'm-1789566934699',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    name: 'Akshay kesharwani',
+    relationship: 'Bhai (Brother)',
+    role: 'member',
+    color: '#FB923C',
+    initials: 'A',
+    phone: '70009 66921',
+    dob: '1990-04-29',
+    permissions: { is_admin: false, can_view_bills: true, can_view_medical: true, can_view_investments: true },
+  },
+  {
+    id: 'm-1789577732303',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    name: 'Rupal kesharwani',
+    relationship: 'Behen (Sister)',
+    role: 'member',
+    color: '#34D399',
+    initials: 'R',
+    phone: '963-094-5896',
+    dob: '1985-05-01',
+    permissions: { is_admin: false, can_view_bills: true, can_view_medical: true, can_view_investments: true },
+  },
+  {
+    id: 'm-1789566869149',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    name: 'Arvi kesharwani',
+    relationship: 'Beti (Daughter)',
+    role: 'member',
+    color: '#A78BFA',
+    initials: 'A',
+    dob: '2018-03-24',
+    permissions: { is_admin: false, can_view_bills: true, can_view_medical: true, can_view_investments: true },
+  },
 ];
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [];
@@ -20,6 +107,23 @@ export const INITIAL_GOALS: Goal[] = [];
 export const INITIAL_REMINDERS: Reminder[] = [];
 export const INITIAL_DOCUMENTS: DocumentItem[] = [];
 export const INITIAL_MEDICAL: MedicalRecord[] = [];
+
+const isDummyMember = (m: any) => {
+  if (!m) return true;
+  const id = String(m.id || '');
+  if (['m-1', 'm-2', 'm-3', 'm-4', 'm-self', 'm-rohan', 'm-priya', 'm-papa', 'm-mummy'].includes(id)) return true;
+  const lower = String(m.name || '').toLowerCase().trim();
+  if (
+    lower === 'rohan' || lower.startsWith('rohan ') ||
+    lower === 'priya' || lower.startsWith('priya ') ||
+    lower === 'papa' || lower.startsWith('papa ') ||
+    lower === 'mummy' || lower.startsWith('mummy ') ||
+    lower === 'self (me)'
+  ) {
+    return true;
+  }
+  return false;
+};
 
 interface FamilyContextType {
   family: Family;
@@ -72,14 +176,19 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_family_profile') || localStorage.getItem('fwa_family');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+        try {
+          const p = JSON.parse(saved);
+          if (p && p.name && p.name !== 'Mera Parivar Vault' && p.name !== 'My Family') {
+            return p;
+          }
+        } catch (e) {}
       }
     }
     return {
-      id: 'fam-1',
-      name: 'Mera Parivar Vault',
+      id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+      name: 'Ankush Kesharwani Family',
       currency: 'INR',
-      invite_code: 'PARIVAR1',
+      invite_code: 'KESHARWANI1',
     };
   });
 
@@ -89,7 +198,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed)) {
+            const cleaned = parsed.filter(m => !isDummyMember(m));
+            if (cleaned.length > 0) return cleaned;
+          }
         } catch (e) {}
       }
     }
@@ -252,22 +364,41 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   // Automatic one-time cleanup of legacy demo/dummy data across all modules
   useEffect(() => {
     try {
-      const isPurged = localStorage.getItem('fwa_dummy_purged_v3');
+      const isPurged = localStorage.getItem('fwa_dummy_purged_v6');
       if (!isPurged) {
-        const cleanKey = (key: string, dummyIds: string[]) => {
+        const dummyIds = ['m-1', 'm-2', 'm-3', 'm-4', 'm-rohan', 'm-priya', 'm-papa', 'm-mummy', 'm-self'];
+        
+        // Deep clean any dummy entries in localStorage across all prefixes
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.includes('member') || k.includes('transactions') || k.includes('assets') || k.includes('goals'))) {
+            try {
+              const raw = localStorage.getItem(k);
+              if (raw) {
+                const list = JSON.parse(raw);
+                if (Array.isArray(list)) {
+                  const cleaned = list.filter((item: any) => !isDummyMember(item) && !dummyIds.includes(item?.id));
+                  localStorage.setItem(k, JSON.stringify(cleaned));
+                }
+              }
+            } catch (e) {}
+          }
+        }
+
+        const cleanKey = (key: string, dummyList: string[]) => {
           const raw = localStorage.getItem(key);
           if (raw) {
             try {
               const list = JSON.parse(raw);
               if (Array.isArray(list)) {
-                const cleaned = list.filter((item: any) => !dummyIds.includes(item?.id));
+                const cleaned = list.filter((item: any) => !dummyList.includes(item?.id) && !isDummyMember(item));
                 localStorage.setItem(key, JSON.stringify(cleaned));
               }
             } catch (e) {}
           }
         };
 
-        cleanKey('fwa_members', ['m-1', 'm-2', 'm-3', 'm-4']);
+        cleanKey('fwa_members', dummyIds);
         cleanKey('fwa_transactions', ['t-1', 't-2', 't-3', 't-4', 't-5', 't-6']);
         cleanKey('fwa_assets', ['a-1', 'a-2', 'a-3', 'a-4']);
         cleanKey('fwa_goals', ['g-1', 'g-2']);
@@ -308,7 +439,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           } catch (e) {}
         }
 
-        localStorage.setItem('fwa_dummy_purged_v3', 'true');
+        // Set Ankush Kesharwani Family profile
+        const famProfile = {
+          id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+          name: 'Ankush Kesharwani Family',
+          currency: 'INR',
+          invite_code: 'KESHARWANI1',
+        };
+        localStorage.setItem('fwa_family_profile', JSON.stringify(famProfile));
+        localStorage.setItem('fwa_family', JSON.stringify(famProfile));
+
+        localStorage.setItem('fwa_dummy_purged_v6', 'true');
       }
     } catch (e) {
       console.warn('Cleanup error:', e);
@@ -331,25 +472,58 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           const mapped: Member[] = supaMembers.map((m: any) => ({
             id: m.id,
             family_id: m.family_id || 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
-            name: m.name + (m.relationship ? ` (${m.relationship})` : ''),
+            name: m.name,
+            relationship: m.relationship || 'Sadasya',
             role: m.role === 'owner' ? 'owner' : 'member',
             color: m.color || '#34D399',
             initials: m.initials || m.name.charAt(0).toUpperCase(),
             phone: m.phone || undefined,
+            dob: m.dob || undefined,
+            permissions: m.permissions || {
+              is_admin: m.role === 'owner',
+              can_view_bills: true,
+              can_view_investments: true,
+              can_view_medical: true,
+              can_view_vault: true,
+            },
           }));
-          setMembers(mapped);
+
+          // Ensure Ankush kesharwani (Mukhiya) is present at the head
+          const hasAnkush = mapped.some((m) => m.name.toLowerCase().includes('ankush'));
+          const completeMemberList: Member[] = hasAnkush
+            ? mapped
+            : [
+                {
+                  id: 'm-ankush',
+                  family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+                  name: 'Ankush kesharwani',
+                  relationship: 'Mukhiya (Self)',
+                  role: 'owner',
+                  color: '#B98B2A',
+                  initials: 'A',
+                  phone: '9425574230',
+                  permissions: {
+                    is_admin: true,
+                    can_view_bills: true,
+                    can_view_investments: true,
+                    can_view_medical: true,
+                    can_view_vault: true,
+                  },
+                },
+                ...mapped,
+              ];
+
+          setMembers(completeMemberList);
           try {
-            localStorage.setItem('fwa_members', JSON.stringify(mapped));
+            localStorage.setItem('fwa_members', JSON.stringify(completeMemberList));
           } catch (e) {}
 
-          // Automatically set Family Profile
+          // Automatically set Family Profile to Ankush Kesharwani Family
           setFamily((prev) => {
-            const hasKesharwani = mapped.some((m) => m.name.toLowerCase().includes('kesharwani'));
-            const familyName = hasKesharwani ? 'Kesharwani Parivar' : prev.name !== 'Mera Parivar Vault' ? prev.name : 'Kesharwani Parivar';
             const updated = {
               ...prev,
               id: supaMembers[0]?.family_id || prev.id,
-              name: familyName,
+              name: 'Ankush Kesharwani Family',
             };
             try {
               localStorage.setItem('fwa_family_profile', JSON.stringify(updated));

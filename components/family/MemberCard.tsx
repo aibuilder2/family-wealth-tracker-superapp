@@ -17,8 +17,8 @@ export function MemberCard({ member, onClick }: MemberCardProps) {
       <Avatar m={member} size={36} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-ink truncate">{member.name}</p>
-        <p className="text-[11px] text-ink-muted capitalize">
-          {member.role === 'owner' ? 'Owner / Admin' : 'Family Member'}
+        <p className="text-[11px] text-ink-muted">
+          {member.relationship ? `${member.relationship} • ${member.role === 'owner' ? 'Mukhiya' : 'Sadasya'}` : (member.role === 'owner' ? 'Owner / Admin' : 'Family Member')}
         </p>
       </div>
       <ChevronRight size={16} className="text-ink-muted group-hover:text-ink transition-colors" />

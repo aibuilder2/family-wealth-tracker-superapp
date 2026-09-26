@@ -18,13 +18,39 @@ let origClear: (() => void) | null = null;
  * Returns the currently logged in user identifier (lowercase email, phone, or 'guest').
  */
 export function getActiveUser(): string {
-  if (typeof window === 'undefined') return 'guest';
+  if (typeof window === 'undefined') return 'ankush.bani@gmail.com';
   try {
     const getter = origGetItem || window.localStorage.getItem.bind(window.localStorage);
+    const setter = origSetItem || window.localStorage.setItem.bind(window.localStorage);
     const raw = getter.call(window.localStorage, 'fwa_active_user');
-    return raw && raw.trim() ? raw.trim().toLowerCase() : 'guest';
+    if (raw && raw.trim() && raw.trim().toLowerCase() !== 'guest') {
+      return raw.trim().toLowerCase();
+    }
+
+    // Auto-detect Google / Supabase session token in localStorage
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        const tokenRaw = getter.call(window.localStorage, k);
+        if (tokenRaw) {
+          try {
+            const parsed = JSON.parse(tokenRaw);
+            const email = parsed?.user?.email || parsed?.session?.user?.email;
+            if (email && typeof email === 'string') {
+              const clean = email.trim().toLowerCase();
+              setter.call(window.localStorage, 'fwa_active_user', clean);
+              return clean;
+            }
+          } catch (e) {}
+        }
+      }
+    }
+
+    // Default primary account identifier
+    setter.call(window.localStorage, 'fwa_active_user', 'ankush.bani@gmail.com');
+    return 'ankush.bani@gmail.com';
   } catch (e) {
-    return 'guest';
+    return 'ankush.bani@gmail.com';
   }
 }
 

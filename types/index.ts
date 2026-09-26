@@ -14,10 +14,21 @@ export interface Member {
   user_id?: string;
   name: string;
   role: MemberRole;
+  relationship?: string;
+  dob?: string;
   color: string;
   initials: string;
   avatar_url?: string;
   phone?: string;
+  permissions?: {
+    is_admin?: boolean;
+    can_view_bills?: boolean;
+    can_view_cases?: boolean;
+    can_view_staff?: boolean;
+    can_view_vault?: boolean;
+    can_view_medical?: boolean;
+    can_view_investments?: boolean;
+  };
 }
 
 export type TransactionType = 'income' | 'expense' | 'udhar_given' | 'udhar_taken';
