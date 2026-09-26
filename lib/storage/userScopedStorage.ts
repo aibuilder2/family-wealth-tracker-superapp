@@ -145,7 +145,25 @@ export function initUserScopedStorage() {
 
     storageProto.getItem = function (key: string) {
       const targetKey = resolveUserScopedKey(key);
-      return origGetItem!.call(this, targetKey);
+      const val = origGetItem!.call(this, targetKey);
+      if (val !== null) return val;
+
+      // Fallback: If scoped key doesn't have data yet, check legacy un-scoped key
+      // so user's previously created family and records are safely preserved!
+      if (targetKey !== key) {
+        let legacyVal = origGetItem!.call(this, key);
+        // Also handle fwa_family_profile vs fwa_family alias
+        if (legacyVal === null && key === 'fwa_family_profile') {
+          legacyVal = origGetItem!.call(this, 'fwa_family') || origGetItem!.call(this, `fwa_u_${getActiveUser()}__fwa_family`);
+        }
+        if (legacyVal !== null) {
+          try {
+            origSetItem!.call(this, targetKey, legacyVal);
+          } catch (e) {}
+          return legacyVal;
+        }
+      }
+      return null;
     };
 
     storageProto.setItem = function (key: string, value: string) {

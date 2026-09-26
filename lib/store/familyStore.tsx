@@ -32,6 +32,7 @@ interface FamilyContextType {
   activeMemberId: string | null;
   setActiveMemberId: (id: string | null) => void;
   // Actions
+  updateFamilyName: (newName: string) => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'family_id' | 'created_at'>) => void;
   deleteTransaction: (id: string) => void;
   addGoal: (goal: Omit<Goal, 'id' | 'family_id'>) => void;
@@ -60,7 +61,7 @@ const FamilyContext = createContext<FamilyContextType | null>(null);
 export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [family, setFamily] = useState<Family>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('fwa_family_profile');
+      const saved = localStorage.getItem('fwa_family_profile') || localStorage.getItem('fwa_family');
       if (saved) {
         try { return JSON.parse(saved); } catch (e) {}
       }
@@ -292,6 +293,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem('fwa_assets', JSON.stringify(updated)); } catch (e) {}
   };
 
+  const updateFamilyName = (newName: string) => {
+    const updated: Family = { ...family, name: newName };
+    setFamily(updated);
+    try {
+      localStorage.setItem('fwa_family_profile', JSON.stringify(updated));
+      localStorage.setItem('fwa_family', JSON.stringify(updated));
+    } catch (e) {}
+  };
+
   const addMember = (m: Omit<Member, 'id' | 'family_id'>) => {
     const newM: Member = { ...m, id: 'm-' + Date.now(), family_id: family.id };
     const updated = [...members, newM];
@@ -361,6 +371,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         medicalRecords,
         activeMemberId,
         setActiveMemberId,
+        updateFamilyName,
         addTransaction,
         deleteTransaction,
         addGoal,

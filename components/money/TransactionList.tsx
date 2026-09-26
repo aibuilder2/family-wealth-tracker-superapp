@@ -21,7 +21,7 @@ export function TransactionList({
   groupByDate = true,
   showDelete = false,
 }: TransactionListProps) {
-  const { deleteTransaction } = useFamilyStore();
+  const { deleteTransaction, openQuickAdd } = useFamilyStore();
 
   const getMember = (memberId: string) => {
     return members.find((m) => m.id === memberId) || {
@@ -33,8 +33,16 @@ export function TransactionList({
 
   if (transactions.length === 0) {
     return (
-      <div className="p-8 text-center bg-paper rounded-xl border border-paper-dim">
-        <p className="text-sm text-ink-muted">Koi transaction nahi mila.</p>
+      <div className="p-6 text-center bg-paper rounded-xl border border-dashed border-paper-dim space-y-2">
+        <p className="text-xs font-bold text-ink">अभी तक कोई लेन-देन दर्ज नहीं है</p>
+        <p className="text-[11px] text-ink-muted">घर का ख़र्च, सैलरी, बिज़नेस आमदनी या उधारी जोड़ें।</p>
+        <button
+          type="button"
+          onClick={() => openQuickAdd('expense')}
+          className="px-3.5 py-1.5 bg-gold text-navy text-xs font-bold rounded-xl shadow-sm hover:bg-gold-light transition-all inline-block mt-1"
+        >
+          + पहला लेन-देन जोड़ें
+        </button>
       </div>
     );
   }

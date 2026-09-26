@@ -55,7 +55,7 @@ export function BottomNav() {
 
   return (
     <>
-      <nav className="flex items-center justify-around px-2 py-2 bg-paper border-t border-paper-dim shrink-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
+      <nav className="flex items-center justify-around px-2 pt-2 pb-3.5 sm:pb-2 bg-paper border-t border-paper-dim shrink-0 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
         {MAIN_TABS.map((tab) => {
           const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/');
           const Icon = tab.icon;

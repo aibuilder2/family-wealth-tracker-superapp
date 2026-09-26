@@ -22,15 +22,10 @@ export default function HomePage() {
   } = useFamilyStore();
 
   const recentTransactions = transactions.slice(0, 4);
-  const primaryGoal = goals[0] || {
-    title: 'Priya ki Education',
-    target_amount: 500000,
-    saved_amount: 310000,
-  };
-  const goalPercent = Math.min(
-    100,
-    Math.round((primaryGoal.saved_amount / primaryGoal.target_amount) * 100)
-  );
+  const primaryGoal = goals.length > 0 ? goals[0] : null;
+  const goalPercent = primaryGoal && primaryGoal.target_amount > 0
+    ? Math.min(100, Math.round((primaryGoal.saved_amount / primaryGoal.target_amount) * 100))
+    : 0;
 
   return (
     <div className="space-y-4 pt-4">
@@ -55,7 +50,7 @@ export default function HomePage() {
           <Mono className="text-[18px] font-semibold text-ink block mt-0.5">
             ₹{totalIncomeThisMonth.toLocaleString('en-IN')}
           </Mono>
-          <p className="text-ink-muted text-[11px] mt-0.5">is mahine</p>
+          <p className="text-ink-muted text-[11px] mt-0.5">इस महीने</p>
         </div>
 
         {/* Expense Card */}
@@ -67,13 +62,15 @@ export default function HomePage() {
           <Mono className="text-[18px] font-semibold text-ink block mt-0.5">
             ₹{totalExpenseThisMonth.toLocaleString('en-IN')}
           </Mono>
-          <p className="text-ink-muted text-[11px] mt-0.5">pichle mahine se 6% kam</p>
+          <p className="text-ink-muted text-[11px] mt-0.5">
+            {totalExpenseThisMonth > 0 ? 'कुल ख़र्च' : '0 ख़र्च दर्ज'}
+          </p>
         </div>
       </div>
 
       {/* 3. Featured Goal Widget */}
-      {primaryGoal && (
-        <div className="px-4">
+      <div className="px-4">
+        {primaryGoal ? (
           <div className="rounded-xl p-4 bg-paper border border-paper-dim flex items-center gap-4 shadow-sm">
             <ProgressRing percent={goalPercent} size={80} />
             <div className="flex-1 min-w-0">
@@ -88,8 +85,21 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="rounded-xl p-3.5 bg-paper border border-dashed border-paper-dim flex items-center justify-between shadow-sm">
+            <div>
+              <p className="font-serif font-bold text-ink text-xs">कोई Financial Goal नहीं है</p>
+              <p className="text-[11px] text-ink-muted">घर, शिक्षा या शादी का लक्ष्य तय करें</p>
+            </div>
+            <Link
+              href="/wealth"
+              className="px-3 py-1.5 bg-gold/15 text-gold-dark hover:bg-gold/25 font-bold text-xs rounded-xl transition-all"
+            >
+              + Goal जोड़ें
+            </Link>
+          </div>
+        )}
+      </div>
 
       {/* 4. Udhar Summary Bar if exists */}
       {totalUdharGiven > 0 && (

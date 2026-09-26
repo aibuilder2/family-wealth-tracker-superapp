@@ -16,9 +16,9 @@ export default function DashboardLayout({
   const upcomingCount = reminders.length;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-0 sm:p-6 bg-[#E7E1D2]">
+    <div className="min-h-[100dvh] h-[100dvh] flex items-center justify-center p-0 sm:p-6 bg-[#E7E1D2]">
       {/* Mobile Device Frame Mockup */}
-      <div className="w-full sm:max-w-[430px] h-screen sm:h-[840px] bg-navy sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col sm:border-[8px] sm:border-[#0B1B28] relative">
+      <div className="w-full sm:max-w-[430px] h-[100dvh] max-h-[100dvh] sm:h-[840px] bg-navy sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col sm:border-[8px] sm:border-[#0B1B28] relative">
         
         {/* Top Family Header */}
         <header className="flex items-center justify-between px-5 pt-4 pb-3 bg-navy text-paper shrink-0 z-10 border-b border-navy-light/40">

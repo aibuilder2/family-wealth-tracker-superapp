@@ -11,9 +11,12 @@ export function AddTransactionModal() {
   if (!isQuickAddOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-navy-dark/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div 
+      onClick={closeQuickAdd}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-navy-dark/60 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+    >
       <div
-        className="w-full max-w-[430px] bg-[#EFEAE0] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-paper-dim"
+        className="w-full max-w-[430px] bg-[#EFEAE0] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-paper-dim cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

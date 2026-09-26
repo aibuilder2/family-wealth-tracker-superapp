@@ -28,8 +28,14 @@ export function TransactionForm({
   const [mode, setMode] = useState<PaymentMode>('online');
   const [scope, setScope] = useState<ExpenseScope>('ghar');
   const [selectedMemberId, setSelectedMemberId] = useState<string>(
-    members[0]?.id || 'm-papa'
+    members[0]?.id || ''
   );
+
+  React.useEffect(() => {
+    if (!selectedMemberId && members.length > 0) {
+      setSelectedMemberId(members[0].id);
+    }
+  }, [members, selectedMemberId]);
   const [udharPerson, setUdharPerson] = useState<string>('');
   const [txnDate, setTxnDate] = useState<string>(
     new Date().toISOString().split('T')[0]
