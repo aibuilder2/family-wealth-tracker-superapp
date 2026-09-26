@@ -37,6 +37,11 @@ export function AssetCard({ asset }: AssetCardProps) {
       <Mono className="text-[15px] font-semibold text-ink block mt-0.5">
         ₹{Number(asset.value).toLocaleString('en-IN')}
       </Mono>
+      {asset.notes && (
+        <span className="inline-block mt-1.5 text-[10px] font-bold text-green bg-green/10 px-2 py-0.5 rounded-md truncate max-w-full">
+          {asset.notes}
+        </span>
+      )}
     </div>
   );
 }

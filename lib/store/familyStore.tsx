@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Family, Member, Transaction, Asset, Goal, Reminder, DocumentItem, MedicalRecord } from '@/types';
 import { initUserScopedStorage, getActiveUser } from '@/lib/storage/userScopedStorage';
+import { createClient } from '@/lib/supabase/client';
 
 // Ensure storage scoping is initialized before initial state reads
 if (typeof window !== 'undefined') {
@@ -250,6 +251,145 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Real-time Supabase Fetch and Sync for Live Data
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+
+    const loadSupabaseData = async () => {
+      try {
+        // 1. Fetch real Family Members from Supabase
+        const { data: supaMembers, error: mErr } = await supabase
+          .from('family_members')
+          .select('*');
+
+        if (!mErr && supaMembers && supaMembers.length > 0) {
+          const mapped: Member[] = supaMembers.map((m: any) => ({
+            id: m.id,
+            family_id: m.family_id || 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+            name: m.name + (m.relationship ? ` (${m.relationship})` : ''),
+            role: m.role === 'owner' ? 'owner' : 'member',
+            color: m.color || '#34D399',
+            initials: m.initials || m.name.charAt(0).toUpperCase(),
+            phone: m.phone || undefined,
+          }));
+          setMembers(mapped);
+          try {
+            localStorage.setItem('fwa_members', JSON.stringify(mapped));
+          } catch (e) {}
+
+          // Automatically set Family Profile
+          setFamily((prev) => {
+            const hasKesharwani = mapped.some((m) => m.name.toLowerCase().includes('kesharwani'));
+            const familyName = hasKesharwani ? 'Kesharwani Parivar' : prev.name !== 'Mera Parivar Vault' ? prev.name : 'Kesharwani Parivar';
+            const updated = {
+              ...prev,
+              id: supaMembers[0]?.family_id || prev.id,
+              name: familyName,
+            };
+            try {
+              localStorage.setItem('fwa_family_profile', JSON.stringify(updated));
+              localStorage.setItem('fwa_family', JSON.stringify(updated));
+            } catch (e) {}
+            return updated;
+          });
+        }
+
+        // 2. Fetch real Transactions from Supabase
+        const { data: supaTx, error: tErr } = await supabase
+          .from('transactions')
+          .select('*')
+          .order('txn_date', { ascending: false });
+
+        if (!tErr && supaTx && supaTx.length > 0) {
+          const mappedTx: Transaction[] = supaTx.map((t: any) => ({
+            id: t.id,
+            family_id: t.family_id || 'fam-1',
+            member_id: t.member_id || '',
+            type: t.type || 'expense',
+            amount: Number(t.amount || 0),
+            category: t.category || 'General',
+            mode: t.mode || 'online',
+            scope: t.scope || 'ghar',
+            note: t.note || t.description || t.category || '',
+            udhar_person: t.udhar_person || undefined,
+            is_settled: t.is_settled || false,
+            txn_date: t.txn_date || new Date().toISOString().split('T')[0],
+          }));
+
+          setTransactions((prev) => {
+            const ids = new Set(prev.map((p) => p.id));
+            const merged = [...prev];
+            for (const tx of mappedTx) {
+              if (!ids.has(tx.id)) merged.push(tx);
+            }
+            try {
+              localStorage.setItem('fwa_transactions', JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
+        }
+
+        // 3. Fetch Assets from Supabase
+        const { data: supaAssets, error: aErr } = await supabase.from('assets').select('*');
+        if (!aErr && supaAssets && supaAssets.length > 0) {
+          setAssets((prev) => {
+            const ids = new Set(prev.map((a) => a.id));
+            const merged = [...prev];
+            for (const a of supaAssets) {
+              if (!ids.has(a.id)) {
+                merged.push({
+                  id: a.id,
+                  family_id: a.family_id || 'fam-1',
+                  member_id: a.member_id,
+                  category: a.category || 'fixed',
+                  type: a.type || 'property',
+                  label: a.label || a.name || 'Property',
+                  value: Number(a.value || 0),
+                  notes: a.notes,
+                });
+              }
+            }
+            try {
+              localStorage.setItem('fwa_assets', JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
+        }
+
+        // 4. Fetch Goals from Supabase
+        const { data: supaGoals, error: gErr } = await supabase.from('goals').select('*');
+        if (!gErr && supaGoals && supaGoals.length > 0) {
+          setGoals((prev) => {
+            const ids = new Set(prev.map((g) => g.id));
+            const merged = [...prev];
+            for (const g of supaGoals) {
+              if (!ids.has(g.id)) {
+                merged.push({
+                  id: g.id,
+                  family_id: g.family_id || 'fam-1',
+                  title: g.title,
+                  target_amount: Number(g.target_amount || 0),
+                  saved_amount: Number(g.saved_amount || 0),
+                  target_date: g.target_date,
+                  category: g.category,
+                });
+              }
+            }
+            try {
+              localStorage.setItem('fwa_goals', JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('Supabase initial fetch info:', err);
+      }
+    };
+
+    loadSupabaseData();
+  }, []);
+
   // Save changes
   const saveTransactions = (newTx: Transaction[]) => {
     setTransactions(newTx);
@@ -266,10 +406,31 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       created_at: new Date().toISOString(),
     };
     saveTransactions([newTx, ...transactions]);
+
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('transactions').insert({
+        id: newTx.id,
+        family_id: newTx.family_id,
+        member_id: newTx.member_id,
+        type: newTx.type,
+        amount: newTx.amount,
+        category: newTx.category,
+        mode: newTx.mode,
+        scope: newTx.scope,
+        note: newTx.note,
+        udhar_person: newTx.udhar_person,
+        txn_date: newTx.txn_date,
+      }).then();
+    }
   };
 
   const deleteTransaction = (id: string) => {
     saveTransactions(transactions.filter(t => t.id !== id));
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('transactions').delete().eq('id', id).then();
+    }
   };
 
   const addGoal = (g: Omit<Goal, 'id' | 'family_id'>) => {
@@ -277,6 +438,19 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     const updated = [...goals, newG];
     setGoals(updated);
     try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('goals').insert({
+        id: newG.id,
+        family_id: newG.family_id,
+        title: newG.title,
+        target_amount: newG.target_amount,
+        saved_amount: newG.saved_amount,
+        target_date: newG.target_date || null,
+        category: newG.category || 'general',
+      }).then();
+    }
   };
 
   const addReminder = (r: Omit<Reminder, 'id' | 'family_id'>) => {
@@ -284,6 +458,18 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     const updated = [...reminders, newR];
     setReminders(updated);
     try { localStorage.setItem('fwa_reminders', JSON.stringify(updated)); } catch (e) {}
+
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('reminders').insert({
+        id: newR.id,
+        family_id: newR.family_id,
+        title: newR.title,
+        category: newR.category,
+        due_date: newR.due_date,
+        amount: newR.amount || null,
+      }).then();
+    }
   };
 
   const addAsset = (a: Omit<Asset, 'id' | 'family_id'>) => {
@@ -291,6 +477,19 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     const updated = [...assets, newA];
     setAssets(updated);
     try { localStorage.setItem('fwa_assets', JSON.stringify(updated)); } catch (e) {}
+
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('assets').insert({
+        id: newA.id,
+        family_id: newA.family_id,
+        category: newA.category,
+        type: newA.type,
+        label: newA.label,
+        value: newA.value,
+        notes: newA.notes || null,
+      }).then();
+    }
   };
 
   const updateFamilyName = (newName: string) => {
@@ -307,6 +506,19 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     const updated = [...members, newM];
     setMembers(updated);
     try { localStorage.setItem('fwa_members', JSON.stringify(updated)); } catch (e) {}
+
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('family_members').insert({
+        id: newM.id,
+        family_id: newM.family_id,
+        name: m.name,
+        role: m.role,
+        color: m.color,
+        initials: m.initials,
+        phone: m.phone || null,
+      }).then();
+    }
   };
 
   const addDocument = (d: Omit<DocumentItem, 'id' | 'family_id'>) => {

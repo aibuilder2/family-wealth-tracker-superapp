@@ -17,8 +17,9 @@ export default function WealthPage() {
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [assetName, setAssetName] = useState('');
   const [assetValue, setAssetValue] = useState('');
-  const [assetCategory, setAssetCategory] = useState<AssetCategory>('liquid');
-  const [assetType, setAssetType] = useState<AssetType>('bank_deposit');
+  const [assetCategory, setAssetCategory] = useState<AssetCategory>('fixed');
+  const [assetType, setAssetType] = useState<AssetType>('property');
+  const [monthlyRent, setMonthlyRent] = useState('');
 
   // Add Goal Modal State
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false);
@@ -37,15 +38,21 @@ export default function WealthPage() {
     const val = parseFloat(assetValue);
     if (!assetName.trim() || !val || val <= 0) return;
 
+    const notes = (assetType === 'property' || assetType === 'land') && monthlyRent.trim() && Number(monthlyRent) > 0
+      ? `किराया: ₹${Number(monthlyRent).toLocaleString('en-IN')}/माह`
+      : undefined;
+
     addAsset({
       label: assetName.trim(),
       category: assetCategory,
       type: assetType,
       value: val,
+      notes,
     });
 
     setAssetName('');
     setAssetValue('');
+    setMonthlyRent('');
     setIsAddAssetOpen(false);
   };
 
@@ -264,22 +271,36 @@ export default function WealthPage() {
 
               <div>
                 <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                  प्रकार (Category)
+                  प्रकार (Asset Type)
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
                     onClick={() => {
-                      setAssetCategory('liquid');
-                      setAssetType('bank_deposit');
+                      setAssetCategory('fixed');
+                      setAssetType('property');
                     }}
-                    className={`py-2 px-3 rounded-xl border text-center font-semibold transition-all ${
-                      assetCategory === 'liquid'
-                        ? 'border-gold bg-gold/15 text-gold-dark'
+                    className={`py-2 px-2.5 rounded-xl border text-center font-semibold text-xs transition-all ${
+                      assetType === 'property'
+                        ? 'border-gold bg-gold/15 text-gold-dark font-bold'
                         : 'border-paper-dim bg-paper text-ink-muted'
                     }`}
                   >
-                    Liquid (Cash / Bank)
+                    🏢 मकान / दुकान (Property)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssetCategory('fixed');
+                      setAssetType('land');
+                    }}
+                    className={`py-2 px-2.5 rounded-xl border text-center font-semibold text-xs transition-all ${
+                      assetType === 'land'
+                        ? 'border-gold bg-gold/15 text-gold-dark font-bold'
+                        : 'border-paper-dim bg-paper text-ink-muted'
+                    }`}
+                  >
+                    🌱 ज़मीन / प्लॉट (Land)
                   </button>
                   <button
                     type="button"
@@ -287,16 +308,49 @@ export default function WealthPage() {
                       setAssetCategory('fixed');
                       setAssetType('gold');
                     }}
-                    className={`py-2 px-3 rounded-xl border text-center font-semibold transition-all ${
-                      assetCategory === 'fixed'
-                        ? 'border-gold bg-gold/15 text-gold-dark'
+                    className={`py-2 px-2.5 rounded-xl border text-center font-semibold text-xs transition-all ${
+                      assetType === 'gold'
+                        ? 'border-gold bg-gold/15 text-gold-dark font-bold'
                         : 'border-paper-dim bg-paper text-ink-muted'
                     }`}
                   >
-                    Fixed (Land / Gold / Plot)
+                    🪙 सोना / जेवर (Gold)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssetCategory('liquid');
+                      setAssetType('bank_deposit');
+                    }}
+                    className={`py-2 px-2.5 rounded-xl border text-center font-semibold text-xs transition-all ${
+                      assetType === 'bank_deposit'
+                        ? 'border-gold bg-gold/15 text-gold-dark font-bold'
+                        : 'border-paper-dim bg-paper text-ink-muted'
+                    }`}
+                  >
+                    🏦 बैंक / FD / Cash
                   </button>
                 </div>
               </div>
+
+              {(assetType === 'property' || assetType === 'land') && (
+                <div>
+                  <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                    मासिक किराया आता है? (Monthly Rent ₹) [वैकल्पिक]
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="उदा. ₹15,000 / माह"
+                    value={monthlyRent}
+                    onChange={(e) => setMonthlyRent(e.target.value)}
+                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-gold font-mono"
+                  />
+                  <p className="text-[10px] text-ink-muted mt-0.5">
+                    प्रॉपर्टी कार्ड पर हर महीने आने वाला किराया दिखेगा।
+                  </p>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-2">
                 <button
