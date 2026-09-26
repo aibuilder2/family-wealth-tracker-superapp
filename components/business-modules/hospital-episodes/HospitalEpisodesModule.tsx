@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { HeartPulse, Plus, Hospital, Stethoscope, ShieldCheck, Trash2, Calendar, FileText, Pill, DollarSign } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
+import { useFamilyStore } from '@/lib/store/familyStore';
 
 interface HospitalBill {
   id: string;
@@ -51,7 +52,14 @@ export function HospitalEpisodesModule() {
 
   // Form State: New Episode
   const [epTitle, setEpTitle] = useState('');
-  const [patientName, setPatientName] = useState('मम्मी');
+  const { members } = useFamilyStore();
+  const [patientName, setPatientName] = useState(() => members[0]?.name || 'Ankush kesharwani');
+
+  useEffect(() => {
+    if (members.length > 0 && !members.some(m => m.name === patientName)) {
+      setPatientName(members[0].name);
+    }
+  }, [members]);
   const [episodeType, setEpisodeType] = useState<HospitalEpisode['episodeType']>('surgery');
   const [hospitalName, setHospitalName] = useState('');
   const [doctorName, setDoctorName] = useState('');
@@ -280,10 +288,11 @@ export function HospitalEpisodesModule() {
                     onChange={e => setPatientName(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim"
                   >
-                    <option value="पापा">पापा</option>
-                    <option value="मम्मी">मम्मी</option>
-                    <option value="रोहन">रोहन</option>
-                    <option value="प्रिया">प्रिया</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.name}>
+                        {m.name} {m.relationship ? `(${m.relationship})` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>

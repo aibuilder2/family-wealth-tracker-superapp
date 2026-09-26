@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Car, Plus, Wrench, Shield, Calendar, Trash2, Fuel, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
+import { useFamilyStore } from '@/lib/store/familyStore';
 
 interface ServiceLog {
   id: string;
@@ -53,7 +54,14 @@ export function VehiclesGarageModule() {
   const [brandModel, setBrandModel] = useState('');
   const [regNumber, setRegNumber] = useState('');
   const [type, setType] = useState<PersonalVehicle['type']>('car');
-  const [owner, setOwner] = useState('पापा');
+  const { members } = useFamilyStore();
+  const [owner, setOwner] = useState(() => members[0]?.name || 'Ankush kesharwani');
+
+  useEffect(() => {
+    if (members.length > 0 && !members.some(m => m.name === owner)) {
+      setOwner(members[0].name);
+    }
+  }, [members]);
   const [fuelType, setFuelType] = useState<PersonalVehicle['fuelType']>('Petrol');
   const [insExpiry, setInsExpiry] = useState('');
   const [pucExpiry, setPucExpiry] = useState('');
@@ -309,9 +317,11 @@ export function VehiclesGarageModule() {
                     onChange={e => setOwner(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim"
                   >
-                    <option value="पापा">पापा</option>
-                    <option value="मम्मी">मम्मी</option>
-                    <option value="रोहन">रोहन</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.name}>
+                        {m.name} {m.relationship ? `(${m.relationship})` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Calendar, MessageSquare, CheckCircle2, ShoppingBag, Banknote } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
+import { useFamilyStore } from '@/lib/store/familyStore';
 
 interface MemberLedgerEntry {
   id: string;
@@ -18,6 +19,12 @@ interface MemberLedgerEntry {
 const DEFAULT_ENTRIES: MemberLedgerEntry[] = [];
 
 export function FamilyHisabModule() {
+  const { members } = useFamilyStore();
+
+  // Mukhiya (Ankush) & Family Partners
+  const mukhiya = members.find(m => m.role === 'owner') || members[0] || { name: 'Ankush kesharwani' };
+  const partnerMembers = members.filter(m => m.name !== mukhiya.name);
+
   const [entries, setEntries] = useState<MemberLedgerEntry[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_family_hisab_v1');
@@ -25,7 +32,11 @@ export function FamilyHisabModule() {
         try {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            return parsed.filter((e: any) => !['mle-1', 'mle-2', 'mle-3'].includes(e?.id));
+            return parsed.filter((e: any) => 
+              !['mle-1', 'mle-2', 'mle-3'].includes(e?.id) &&
+              e?.fromMember !== 'रोहन' &&
+              e?.toMember !== 'रोहन'
+            );
           }
         } catch (e) {}
       }
@@ -34,14 +45,29 @@ export function FamilyHisabModule() {
   });
 
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [activePartner, setActivePartner] = useState<string>('पापा');
+  const [activePartner, setActivePartner] = useState<string>(() => {
+    return partnerMembers[0]?.name || 'Ganesh Prasad kesharwani';
+  });
+
+  // Keep activePartner updated when members load
+  useEffect(() => {
+    if (partnerMembers.length > 0 && !partnerMembers.some(p => p.name === activePartner)) {
+      setActivePartner(partnerMembers[0].name);
+    }
+  }, [members]);
 
   // Form State
-  const [fromMember, setFromMember] = useState('रोहन');
-  const [toMember, setToMember] = useState('पापा');
+  const [fromMember, setFromMember] = useState<string>(mukhiya.name);
+  const [toMember, setToMember] = useState<string>(activePartner);
   const [amount, setAmount] = useState<number | ''>('');
   const [type, setType] = useState<MemberLedgerEntry['type']>('cash_transfer');
   const [title, setTitle] = useState('');
+
+  // Sync form defaults when active partner changes
+  useEffect(() => {
+    setFromMember(mukhiya.name);
+    setToMember(activePartner);
+  }, [activePartner, mukhiya.name]);
 
   useEffect(() => {
     localStorage.setItem('fwa_family_hisab_v1', JSON.stringify(entries));
@@ -81,21 +107,24 @@ export function FamilyHisabModule() {
     }
   };
 
-  // Calculate net balance between Rohan and Active Partner
-  const rohanPaidForPartner = entries
-    .filter(e => !e.isSettled && e.fromMember === 'रोहन' && e.toMember === activePartner)
+  // Calculate net balance between Mukhiya and Active Partner
+  const mukhiyaPaidForPartner = entries
+    .filter(e => !e.isSettled && e.fromMember === mukhiya.name && e.toMember === activePartner)
     .reduce((sum, e) => sum + e.amount, 0);
 
-  const partnerPaidForRohan = entries
-    .filter(e => !e.isSettled && e.fromMember === activePartner && e.toMember === 'रोहन')
+  const partnerPaidForMukhiya = entries
+    .filter(e => !e.isSettled && e.fromMember === activePartner && e.toMember === mukhiya.name)
     .reduce((sum, e) => sum + e.amount, 0);
 
-  const netBalance = rohanPaidForPartner - partnerPaidForRohan; // positive means Rohan will receive
+  const netBalance = mukhiyaPaidForPartner - partnerPaidForMukhiya; // positive means Mukhiya will receive
 
   const activeLedgerEntries = entries.filter(
-    e => (e.fromMember === 'रोहन' && e.toMember === activePartner) ||
-         (e.fromMember === activePartner && e.toMember === 'रोहन')
+    e => (e.fromMember === mukhiya.name && e.toMember === activePartner) ||
+         (e.fromMember === activePartner && e.toMember === mukhiya.name)
   );
+
+  const mukhiyaShort = mukhiya.name.split(' ')[0];
+  const partnerShort = activePartner.split(' ')[0];
 
   return (
     <div className="space-y-4">
@@ -120,31 +149,35 @@ export function FamilyHisabModule() {
         </div>
 
         {/* Member Partner Selector */}
-        <div className="flex gap-2 overflow-x-auto pb-1 text-xs pt-1 border-t border-navy-light/40">
-          {['पापा', 'मम्मी', 'प्रिया', 'अमित भैया'].map(partner => (
-            <button
-              key={partner}
-              onClick={() => setActivePartner(partner)}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${
-                activePartner === partner ? 'bg-gold text-navy shadow-sm' : 'bg-navy-light/50 text-paper-dim hover:bg-navy-light'
-              }`}
-            >
-              👤 रोहन ⇄ {partner}
-            </button>
-          ))}
+        <div className="flex gap-2 overflow-x-auto pb-1 text-xs pt-1 border-t border-navy-light/40 no-scrollbar">
+          {partnerMembers.map(partner => {
+            const isSelected = activePartner === partner.name;
+            const pShort = partner.name.split(' ')[0];
+            return (
+              <button
+                key={partner.id}
+                onClick={() => setActivePartner(partner.name)}
+                className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${
+                  isSelected ? 'bg-gold text-navy shadow-sm' : 'bg-navy-light/50 text-paper-dim hover:bg-navy-light'
+                }`}
+              >
+                👤 {mukhiyaShort} ⇄ {pShort} ({partner.relationship || 'Sadasya'})
+              </button>
+            );
+          })}
         </div>
 
         {/* Net Running Balance Card */}
         <div className="bg-navy-light/40 p-3 rounded-xl flex items-center justify-between">
           <div>
-            <p className="text-[10px] text-paper-dim/70">रोहन और {activePartner} का कुल रनिंग बैलेंस:</p>
+            <p className="text-[10px] text-paper-dim/70">{mukhiyaShort} और {partnerShort} का कुल रनिंग बैलेंस:</p>
             <h3 className="text-sm font-bold text-paper mt-0.5">
               {netBalance > 0 ? (
-                <span className="text-green font-bold">रोहन को {activePartner} से लेना है</span>
+                <span className="text-green font-bold">{mukhiyaShort} को {partnerShort} से लेना है</span>
               ) : netBalance < 0 ? (
-                <span className="text-coral-light font-bold">रोहन को {activePartner} को देना है</span>
+                <span className="text-coral-light font-bold">{mukhiyaShort} को {partnerShort} को देना है</span>
               ) : (
-                <span className="text-gold font-bold">हिसाब पूरी तरह बराबर है (0)</span>
+                <span className="text-gold font-bold">हिसाब पूरी तरह बराबर है (₹0)</span>
               )}
             </h3>
           </div>
@@ -157,12 +190,12 @@ export function FamilyHisabModule() {
       {/* Entries List */}
       <div className="space-y-3">
         <h3 className="text-xs font-bold text-ink uppercase tracking-wider px-1">
-          लेन-देन खाता: रोहन ⇄ {activePartner} ({activeLedgerEntries.length})
+          लेन-देन खाता: {mukhiyaShort} ⇄ {partnerShort} ({activeLedgerEntries.length})
         </h3>
 
         {activeLedgerEntries.length === 0 ? (
           <div className="p-6 bg-paper border border-paper-dim rounded-2xl text-center text-xs text-ink-muted">
-            कोई बकाया लेन-देन दर्ज नहीं है।
+            {mukhiyaShort} और {partnerShort} के बीच कोई बकाया लेन-देन दर्ज नहीं है।
           </div>
         ) : (
           activeLedgerEntries.map(e => (
@@ -171,9 +204,9 @@ export function FamilyHisabModule() {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
-                      e.fromMember === 'रोहन' ? 'bg-green/15 text-green' : 'bg-coral/15 text-coral'
+                      e.fromMember === mukhiya.name ? 'bg-green/15 text-green' : 'bg-coral/15 text-coral'
                     }`}>
-                      {e.fromMember} ने दिया → {e.toMember} को
+                      {e.fromMember.split(' ')[0]} ने दिया → {e.toMember.split(' ')[0]} को
                     </span>
                     <span className="text-[10px] text-ink-muted">
                       {e.type === 'cash_transfer' ? '💵 कैश' : e.type === 'online_bill' ? '⚡ बिल' : '🛍️ सामान'}
@@ -223,23 +256,25 @@ export function FamilyHisabModule() {
                     onChange={e => setFromMember(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-semibold"
                   >
-                    <option value="रोहन">रोहन</option>
-                    <option value="पापा">पापा</option>
-                    <option value="मम्मी">मम्मी</option>
-                    <option value="प्रिया">प्रिया</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.name}>
+                        {m.name} {m.relationship ? `(${m.relationship})` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-ink-muted mb-1">कॉल/कन्फर्म किसके लिए?</label>
+                  <label className="block text-ink-muted mb-1">किसके लिए खर्च?</label>
                   <select
                     value={toMember}
                     onChange={e => setToMember(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-semibold"
                   >
-                    <option value="पापा">पापा</option>
-                    <option value="रोहन">रोहन</option>
-                    <option value="मम्मी">मम्मी</option>
-                    <option value="प्रिया">प्रिया</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.name}>
+                        {m.name} {m.relationship ? `(${m.relationship})` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

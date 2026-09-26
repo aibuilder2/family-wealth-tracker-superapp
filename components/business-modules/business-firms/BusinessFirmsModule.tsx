@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Plus, ArrowRight, DollarSign, Receipt, CheckCircle, ShieldCheck, Wallet, ArrowDownRight, Briefcase, Trash2 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
+import { useFamilyStore } from '@/lib/store/familyStore';
 
 interface FirmDrawing {
   id: string;
@@ -58,7 +59,14 @@ export function BusinessFirmsModule() {
   // Form State: Drawing
   const [drawAmount, setDrawAmount] = useState<number | ''>('');
   const [drawType, setDrawType] = useState<FirmDrawing['type']>('profit_dividend');
-  const [targetMember, setTargetMember] = useState('पापा');
+  const { members } = useFamilyStore();
+  const [targetMember, setTargetMember] = useState(() => members[0]?.name || 'Ankush kesharwani');
+
+  useEffect(() => {
+    if (members.length > 0 && !members.some(m => m.name === targetMember)) {
+      setTargetMember(members[0].name);
+    }
+  }, [members]);
   const [drawNote, setDrawNote] = useState('Month-end business profit payout');
 
   useEffect(() => {
@@ -336,9 +344,11 @@ export function BusinessFirmsModule() {
                     onChange={e => setTargetMember(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-semibold"
                   >
-                    <option value="पापा">पापा</option>
-                    <option value="मम्मी">मम्मी</option>
-                    <option value="रोहन">रोहन</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.name}>
+                        {m.name} {m.relationship ? `(${m.relationship})` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Plus, PiggyBank, Landmark, ShieldCheck, ArrowUpRight, Sparkles, Trash2, Calendar, AlertCircle } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
+import { useFamilyStore } from '@/lib/store/familyStore';
 
 interface InvestmentRecord {
   id: string;
@@ -47,7 +48,14 @@ export function InvestmentsSipModule() {
   const [sipDate, setSipDate] = useState<number>(5);
   const [interestRate, setInterestRate] = useState<number | ''>('');
   const [maturityDate, setMaturityDate] = useState('');
-  const [member, setMember] = useState('रोहन');
+  const { members } = useFamilyStore();
+  const [member, setMember] = useState(() => members[0]?.name || 'Ankush kesharwani');
+
+  useEffect(() => {
+    if (members.length > 0 && !members.some(m => m.name === member)) {
+      setMember(members[0].name);
+    }
+  }, [members]);
 
   useEffect(() => {
     localStorage.setItem('fwa_investments_v1', JSON.stringify(investments));
@@ -348,10 +356,11 @@ export function InvestmentsSipModule() {
                   onChange={e => setMember(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim focus:outline-none focus:border-gold"
                 >
-                  <option value="पापा">पापा</option>
-                  <option value="मम्मी">मम्मी</option>
-                  <option value="रोहन">रोहन</option>
-                  <option value="प्रिया">प्रिया</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.name}>
+                      {m.name} {m.relationship ? `(${m.relationship})` : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
 

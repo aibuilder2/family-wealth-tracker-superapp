@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Compass, Plus, Users, Wallet, Share2, Calendar, MapPin, Trash2, ArrowUpRight, ArrowDownLeft, CheckCircle2 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
+import { useFamilyStore } from '@/lib/store/familyStore';
 
 interface TripExpense {
   id: string;
@@ -61,11 +62,19 @@ export function TripsSplitterModule() {
   const [expTitle, setExpTitle] = useState('');
   const [expCategory, setExpCategory] = useState<TripExpense['category']>('food');
   const [expAmount, setExpAmount] = useState<number | ''>('');
-  const [expPaidBy, setExpPaidBy] = useState('रोहन');
+  const { members } = useFamilyStore();
+  const [expPaidBy, setExpPaidBy] = useState(() => members[0]?.name || 'Ankush kesharwani');
 
   // Form State: Pool Fund
-  const [poolMember, setPoolMember] = useState('रोहन');
+  const [poolMember, setPoolMember] = useState(() => members[0]?.name || 'Ankush kesharwani');
   const [poolAmount, setPoolAmount] = useState<number | ''>('');
+
+  useEffect(() => {
+    if (members.length > 0 && !members.some(m => m.name === expPaidBy)) {
+      setExpPaidBy(members[0].name);
+      setPoolMember(members[0].name);
+    }
+  }, [members]);
 
   useEffect(() => {
     localStorage.setItem('fwa_trips_v1', JSON.stringify(trips));
@@ -77,16 +86,17 @@ export function TripsSplitterModule() {
     e.preventDefault();
     if (!tripTitle || !destination) return;
 
+    const initialTripMembers = members.length > 0
+      ? members.slice(0, 4).map(m => ({ name: m.name, advanceContributed: 0 }))
+      : [{ name: 'Ankush kesharwani', advanceContributed: 0 }];
+
     const newTrip: TripRecord = {
       id: `trip-${Date.now()}`,
       title: tripTitle,
       destination,
       startDate: startDate || new Date().toISOString().split('T')[0],
       endDate: endDate || new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
-      members: [
-        { name: 'पापा', advanceContributed: 0 },
-        { name: 'रोहन', advanceContributed: 0 }
-      ],
+      members: initialTripMembers,
       expenses: []
     };
 
@@ -413,13 +423,17 @@ export function TripsSplitterModule() {
               </div>
               <div>
                 <label className="block text-ink-muted mb-1">भुगतान किसने किया?</label>
-                <input
-                  type="text"
+                <select
                   value={expPaidBy}
                   onChange={e => setExpPaidBy(e.target.value)}
-                  placeholder="पापा या रोहन"
                   className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-semibold"
-                />
+                >
+                  {members.map(m => (
+                    <option key={m.id} value={m.name}>
+                      {m.name} {m.relationship ? `(${m.relationship})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="flex gap-2 pt-2">
                 <button
@@ -449,14 +463,17 @@ export function TripsSplitterModule() {
             <form onSubmit={handleAddPool} className="space-y-3 text-xs">
               <div>
                 <label className="block text-ink-muted mb-1">सदस्य का नाम</label>
-                <input
-                  type="text"
-                  placeholder="उदा. रोहन या अमित"
+                <select
                   value={poolMember}
                   onChange={e => setPoolMember(e.target.value)}
-                  required
                   className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-semibold"
-                />
+                >
+                  {members.map(m => (
+                    <option key={m.id} value={m.name}>
+                      {m.name} {m.relationship ? `(${m.relationship})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-ink-muted mb-1">जमा की गई रकम (₹)</label>

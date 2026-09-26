@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Landmark, Plus, Calculator, Phone, Share2, ShieldCheck, TrendingUp, AlertTriangle, Calendar, Check, Trash2 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
+import { useFamilyStore } from '@/lib/store/familyStore';
 
 interface LoanRecord {
   id: string;
@@ -23,6 +24,7 @@ interface LoanRecord {
 const DEFAULT_LOANS: LoanRecord[] = [];
 
 export function BankLoansModule() {
+  const { members } = useFamilyStore();
   const [loans, setLoans] = useState<LoanRecord[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_bank_loans_v1');
@@ -86,9 +88,11 @@ export function BankLoansModule() {
       tenureMonths: t,
       monthlyEmi: calculatedMonthlyEmi,
       emiDueDay: dueDay,
-      memberSplits: [
-        { member: 'पापा', percentage: 50, amount: Math.round(calculatedMonthlyEmi * 0.5) },
-        { member: 'रोहन', percentage: 50, amount: Math.round(calculatedMonthlyEmi * 0.5) }
+      memberSplits: members.length > 1 ? [
+        { member: members[0].name, percentage: 50, amount: Math.round(calculatedMonthlyEmi * 0.5) },
+        { member: members[1].name, percentage: 50, amount: Math.round(calculatedMonthlyEmi * 0.5) }
+      ] : [
+        { member: members[0]?.name || 'Ankush kesharwani', percentage: 100, amount: calculatedMonthlyEmi }
       ],
       startDate: new Date().toISOString().split('T')[0]
     };

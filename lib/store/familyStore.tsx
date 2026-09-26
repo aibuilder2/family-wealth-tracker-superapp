@@ -364,14 +364,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   // Automatic one-time cleanup of legacy demo/dummy data across all modules
   useEffect(() => {
     try {
-      const isPurged = localStorage.getItem('fwa_dummy_purged_v6');
+      const isPurged = localStorage.getItem('fwa_dummy_purged_v8');
       if (!isPurged) {
         const dummyIds = ['m-1', 'm-2', 'm-3', 'm-4', 'm-rohan', 'm-priya', 'm-papa', 'm-mummy', 'm-self'];
         
         // Deep clean any dummy entries in localStorage across all prefixes
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && (k.includes('member') || k.includes('transactions') || k.includes('assets') || k.includes('goals'))) {
+          if (k && (k.includes('member') || k.includes('transactions') || k.includes('assets') || k.includes('goals') || k.includes('hisab'))) {
             try {
               const raw = localStorage.getItem(k);
               if (raw) {
@@ -430,6 +430,27 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         cleanKey('fwa_retail_khata_v1', ['s-1', 's-2']);
         cleanKey('fwa_events_shagun_v1', ['sh-1', 'sh-2']);
 
+        // Explicit clean for family hisab to remove any old dummy entries
+        const hisabRaw = localStorage.getItem('fwa_family_hisab_v1');
+        if (hisabRaw) {
+          try {
+            const list = JSON.parse(hisabRaw);
+            if (Array.isArray(list)) {
+              const cleaned = list.filter((item: any) => {
+                const f = String(item?.fromMember || '').toLowerCase();
+                const t = String(item?.toMember || '').toLowerCase();
+                if (f.includes('rohan') || f.includes('priya') || f.includes('karan') ||
+                    t.includes('rohan') || t.includes('priya') || t.includes('karan') ||
+                    ['mle-1', 'mle-2', 'mle-3'].includes(item?.id)) {
+                  return false;
+                }
+                return true;
+              });
+              localStorage.setItem('fwa_family_hisab_v1', JSON.stringify(cleaned));
+            }
+          } catch (e) {}
+        }
+
         // Remove dummy project if matches proj-1
         const setup = localStorage.getItem('fwa_biz_setup_v1');
         if (setup) {
@@ -449,7 +470,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('fwa_family_profile', JSON.stringify(famProfile));
         localStorage.setItem('fwa_family', JSON.stringify(famProfile));
 
-        localStorage.setItem('fwa_dummy_purged_v6', 'true');
+        localStorage.setItem('fwa_dummy_purged_v8', 'true');
       }
     } catch (e) {
       console.warn('Cleanup error:', e);
