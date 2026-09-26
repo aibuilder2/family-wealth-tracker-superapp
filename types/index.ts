@@ -137,3 +137,34 @@ export interface MedicalRecord {
   doctor_phone?: string;
   notes?: string;
 }
+
+export interface RentalProperty {
+  id: string;
+  family_id: string;
+  name: string;
+  type: string;
+  address?: string;
+  total_floors?: number;
+  total_units?: number;
+  total_beds?: number;
+  monthly_target_rent?: number;
+  collected_rent?: number;
+  pending_rent?: number;
+  created_at?: string;
+}
+
+export interface RentalTenant {
+  id: string;
+  property_id: string;
+  room_id: string; // Room, Flat, Shop Number (e.g. "Room 101", "Flat 2B", "Dukaan 4")
+  bed_number?: string;
+  name: string;
+  phone?: string;
+  monthly_rent: number;
+  security_deposit: number;
+  joining_date?: string;
+  food_included?: boolean;
+  rent_status: 'paid' | 'due';
+  electricity_due?: number;
+  created_at?: string;
+}

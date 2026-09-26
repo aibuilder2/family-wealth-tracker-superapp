@@ -6,11 +6,26 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { AssetCard } from '@/components/wealth/AssetCard';
 import { GoalCard } from '@/components/wealth/GoalCard';
 import { Mono } from '@/components/ui/Mono';
-import { Plus, PiggyBank, Landmark, X } from 'lucide-react';
+import { Plus, PiggyBank, Landmark, X, Building2, Home, CheckCircle2, AlertCircle, Trash2, Phone } from 'lucide-react';
 import { AssetCategory, AssetType } from '@/types';
 
 export default function WealthPage() {
-  const { assets, goals, totalWealth, liquidWealth, fixedWealth, addGoal, addAsset } = useFamilyStore();
+  const {
+    assets,
+    goals,
+    totalWealth,
+    liquidWealth,
+    fixedWealth,
+    addGoal,
+    addAsset,
+    rentalProperties,
+    rentalTenants,
+    totalRentalIncomePerMonth,
+    totalSecurityDepositHeld,
+    addRentalTenant,
+    toggleTenantRentStatus,
+    deleteRentalTenant,
+  } = useFamilyStore();
   const [viewTab, setViewTab] = useState<'all' | 'liquid' | 'fixed'>('all');
 
   // Add Asset Modal State
@@ -27,6 +42,37 @@ export default function WealthPage() {
   const [goalTarget, setGoalTarget] = useState('');
   const [goalSaved, setGoalSaved] = useState('');
   const [goalDate, setGoalDate] = useState('');
+
+  // Add Rental Tenant / Property Modal State
+  const [isAddTenantOpen, setIsAddTenantOpen] = useState(false);
+  const [tName, setTName] = useState('');
+  const [tRoom, setTRoom] = useState('');
+  const [tPhone, setTPhone] = useState('');
+  const [tRent, setTRent] = useState('7500');
+  const [tDeposit, setTDeposit] = useState('7500');
+
+  const handleAddTenantSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tName.trim() || !tRoom.trim()) return;
+
+    addRentalTenant({
+      property_id: 'prop-kesharwani-1',
+      room_id: tRoom.trim(),
+      name: tName.trim(),
+      phone: tPhone.trim(),
+      monthly_rent: Number(tRent) || 0,
+      security_deposit: Number(tDeposit) || 0,
+      rent_status: 'paid',
+      joining_date: new Date().toISOString().split('T')[0],
+    });
+
+    setTName('');
+    setTRoom('');
+    setTPhone('');
+    setTRent('7500');
+    setTDeposit('7500');
+    setIsAddTenantOpen(false);
+  };
 
   const filteredAssets = assets.filter((a) => {
     if (viewTab === 'all') return true;
@@ -179,6 +225,109 @@ export default function WealthPage() {
           <div className="grid grid-cols-2 gap-3">
             {filteredAssets.map((asset) => (
               <AssetCard key={asset.id} asset={asset} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 🏢 Rental Properties & Tenants Section */}
+      <div className="px-4 pt-2 space-y-2.5">
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 border border-emerald-800/40 text-paper shadow-md">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-teal-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-bold text-xs sm:text-sm text-paper">किराया संपत्ति व किरायेदार (Rent ERP)</h3>
+                  <span className="text-[10px] bg-teal-500/25 text-teal-300 px-1.5 py-0.5 rounded font-mono font-bold">
+                    {rentalTenants.length} किरायेदार
+                  </span>
+                </div>
+                <p className="text-[11px] text-teal-200/80">मासिक किराया, अमानत व रूम रसीद ट्रैकिंग</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsAddTenantOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+            >
+              <Plus size={14} /> + किरायेदार जोड़ें
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-white/10 text-center">
+            <div className="bg-white/5 p-2 rounded-xl">
+              <span className="text-[10px] text-teal-200 uppercase tracking-wider block">मासिक कुल किराया</span>
+              <Mono className="text-sm sm:text-base font-bold text-emerald-400 block mt-0.5">
+                ₹{totalRentalIncomePerMonth.toLocaleString('en-IN')}<span className="text-[10px] text-teal-200/70 font-sans">/माह</span>
+              </Mono>
+            </div>
+            <div className="bg-white/5 p-2 rounded-xl">
+              <span className="text-[10px] text-teal-200 uppercase tracking-wider block">जमा अमानत (Deposit)</span>
+              <Mono className="text-sm sm:text-base font-bold text-teal-300 block mt-0.5">
+                ₹{totalSecurityDepositHeld.toLocaleString('en-IN')}
+              </Mono>
+            </div>
+          </div>
+        </div>
+
+        {rentalTenants.length === 0 ? (
+          <div className="p-5 text-center bg-paper rounded-2xl border border-dashed border-paper-dim space-y-2 shadow-xs">
+            <Home size={22} className="text-teal-600 mx-auto" />
+            <p className="text-xs font-bold text-ink">अभी कोई किरायेदार दर्ज नहीं है</p>
+            <p className="text-[11px] text-ink-muted max-w-xs mx-auto">
+              अपनी प्रॉपर्टी, फ्लैट, दुकान या हॉस्टल रूम के किरायेदार, मासिक किराया और सिक्योरिटी डिपॉजिट दर्ज करें।
+            </p>
+            <button
+              onClick={() => setIsAddTenantOpen(true)}
+              className="px-3.5 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-xl shadow-xs hover:bg-teal-700 transition-all"
+            >
+              + पहला किरायेदार जोड़ें
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {rentalTenants.map((t) => (
+              <div
+                key={t.id}
+                className="p-3 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs hover:border-teal-300/40 transition-all"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md text-[11px]">
+                      {t.room_id}
+                    </span>
+                    <h4 className="font-bold text-ink text-xs">{t.name}</h4>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-ink-muted">
+                    {t.phone && <span>📞 {t.phone}</span>}
+                    <span>मासिक: <b className="text-ink font-mono">₹{t.monthly_rent.toLocaleString('en-IN')}/माह</b></span>
+                    <span>अमानत: <b className="text-emerald-700 font-mono">₹{t.security_deposit.toLocaleString('en-IN')}</b></span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleTenantRentStatus(t.id)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                      t.rent_status === 'paid'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        : 'bg-rose-50 text-rose-800 border-rose-300 animate-pulse'
+                    }`}
+                  >
+                    {t.rent_status === 'paid' ? '✓ किराया जमा' : 'बाकी (Due)'}
+                  </button>
+                  <button
+                    onClick={() => deleteRentalTenant(t.id)}
+                    className="p-1 text-ink-muted hover:text-rose-600 transition-all"
+                    title="हटाएं"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -460,6 +609,116 @@ export default function WealthPage() {
                   className="flex-1 py-2 rounded-xl bg-gold text-navy font-bold hover:bg-gold-light shadow-sm"
                 >
                   Goal जोड़ें
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Rental Tenant / Property Modal */}
+      {isAddTenantOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-paper rounded-2xl shadow-xl p-5 border border-paper-dim space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-ink flex items-center gap-2">
+                <Building2 size={18} className="text-teal-600" />
+                नया किरायेदार / रूम प्रविष्टि
+              </h3>
+              <button
+                onClick={() => setIsAddTenantOpen(false)}
+                className="text-ink-muted hover:text-ink p-1"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddTenantSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                  रूम / फ्लैट / दुकान नंबर * (उदा. रूम 204, फ्लैट 2B)
+                </label>
+                <input
+                  type="text"
+                  placeholder="उदा. Room 101, Shop 4, 1st Floor Flat"
+                  value={tRoom}
+                  onChange={(e) => setTRoom(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-bold"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                  किरायेदार का नाम *
+                </label>
+                <input
+                  type="text"
+                  placeholder="उदा. राहुल वर्मा, शर्मा जी"
+                  value={tName}
+                  onChange={(e) => setTName(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-medium"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                  मोबाइल नंबर (वैकल्पिक)
+                </label>
+                <input
+                  type="tel"
+                  placeholder="उदा. 98765 43210"
+                  value={tPhone}
+                  onChange={(e) => setTPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                    मासिक किराया ₹ *
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="₹ 7,500"
+                    value={tRent}
+                    onChange={(e) => setTRent(e.target.value)}
+                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono font-bold text-ink"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                    सिक्योरिटी डिपॉजिट ₹
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="₹ 7,500"
+                    value={tDeposit}
+                    onChange={(e) => setTDeposit(e.target.value)}
+                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono text-ink"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddTenantOpen(false)}
+                  className="flex-1 py-2 rounded-xl bg-paper-dim text-ink-muted font-bold"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 shadow-sm"
+                >
+                  किरायेदार जोड़ें
                 </button>
               </div>
             </form>

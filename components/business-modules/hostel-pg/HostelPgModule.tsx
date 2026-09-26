@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
 
+import { useFamilyStore } from '@/lib/store/familyStore';
+
 export interface RoomTenant {
   id: string;
   roomNumber: string; // e.g. "Room 101", "Flat 2B"
@@ -21,10 +23,8 @@ export interface RoomTenant {
   joiningDate: string;
 }
 
-const INITIAL_TENANTS: RoomTenant[] = [];
-
 export default function HostelPgModule() {
-  const [tenants, setTenants] = useState<RoomTenant[]>(INITIAL_TENANTS);
+  const { rentalTenants, addRentalTenant, toggleTenantRentStatus } = useFamilyStore();
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Form State
@@ -34,42 +34,35 @@ export default function HostelPgModule() {
   const [monthlyRent, setMonthlyRent] = useState('7500');
   const [deposit, setDeposit] = useState('7500');
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('fwa_hostel_tenants_v1');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setTenants(parsed.filter((t: any) => !['ten-1', 'ten-2', 'ten-3'].includes(t?.id)));
-        }
-      }
-    } catch (e) {}
-  }, []);
-
-  const saveTenants = (tList: RoomTenant[]) => {
-    setTenants(tList);
-    try { localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(tList)); } catch (e) {}
-  };
+  const tenants: RoomTenant[] = rentalTenants.map((t) => ({
+    id: t.id,
+    roomNumber: t.room_id,
+    tenantName: t.name,
+    tenantPhone: t.phone || '',
+    monthlyRent: t.monthly_rent,
+    securityDeposit: t.security_deposit,
+    dueDayOfMonth: 5,
+    paymentStatus: t.rent_status === 'paid' ? 'PAID' : 'DUE',
+    dueAmount: t.rent_status === 'due' ? t.monthly_rent : 0,
+    joiningDate: t.joining_date || '',
+  }));
 
   const handleSaveTenant = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenantName.trim() || !roomNumber.trim()) return;
 
     const rent = Number(monthlyRent) || 0;
-    const newT: RoomTenant = {
-      id: 'ten-' + Date.now(),
-      roomNumber: roomNumber.trim(),
-      tenantName: tenantName.trim(),
-      tenantPhone: tenantPhone.trim(),
-      monthlyRent: rent,
-      securityDeposit: Number(deposit) || 0,
-      dueDayOfMonth: 5,
-      paymentStatus: 'PAID',
-      dueAmount: 0,
-      joiningDate: new Date().toISOString().split('T')[0],
-    };
+    addRentalTenant({
+      property_id: 'prop-kesharwani-1',
+      room_id: roomNumber.trim(),
+      name: tenantName.trim(),
+      phone: tenantPhone.trim(),
+      monthly_rent: rent,
+      security_deposit: Number(deposit) || 0,
+      rent_status: 'paid',
+      joining_date: new Date().toISOString().split('T')[0],
+    });
 
-    saveTenants([newT, ...tenants]);
     setShowAddModal(false);
     setRoomNumber('');
     setTenantName('');
@@ -79,19 +72,7 @@ export default function HostelPgModule() {
   };
 
   const toggleRentStatus = (id: string) => {
-    const updated = tenants.map(t => {
-      if (t.id === id) {
-        const isNowPaid = t.paymentStatus !== 'PAID';
-        const newStatus: 'PAID' | 'DUE' = isNowPaid ? 'PAID' : 'DUE';
-        return {
-          ...t,
-          paymentStatus: newStatus,
-          dueAmount: isNowPaid ? 0 : t.monthlyRent,
-        };
-      }
-      return t;
-    });
-    saveTenants(updated);
+    toggleTenantRentStatus(id);
   };
 
   // KPIs
