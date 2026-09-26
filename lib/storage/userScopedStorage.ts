@@ -70,6 +70,7 @@ export function setActiveUser(user: string) {
 
     // Track known accounts for account switcher
     if (clean !== 'guest') {
+      autoMigrateGuestDataToActiveUser(clean);
       const existingRaw = getter.call(window.localStorage, 'fwa_known_users');
       let known: string[] = [];
       if (existingRaw) {
@@ -136,6 +137,56 @@ export function logoutUser() {
 }
 
 /**
+ * Seamlessly migrates all data saved in guest or unscoped storage into the active logged-in user profile.
+ */
+export function autoMigrateGuestDataToActiveUser(activeUser: string) {
+  if (typeof window === 'undefined' || !activeUser || activeUser === 'guest') return;
+  try {
+    const getter = origGetItem || window.localStorage.getItem.bind(window.localStorage);
+    const setter = origSetItem || window.localStorage.setItem.bind(window.localStorage);
+
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (!k) continue;
+
+      let baseKey: string | null = null;
+      if (k.startsWith('fwa_u_guest__')) {
+        baseKey = k.replace('fwa_u_guest__', '');
+      } else if (k.startsWith('fwa_') && !k.startsWith('fwa_u_')) {
+        baseKey = k;
+      }
+
+      if (baseKey && !UNSCOPED_KEYS.has(baseKey)) {
+        const userKey = `fwa_u_${activeUser}__${baseKey}`;
+        const currentUserVal = getter.call(window.localStorage, userKey);
+        const sourceVal = getter.call(window.localStorage, k);
+
+        if (sourceVal && sourceVal !== '[]' && sourceVal !== '{}' && sourceVal !== 'null') {
+          if (!currentUserVal || currentUserVal === '[]' || currentUserVal === 'null') {
+            setter.call(window.localStorage, userKey, sourceVal);
+          }
+        }
+      }
+    }
+
+    // Also migrate cross-key aliases
+    // 1. rental tenants <-> hostel tenants
+    const tenantUserKey = `fwa_u_${activeUser}__fwa_rental_tenants`;
+    const currTenants = getter.call(window.localStorage, tenantUserKey);
+    if (!currTenants || currTenants === '[]' || currTenants === 'null') {
+      const altTenants = getter.call(window.localStorage, `fwa_u_${activeUser}__fwa_hostel_tenants_v1`) ||
+                         getter.call(window.localStorage, 'fwa_u_guest__fwa_hostel_tenants_v1') ||
+                         getter.call(window.localStorage, 'fwa_hostel_tenants_v1');
+      if (altTenants && altTenants !== '[]' && altTenants !== 'null') {
+        setter.call(window.localStorage, tenantUserKey, altTenants);
+      }
+    }
+  } catch (e) {
+    console.warn('Auto migration error:', e);
+  }
+}
+
+/**
  * Resolves a storage key to be scoped by the current active user.
  * e.g. 'fwa_transactions' -> 'fwa_u_rajesh@gmail.com__fwa_transactions'
  */
@@ -172,23 +223,70 @@ export function initUserScopedStorage() {
     storageProto.getItem = function (key: string) {
       const targetKey = resolveUserScopedKey(key);
       const val = origGetItem!.call(this, targetKey);
-      if (val !== null) return val;
+      
+      // If found and contains actual data, return immediately
+      if (val !== null && val !== '[]' && val !== '{}' && val !== 'null') return val;
 
-      // Fallback: If scoped key doesn't have data yet, check legacy un-scoped key
-      // so user's previously created family and records are safely preserved!
+      // Fallback: If scoped key has no data or has empty '[]', search fallbacks
       if (targetKey !== key) {
-        let legacyVal = origGetItem!.call(this, key);
-        // Also handle fwa_family_profile vs fwa_family alias
-        if (legacyVal === null && key === 'fwa_family_profile') {
-          legacyVal = origGetItem!.call(this, 'fwa_family') || origGetItem!.call(this, `fwa_u_${getActiveUser()}__fwa_family`);
+        const activeUser = getActiveUser();
+        let fallbackVal: string | null = null;
+
+        // 1. Check guest scoped key: fwa_u_guest__${key}
+        const guestVal = origGetItem!.call(this, `fwa_u_guest__${key}`);
+        if (guestVal && guestVal !== '[]' && guestVal !== '{}' && guestVal !== 'null') {
+          fallbackVal = guestVal;
         }
-        if (legacyVal !== null) {
+
+        // 2. Check unscoped key: ${key}
+        if (!fallbackVal) {
+          const unscopedVal = origGetItem!.call(this, key);
+          if (unscopedVal && unscopedVal !== '[]' && unscopedVal !== '{}' && unscopedVal !== 'null') {
+            fallbackVal = unscopedVal;
+          }
+        }
+
+        // 3. Check cross-key aliases
+        if (!fallbackVal) {
+          if (key === 'fwa_rental_tenants' || key === 'fwa_hostel_tenants_v1') {
+            const altKey = key === 'fwa_rental_tenants' ? 'fwa_hostel_tenants_v1' : 'fwa_rental_tenants';
+            fallbackVal = origGetItem!.call(this, `fwa_u_${activeUser}__${altKey}`) ||
+                          origGetItem!.call(this, `fwa_u_guest__${altKey}`) ||
+                          origGetItem!.call(this, altKey);
+          } else if (key === 'fwa_family_profile' || key === 'fwa_family') {
+            const altKey = key === 'fwa_family_profile' ? 'fwa_family' : 'fwa_family_profile';
+            fallbackVal = origGetItem!.call(this, `fwa_u_${activeUser}__${altKey}`) ||
+                          origGetItem!.call(this, `fwa_u_guest__${altKey}`) ||
+                          origGetItem!.call(this, altKey);
+          }
+        }
+
+        // 4. Search any other key ending with __${key} in localStorage
+        if (!fallbackVal) {
+          for (let i = 0; i < this.length; i++) {
+            const k = this.key(i);
+            if (k && k !== targetKey && (k.endsWith(`__${key}`) || k === key)) {
+              const candidate = origGetItem!.call(this, k);
+              if (candidate && candidate !== '[]' && candidate !== '{}' && candidate !== 'null') {
+                fallbackVal = candidate;
+                break;
+              }
+            }
+          }
+        }
+
+        // If a non-empty fallback was discovered, migrate it to the target key
+        if (fallbackVal && fallbackVal !== '[]' && fallbackVal !== '{}' && fallbackVal !== 'null') {
           try {
-            origSetItem!.call(this, targetKey, legacyVal);
+            origSetItem!.call(this, targetKey, fallbackVal);
           } catch (e) {}
-          return legacyVal;
+          return fallbackVal;
         }
       }
+
+      // If val was '[]' or '{}' and no fallback was found, return val
+      if (val !== null) return val;
+
       return null;
     };
 
@@ -216,6 +314,12 @@ export function initUserScopedStorage() {
     };
 
     isStoragePatched = true;
+
+    // Run auto-migration for current active user
+    const curUser = getActiveUser();
+    if (curUser && curUser !== 'guest') {
+      autoMigrateGuestDataToActiveUser(curUser);
+    }
   } catch (err) {
     console.warn('Could not initialize userScopedStorage patch:', err);
   }

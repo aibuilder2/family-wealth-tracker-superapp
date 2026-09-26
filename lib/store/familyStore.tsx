@@ -102,7 +102,102 @@ export const INITIAL_MEMBERS: Member[] = [
 ];
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [];
-export const INITIAL_ASSETS: Asset[] = [];
+
+export const INITIAL_ASSETS: Asset[] = [
+  {
+    id: 'ast-land-1',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    category: 'fixed',
+    type: 'property',
+    label: 'पुश्तैनी संपत्ति व ज़मीन (Kesharwani Bhawan)',
+    value: 2300000,
+    notes: 'पैतृक आवासीय व व्यावसायिक संपत्ति',
+  },
+  {
+    id: 'ast-gold-1',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    category: 'fixed',
+    type: 'gold',
+    label: 'पारिवारिक स्वर्ण व आभूषण (Gold Jewellery)',
+    value: 620000,
+    notes: 'सुरक्षित पारिवारिक गहने',
+  },
+  {
+    id: 'ast-bank-1',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    category: 'liquid',
+    type: 'bank_deposit',
+    label: 'बैंक सावधि जमा व बचत (SBI / PNB FD)',
+    value: 840000,
+    notes: 'इमरजेंसी व फिक्स्ड डिपॉजिट फंड',
+  },
+  {
+    id: 'ast-shares-1',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    category: 'liquid',
+    type: 'mutual_funds',
+    label: 'म्यूचुअल फंड व शेयर निवेश (SIP & Stocks)',
+    value: 458600,
+    notes: 'दीर्घकालिक पारिवारिक विकास निवेश',
+  },
+];
+
+export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
+  {
+    id: 'prop-kesharwani-1',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    name: 'केसरवानी भवन (किराया फ्लैट्स व हॉस्टल रूम)',
+    type: 'residential_flat',
+    address: 'Kesharwani Bhawan, Station Road',
+    total_units: 4,
+    monthly_target_rent: 23500,
+    collected_rent: 16000,
+    pending_rent: 7500,
+  },
+];
+
+export const INITIAL_RENTAL_TENANTS: RentalTenant[] = [
+  {
+    id: 'ten-kesharwani-1',
+    property_id: 'prop-kesharwani-1',
+    room_id: 'Room 101 (Flat 1A)',
+    name: 'राहुल वर्मा (विद्यार्थी/हॉस्टल)',
+    phone: '98271 43210',
+    monthly_rent: 7500,
+    security_deposit: 7500,
+    joining_date: '2026-01-10',
+    rent_status: 'paid',
+    electricity_due: 0,
+    food_included: true,
+  },
+  {
+    id: 'ten-kesharwani-2',
+    property_id: 'prop-kesharwani-1',
+    room_id: 'Room 102 (Flat 1B)',
+    name: 'सुरेश गुप्ता (परिवार)',
+    phone: '94250 87654',
+    monthly_rent: 8500,
+    security_deposit: 8500,
+    joining_date: '2026-02-01',
+    rent_status: 'paid',
+    electricity_due: 0,
+    food_included: false,
+  },
+  {
+    id: 'ten-kesharwani-3',
+    property_id: 'prop-kesharwani-1',
+    room_id: 'Room 201 (दुकान/कार्यालय)',
+    name: 'अमित सोनी (व्यावसायिक)',
+    phone: '70001 98765',
+    monthly_rent: 7500,
+    security_deposit: 15000,
+    joining_date: '2026-03-01',
+    rent_status: 'due',
+    electricity_due: 450,
+    food_included: false,
+  },
+];
+
 export const INITIAL_GOALS: Goal[] = [];
 export const INITIAL_REMINDERS: Reminder[] = [];
 export const INITIAL_DOCUMENTS: DocumentItem[] = [];
@@ -230,13 +325,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            return parsed.filter(a => !['a-1', 'a-2', 'a-3', 'a-4'].includes(a.id));
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
           }
         } catch (e) {}
       }
     }
-    return [];
+    return INITIAL_ASSETS;
   });
 
   const [goals, setGoals] = useState<Goal[]>(() => {
@@ -309,19 +404,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {}
       }
     }
-    return [
-      {
-        id: 'prop-kesharwani-1',
-        family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
-        name: 'पुश्तैनी संपत्ति / हॉस्टल व किराये के फ्लैट',
-        type: 'residential_flat',
-        address: 'Kesharwani Bhawan',
-        total_units: 4,
-        monthly_target_rent: 0,
-        collected_rent: 0,
-        pending_rent: 0,
-      }
-    ];
+    return INITIAL_RENTAL_PROPERTIES;
   });
 
   const [rentalTenants, setRentalTenants] = useState<RentalTenant[]>(() => {
@@ -331,28 +414,26 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            return parsed
-              .filter(t => !['ten-1', 'ten-2', 'ten-3'].includes(t.id))
-              .map((t: any) => ({
-                id: t.id || 'ten-' + Math.random().toString(36).substring(7),
-                property_id: t.property_id || 'prop-kesharwani-1',
-                room_id: t.room_id || t.roomNumber || 'Room 101',
-                bed_number: t.bed_number,
-                name: t.name || t.tenantName || 'किरायेदार',
-                phone: t.phone || t.tenantPhone || '',
-                monthly_rent: Number(t.monthly_rent || t.monthlyRent || 0),
-                security_deposit: Number(t.security_deposit || t.securityDeposit || 0),
-                joining_date: t.joining_date || t.joiningDate || new Date().toISOString().split('T')[0],
-                rent_status: (t.rent_status === 'due' || t.paymentStatus === 'DUE') ? 'due' : 'paid',
-                electricity_due: Number(t.electricity_due || t.dueAmount || 0),
-                food_included: t.food_included || false,
-              }));
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((t: any) => ({
+              id: t.id || 'ten-' + Math.random().toString(36).substring(7),
+              property_id: t.property_id || 'prop-kesharwani-1',
+              room_id: t.room_id || t.roomNumber || 'Room 101',
+              bed_number: t.bed_number,
+              name: t.name || t.tenantName || 'किरायेदार',
+              phone: t.phone || t.tenantPhone || '',
+              monthly_rent: Number(t.monthly_rent || t.monthlyRent || 0),
+              security_deposit: Number(t.security_deposit || t.securityDeposit || 0),
+              joining_date: t.joining_date || t.joiningDate || new Date().toISOString().split('T')[0],
+              rent_status: (t.rent_status === 'due' || t.paymentStatus === 'DUE') ? 'due' : 'paid',
+              electricity_due: Number(t.electricity_due || t.dueAmount || 0),
+              food_included: t.food_included || false,
+            }));
           }
         } catch (e) {}
       }
     }
-    return [];
+    return INITIAL_RENTAL_TENANTS;
   });
 
   const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
@@ -364,14 +445,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   // Automatic one-time cleanup of legacy demo/dummy data across all modules
   useEffect(() => {
     try {
-      const isPurged = localStorage.getItem('fwa_dummy_purged_v8');
+      const isPurged = localStorage.getItem('fwa_dummy_purged_v9');
       if (!isPurged) {
         const dummyIds = ['m-1', 'm-2', 'm-3', 'm-4', 'm-rohan', 'm-priya', 'm-papa', 'm-mummy', 'm-self'];
         
-        // Deep clean any dummy entries in localStorage across all prefixes
+        // Deep clean any dummy member entries in localStorage across all prefixes
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && (k.includes('member') || k.includes('transactions') || k.includes('assets') || k.includes('goals') || k.includes('hisab'))) {
+          if (k && (k.includes('member') || k.includes('transactions') || k.includes('hisab'))) {
             try {
               const raw = localStorage.getItem(k);
               if (raw) {
@@ -400,7 +481,6 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
         cleanKey('fwa_members', dummyIds);
         cleanKey('fwa_transactions', ['t-1', 't-2', 't-3', 't-4', 't-5', 't-6']);
-        cleanKey('fwa_assets', ['a-1', 'a-2', 'a-3', 'a-4']);
         cleanKey('fwa_goals', ['g-1', 'g-2']);
         cleanKey('fwa_reminders', ['r-1', 'r-2', 'r-3']);
         cleanKey('fwa_documents', ['d-1', 'd-2', 'd-3', 'd-4']);
@@ -419,7 +499,6 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         cleanKey('fwa_kitchen_records_v2', ['k-1']);
         cleanKey('fwa_tiffin_customers_v2', ['tif-1', 'tif-2', 'tif-3']);
         cleanKey('fwa_petrol_shifts_v1', ['pmp-1']);
-        cleanKey('fwa_hostel_tenants_v1', ['ten-1', 'ten-2', 'ten-3']);
         cleanKey('fwa_crm_leads_v1', ['ld-1', 'ld-2']);
         cleanKey('fwa_transport_vehicles_v2', ['v-1', 'v-2', 'v-3']);
         cleanKey('fwa_transport_trips_v2', ['t-1', 't-2', 't-3', 'trip-1']);
@@ -470,7 +549,29 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('fwa_family_profile', JSON.stringify(famProfile));
         localStorage.setItem('fwa_family', JSON.stringify(famProfile));
 
-        localStorage.setItem('fwa_dummy_purged_v8', 'true');
+        // Seed default family assets if not present or empty
+        const curAssets = localStorage.getItem('fwa_assets');
+        if (!curAssets || curAssets === '[]') {
+          localStorage.setItem('fwa_assets', JSON.stringify(INITIAL_ASSETS));
+          setAssets(INITIAL_ASSETS);
+        }
+
+        // Seed default rental properties if not present or empty
+        const curProps = localStorage.getItem('fwa_rental_properties');
+        if (!curProps || curProps === '[]') {
+          localStorage.setItem('fwa_rental_properties', JSON.stringify(INITIAL_RENTAL_PROPERTIES));
+          setRentalProperties(INITIAL_RENTAL_PROPERTIES);
+        }
+
+        // Seed default rental tenants if not present or empty
+        const curTenants = localStorage.getItem('fwa_rental_tenants') || localStorage.getItem('fwa_hostel_tenants_v1');
+        if (!curTenants || curTenants === '[]') {
+          localStorage.setItem('fwa_rental_tenants', JSON.stringify(INITIAL_RENTAL_TENANTS));
+          localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(INITIAL_RENTAL_TENANTS));
+          setRentalTenants(INITIAL_RENTAL_TENANTS);
+        }
+
+        localStorage.setItem('fwa_dummy_purged_v9', 'true');
       }
     } catch (e) {
       console.warn('Cleanup error:', e);

@@ -25,6 +25,20 @@ export function FamilyHisabModule() {
   const mukhiya = members.find(m => m.role === 'owner') || members[0] || { name: 'Ankush kesharwani' };
   const partnerMembers = members.filter(m => m.name !== mukhiya.name);
 
+  const isDummyPerson = (name: string) => {
+    const lower = String(name || '').toLowerCase().trim();
+    return (
+      lower.includes('rohan') ||
+      lower.includes('priya') ||
+      lower.includes('karan') ||
+      lower.includes('अमित भैया') ||
+      lower === 'papa' ||
+      lower === 'mummy' ||
+      lower === 'पापा' ||
+      lower === 'मम्मी'
+    );
+  };
+
   const [entries, setEntries] = useState<MemberLedgerEntry[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_family_hisab_v1');
@@ -34,8 +48,8 @@ export function FamilyHisabModule() {
           if (Array.isArray(parsed)) {
             return parsed.filter((e: any) => 
               !['mle-1', 'mle-2', 'mle-3'].includes(e?.id) &&
-              e?.fromMember !== 'रोहन' &&
-              e?.toMember !== 'रोहन'
+              !isDummyPerson(e?.fromMember) &&
+              !isDummyPerson(e?.toMember)
             );
           }
         } catch (e) {}
