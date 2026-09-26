@@ -6,8 +6,8 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { AssetCard } from '@/components/wealth/AssetCard';
 import { GoalCard } from '@/components/wealth/GoalCard';
 import { Mono } from '@/components/ui/Mono';
-import { Plus, PiggyBank, Landmark, X, Building2, Home, CheckCircle2, AlertCircle, Trash2, Phone } from 'lucide-react';
-import { AssetCategory, AssetType } from '@/types';
+import { Plus, PiggyBank, Landmark, X, Building2, Home, CheckCircle2, AlertCircle, Trash2, Phone, Pencil } from 'lucide-react';
+import { AssetCategory, AssetType, RentalTenant } from '@/types';
 
 export default function WealthPage() {
   const {
@@ -23,6 +23,7 @@ export default function WealthPage() {
     totalRentalIncomePerMonth,
     totalSecurityDepositHeld,
     addRentalTenant,
+    updateRentalTenant,
     toggleTenantRentStatus,
     deleteRentalTenant,
   } = useFamilyStore();
@@ -51,12 +52,48 @@ export default function WealthPage() {
   const [tRent, setTRent] = useState('7500');
   const [tDeposit, setTDeposit] = useState('7500');
 
+  // Edit Rental Tenant / Property Modal State
+  const [editingTenant, setEditingTenant] = useState<RentalTenant | null>(null);
+  const [editRoom, setEditRoom] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRent, setEditRent] = useState('');
+  const [editDeposit, setEditDeposit] = useState('');
+  const [editStatus, setEditStatus] = useState<'paid' | 'due'>('paid');
+
+  const handleOpenEdit = (tenant: RentalTenant) => {
+    setEditingTenant(tenant);
+    setEditRoom(tenant.room_id);
+    setEditName(tenant.name);
+    setEditPhone(tenant.phone || '');
+    setEditRent(String(tenant.monthly_rent));
+    setEditDeposit(String(tenant.security_deposit));
+    setEditStatus(tenant.rent_status);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTenant || !editRoom.trim() || !editName.trim()) return;
+
+    updateRentalTenant({
+      ...editingTenant,
+      room_id: editRoom.trim(),
+      name: editName.trim(),
+      phone: editPhone.trim(),
+      monthly_rent: Number(editRent) || 0,
+      security_deposit: Number(editDeposit) || 0,
+      rent_status: editStatus,
+    });
+
+    setEditingTenant(null);
+  };
+
   const handleAddTenantSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tName.trim() || !tRoom.trim()) return;
 
     addRentalTenant({
-      property_id: 'prop-kesharwani-1',
+      property_id: 'prop-kesharwani-main',
       room_id: tRoom.trim(),
       name: tName.trim(),
       phone: tPhone.trim(),
@@ -320,8 +357,15 @@ export default function WealthPage() {
                     {t.rent_status === 'paid' ? '✓ किराया जमा' : 'बाकी (Due)'}
                   </button>
                   <button
+                    onClick={() => handleOpenEdit(t)}
+                    className="p-1.5 text-ink-muted hover:text-teal-700 bg-paper-dim/60 hover:bg-teal-50 rounded-lg transition-all cursor-pointer"
+                    title="संशोधित करें / बदलें (Edit)"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
                     onClick={() => deleteRentalTenant(t.id)}
-                    className="p-1 text-ink-muted hover:text-rose-600 transition-all"
+                    className="p-1 text-ink-muted hover:text-rose-600 transition-all cursor-pointer"
                     title="हटाएं"
                   >
                     <Trash2 size={13} />
@@ -719,6 +763,140 @@ export default function WealthPage() {
                   className="flex-1 py-2 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 shadow-sm"
                 >
                   किरायेदार जोड़ें
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Rental Tenant / Property Modal */}
+      {editingTenant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-paper rounded-2xl shadow-xl p-5 border border-paper-dim space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-ink flex items-center gap-2">
+                <Pencil size={18} className="text-teal-600" />
+                किराया संपत्ति / किरायेदार विवरण बदलें
+              </h3>
+              <button
+                onClick={() => setEditingTenant(null)}
+                className="text-ink-muted hover:text-ink p-1 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                  संपत्ति / रूम / दुकान का नाम *
+                </label>
+                <input
+                  type="text"
+                  value={editRoom}
+                  onChange={(e) => setEditRoom(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                  किरायेदार का नाम *
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-medium"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                  मोबाइल नंबर (वैकल्पिक)
+                </label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                    मासिक किराया ₹ *
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={editRent}
+                    onChange={(e) => setEditRent(e.target.value)}
+                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono font-bold text-ink"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                    सिक्योरिटी डिपॉजिट ₹
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={editDeposit}
+                    onChange={(e) => setEditDeposit(e.target.value)}
+                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono text-ink"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                  किराया भुगतान स्थिति
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus('paid')}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                      editStatus === 'paid'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-400 font-bold'
+                        : 'bg-paper text-ink-muted border-paper-dim'
+                    }`}
+                  >
+                    ✓ किराया जमा (Paid)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus('due')}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                      editStatus === 'due'
+                        ? 'bg-rose-50 text-rose-800 border-rose-400 font-bold'
+                        : 'bg-paper text-ink-muted border-paper-dim'
+                    }`}
+                  >
+                    बाकी है (Due)
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTenant(null)}
+                  className="flex-1 py-2 rounded-xl bg-paper-dim text-ink-muted font-bold cursor-pointer"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 shadow-sm cursor-pointer"
+                >
+                  अपडेट करें (Save)
                 </button>
               </div>
             </form>

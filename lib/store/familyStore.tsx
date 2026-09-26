@@ -105,96 +105,141 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [];
 
 export const INITIAL_ASSETS: Asset[] = [
   {
-    id: 'ast-land-1',
+    id: 'ast-prop-1',
     family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
     category: 'fixed',
     type: 'property',
-    label: 'पुश्तैनी संपत्ति व ज़मीन (Kesharwani Bhawan)',
-    value: 2300000,
-    notes: 'पैतृक आवासीय व व्यावसायिक संपत्ति',
+    label: 'संपत्ति 1: मुख्य कमर्शियल दुकान 1',
+    value: 3000000,
+    notes: 'मासिक किराया: ₹17,000/माह',
   },
   {
-    id: 'ast-gold-1',
+    id: 'ast-prop-2',
     family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
     category: 'fixed',
-    type: 'gold',
-    label: 'पारिवारिक स्वर्ण व आभूषण (Gold Jewellery)',
-    value: 620000,
-    notes: 'सुरक्षित पारिवारिक गहने',
+    type: 'property',
+    label: 'संपत्ति 2: कमर्शियल दुकान / ऑफिस 2',
+    value: 2400000,
+    notes: 'मासिक किराया: ₹12,000/माह',
   },
   {
-    id: 'ast-bank-1',
+    id: 'ast-prop-3',
     family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
-    category: 'liquid',
-    type: 'bank_deposit',
-    label: 'बैंक सावधि जमा व बचत (SBI / PNB FD)',
-    value: 840000,
-    notes: 'इमरजेंसी व फिक्स्ड डिपॉजिट फंड',
+    category: 'fixed',
+    type: 'property',
+    label: 'संपत्ति 3: आवासीय पोर्शन / फ्लैट 1',
+    value: 2000000,
+    notes: 'मासिक किराया: ₹10,000/माह',
   },
   {
-    id: 'ast-shares-1',
+    id: 'ast-prop-4',
     family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
-    category: 'liquid',
-    type: 'mutual_funds',
-    label: 'म्यूचुअल फंड व शेयर निवेश (SIP & Stocks)',
-    value: 458600,
-    notes: 'दीर्घकालिक पारिवारिक विकास निवेश',
+    category: 'fixed',
+    type: 'property',
+    label: 'संपत्ति 4: आवासीय पोर्शन / फ्लैट 2',
+    value: 2000000,
+    notes: 'मासिक किराया: ₹10,000/माह',
+  },
+  {
+    id: 'ast-prop-5',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    category: 'fixed',
+    type: 'property',
+    label: 'संपत्ति 5: हॉस्टल रूम्स / रेंटल सेट',
+    value: 1800000,
+    notes: 'मासिक किराया: ₹9,000/माह',
+  },
+  {
+    id: 'ast-prop-6',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    category: 'fixed',
+    type: 'property',
+    label: 'संपत्ति 6: गोदाम / स्वतंत्र स्पेस',
+    value: 1800000,
+    notes: 'मासिक किराया: ₹9,000/माह (मूल ₹8,000 + ₹1,000)',
   },
 ];
 
 export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
   {
-    id: 'prop-kesharwani-1',
+    id: 'prop-kesharwani-main',
     family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
-    name: 'केसरवानी भवन (किराया फ्लैट्स व हॉस्टल रूम)',
-    type: 'residential_flat',
-    address: 'Kesharwani Bhawan, Station Road',
-    total_units: 4,
-    monthly_target_rent: 23500,
-    collected_rent: 16000,
-    pending_rent: 7500,
+    name: 'पारिवारिक 6 संपत्तियां (कमर्शियल व आवासीय रेंटल पोर्टफोलियो)',
+    type: 'commercial_residential',
+    address: 'Kesharwani Bhawan & Properties',
+    total_units: 6,
+    monthly_target_rent: 67000,
+    collected_rent: 67000,
+    pending_rent: 0,
   },
 ];
 
 export const INITIAL_RENTAL_TENANTS: RentalTenant[] = [
   {
-    id: 'ten-kesharwani-1',
-    property_id: 'prop-kesharwani-1',
-    room_id: 'Room 101 (Flat 1A)',
-    name: 'राहुल वर्मा (विद्यार्थी/हॉस्टल)',
-    phone: '98271 43210',
-    monthly_rent: 7500,
-    security_deposit: 7500,
-    joining_date: '2026-01-10',
+    id: 'prop-unit-1',
+    property_id: 'prop-kesharwani-main',
+    room_id: 'संपत्ति 1 (कमर्शियल दुकान 1)',
+    name: 'किरायेदार 1',
+    phone: '',
+    monthly_rent: 17000,
+    security_deposit: 34000,
+    joining_date: '2026-01-01',
     rent_status: 'paid',
-    electricity_due: 0,
-    food_included: true,
   },
   {
-    id: 'ten-kesharwani-2',
-    property_id: 'prop-kesharwani-1',
-    room_id: 'Room 102 (Flat 1B)',
-    name: 'सुरेश गुप्ता (परिवार)',
-    phone: '94250 87654',
-    monthly_rent: 8500,
-    security_deposit: 8500,
-    joining_date: '2026-02-01',
+    id: 'prop-unit-2',
+    property_id: 'prop-kesharwani-main',
+    room_id: 'संपत्ति 2 (कमर्शियल दुकान / ऑफिस 2)',
+    name: 'किरायेदार 2',
+    phone: '',
+    monthly_rent: 12000,
+    security_deposit: 24000,
+    joining_date: '2026-01-01',
     rent_status: 'paid',
-    electricity_due: 0,
-    food_included: false,
   },
   {
-    id: 'ten-kesharwani-3',
-    property_id: 'prop-kesharwani-1',
-    room_id: 'Room 201 (दुकान/कार्यालय)',
-    name: 'अमित सोनी (व्यावसायिक)',
-    phone: '70001 98765',
-    monthly_rent: 7500,
-    security_deposit: 15000,
-    joining_date: '2026-03-01',
-    rent_status: 'due',
-    electricity_due: 450,
-    food_included: false,
+    id: 'prop-unit-3',
+    property_id: 'prop-kesharwani-main',
+    room_id: 'संपत्ति 3 (आवासीय पोर्शन / फ्लैट 1)',
+    name: 'किरायेदार 3',
+    phone: '',
+    monthly_rent: 10000,
+    security_deposit: 20000,
+    joining_date: '2026-01-01',
+    rent_status: 'paid',
+  },
+  {
+    id: 'prop-unit-4',
+    property_id: 'prop-kesharwani-main',
+    room_id: 'संपत्ति 4 (आवासीय पोर्शन / फ्लैट 2)',
+    name: 'किरायेदार 4',
+    phone: '',
+    monthly_rent: 10000,
+    security_deposit: 20000,
+    joining_date: '2026-01-01',
+    rent_status: 'paid',
+  },
+  {
+    id: 'prop-unit-5',
+    property_id: 'prop-kesharwani-main',
+    room_id: 'संपत्ति 5: हॉस्टल रूम्स / रेंटल सेट',
+    name: 'किरायेदार 5',
+    phone: '',
+    monthly_rent: 9000,
+    security_deposit: 18000,
+    joining_date: '2026-01-01',
+    rent_status: 'paid',
+  },
+  {
+    id: 'prop-unit-6',
+    property_id: 'prop-kesharwani-main',
+    room_id: 'संपत्ति 6: गोदाम / स्वतंत्र स्पेस',
+    name: 'किरायेदार 6',
+    phone: '',
+    monthly_rent: 9000,
+    security_deposit: 18000,
+    joining_date: '2026-01-01',
+    rent_status: 'paid',
   },
 ];
 
@@ -245,6 +290,7 @@ interface FamilyContextType {
   deleteDocument: (id: string) => void;
   addRentalProperty: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'created_at'>) => void;
   addRentalTenant: (tenant: Omit<RentalTenant, 'id' | 'created_at'>) => void;
+  updateRentalTenant: (tenant: RentalTenant) => void;
   toggleTenantRentStatus: (tenantId: string) => void;
   deleteRentalTenant: (tenantId: string) => void;
   // Computed
@@ -547,31 +593,43 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           invite_code: 'KESHARWANI1',
         };
         localStorage.setItem('fwa_family_profile', JSON.stringify(famProfile));
-        localStorage.setItem('fwa_family', JSON.stringify(famProfile));
-
-        // Seed default family assets if not present or empty
-        const curAssets = localStorage.getItem('fwa_assets');
-        if (!curAssets || curAssets === '[]') {
-          localStorage.setItem('fwa_assets', JSON.stringify(INITIAL_ASSETS));
-          setAssets(INITIAL_ASSETS);
+        // Check if rental tenants match the 6 properties
+        const curTenantsRaw = localStorage.getItem('fwa_rental_tenants') || localStorage.getItem('fwa_hostel_tenants_v1');
+        let needs6Properties = true;
+        if (curTenantsRaw) {
+          try {
+            const list = JSON.parse(curTenantsRaw);
+            const totalRent = list.reduce((s: number, t: any) => s + Number(t.monthly_rent || 0), 0);
+            if ((totalRent === 67000 || totalRent === 66000) && list.length === 6) {
+              needs6Properties = false;
+            }
+          } catch (e) {}
         }
-
-        // Seed default rental properties if not present or empty
-        const curProps = localStorage.getItem('fwa_rental_properties');
-        if (!curProps || curProps === '[]') {
+        if (needs6Properties) {
           localStorage.setItem('fwa_rental_properties', JSON.stringify(INITIAL_RENTAL_PROPERTIES));
           setRentalProperties(INITIAL_RENTAL_PROPERTIES);
-        }
-
-        // Seed default rental tenants if not present or empty
-        const curTenants = localStorage.getItem('fwa_rental_tenants') || localStorage.getItem('fwa_hostel_tenants_v1');
-        if (!curTenants || curTenants === '[]') {
           localStorage.setItem('fwa_rental_tenants', JSON.stringify(INITIAL_RENTAL_TENANTS));
           localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(INITIAL_RENTAL_TENANTS));
           setRentalTenants(INITIAL_RENTAL_TENANTS);
         }
 
-        localStorage.setItem('fwa_dummy_purged_v9', 'true');
+        // Also update assets to the 6 properties if old assets were present
+        const curAssetsRaw = localStorage.getItem('fwa_assets');
+        let needsAssetsUpdate = true;
+        if (curAssetsRaw) {
+          try {
+            const list = JSON.parse(curAssetsRaw);
+            if (Array.isArray(list) && list.length === 6 && list.some((a: any) => a.id?.startsWith('ast-prop-'))) {
+              needsAssetsUpdate = false;
+            }
+          } catch (e) {}
+        }
+        if (needsAssetsUpdate) {
+          localStorage.setItem('fwa_assets', JSON.stringify(INITIAL_ASSETS));
+          setAssets(INITIAL_ASSETS);
+        }
+
+        localStorage.setItem('fwa_dummy_purged_v10', 'true');
       }
     } catch (e) {
       console.warn('Cleanup error:', e);
@@ -1046,7 +1104,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     if (supabase) {
       supabase.from('rental_tenants').insert({
         id: newT.id,
-        property_id: newT.property_id || 'prop-kesharwani-1',
+        property_id: newT.property_id || 'prop-kesharwani-main',
         room_id: newT.room_id,
         name: newT.name,
         phone: newT.phone || null,
@@ -1057,6 +1115,38 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         rent_status: newT.rent_status,
         electricity_due: newT.electricity_due || 0,
       }).then();
+    }
+  };
+
+  const updateRentalTenant = (updatedTenant: RentalTenant) => {
+    const updated = rentalTenants.map(t => t.id === updatedTenant.id ? updatedTenant : t);
+    setRentalTenants(updated);
+    try {
+      localStorage.setItem('fwa_rental_tenants', JSON.stringify(updated));
+      localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(updated.map(item => ({
+        id: item.id,
+        roomNumber: item.room_id,
+        tenantName: item.name,
+        tenantPhone: item.phone || '',
+        monthlyRent: item.monthly_rent,
+        securityDeposit: item.security_deposit,
+        dueDayOfMonth: 5,
+        paymentStatus: item.rent_status === 'paid' ? 'PAID' : 'DUE',
+        dueAmount: item.rent_status === 'due' ? item.monthly_rent : 0,
+        joiningDate: item.joining_date || new Date().toISOString().split('T')[0],
+      }))));
+    } catch (e) {}
+
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('rental_tenants').update({
+        room_id: updatedTenant.room_id,
+        name: updatedTenant.name,
+        phone: updatedTenant.phone || null,
+        monthly_rent: updatedTenant.monthly_rent,
+        security_deposit: updatedTenant.security_deposit,
+        rent_status: updatedTenant.rent_status,
+      }).eq('id', updatedTenant.id).then();
     }
   };
 
@@ -1166,6 +1256,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         deleteDocument,
         addRentalProperty,
         addRentalTenant,
+        updateRentalTenant,
         toggleTenantRentStatus,
         deleteRentalTenant,
         totalWealth,
