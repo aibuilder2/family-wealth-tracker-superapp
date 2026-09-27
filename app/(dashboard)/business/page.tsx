@@ -55,7 +55,7 @@ const BUSINESS_TABS = [
   { id: 'cloud-kitchen', label: 'क्लाउड किचन/टिफ़िन', icon: Flame },
   { id: 'petrol-pump', label: 'पेट्रोल पम्प (Opt)', icon: Fuel },
   { id: 'insurance-property-crm', label: 'बीमा/प्रॉपर्टी CRM (Opt)', icon: ShieldCheck },
-  { id: 'retail-shop', label: 'दुकान उधार (Opt)', icon: Store },
+  { id: 'retail-shop', label: '📊 पार्टी बिलिंग व P&L', icon: Store },
   { id: 'events-functions', label: 'शादी/शगुन (Opt)', icon: PartyPopper },
 ];
 

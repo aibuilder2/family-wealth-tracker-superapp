@@ -150,7 +150,7 @@ export default function RentalsPage() {
   const [propRentIncreaseFreq, setPropRentIncreaseFreq] = useState<'every_11_months' | 'annually' | 'every_2_years' | 'custom'>('every_11_months');
   const [propNextRentIncreaseDate, setPropNextRentIncreaseDate] = useState<string>('');
   const [propRentIncreaseTerms, setPropRentIncreaseTerms] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'list' | 'single'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'single' | 'advance'>('list');
 
   const [propDefaultRules, setPropDefaultRules] = useState(
     "1. Har mahine ki due date tak rent jama karein.\n2. Sub-letting ya kisi aur ko kiraye par dena mana hai.\n3. Notice period: Kam se kam 30 din pehle suchit karein.\n4. Kisi bhi samagri ya fittings me damage hone par bharpai security deposit se ki jayegi.\n5. Chhote repairs (bulb, washer) tenant karega, structural repairs owner karega."
@@ -929,6 +929,19 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
             <Home className="w-4 h-4" />
             <span>🏠 Selected Property ({activeProperty?.title ? activeProperty.title.slice(0, 18) + '...' : 'Management'})</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode("advance")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              viewMode === "advance"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>💰 अमानत (Advance) बही-खाता ({allTenants.filter(t => (t.security_deposit || 0) > 0).length})</span>
+          </button>
         </div>
 
         <button
@@ -1175,6 +1188,130 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
             </button>
           </div>
         </>
+      )}
+
+      {viewMode === "advance" && (
+        <div className="space-y-6 mb-8">
+          {/* Header Card */}
+          <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-950/60 via-slate-900 to-emerald-950/60 border border-amber-500/30 text-white shadow-xl">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-base font-black text-white">
+                    पारिवारिक किराया अमानत बही-खाता (Advance Security Deposit Ledger)
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-300">
+                  सभी संपत्तियों, दुकानों, फ्लैट्स और हॉस्टल के किरायेदारों की सुरक्षित जमा अमानत पूंजी (Refundable Deposit) का एक जगह पूरा ब्योरा।
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="px-4 py-2 bg-slate-900/90 border border-amber-500/40 rounded-2xl text-right">
+                  <span className="text-[10px] text-amber-300 font-bold uppercase block">कुल जमा अमानत (Total Held)</span>
+                  <span className="text-xl font-black text-amber-400 font-mono">
+                    ₹{totalDeposits.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tenants Advance Table */}
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-amber-400" />
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                  किरायेदार-वार अमानत सूची ({allTenants.length} किरायेदार)
+                </h4>
+              </div>
+              <span className="text-[11px] text-slate-400">
+                कुल सुरक्षित पूंजी: <strong className="text-amber-400 font-mono font-bold">₹{totalDeposits.toLocaleString('en-IN')}</strong>
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-900/80 text-slate-400 text-[11px] uppercase border-b border-slate-800">
+                  <tr>
+                    <th className="py-3 px-4">किरायेदार का नाम व फोन</th>
+                    <th className="py-3 px-4">प्रॉपर्टी व कमरा</th>
+                    <th className="py-3 px-4">कागजात (Owner)</th>
+                    <th className="py-3 px-4 text-right">जमा अमानत (Advance)</th>
+                    <th className="py-3 px-4">जमा तारीख व माध्यम</th>
+                    <th className="py-3 px-4 text-right">मासिक किराया</th>
+                    <th className="py-3 px-4">किराया मिलने की तारीख</th>
+                    <th className="py-3 px-4 text-center">स्थिति</th>
+                    <th className="py-3 px-4 text-center">कार्रवाई</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {allTenants.map((t) => {
+                    const parentProp = rentalProperties.find((p) => p.id === t.property_id);
+                    return (
+                      <tr key={t.id} className="hover:bg-slate-800/40 transition">
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-white text-xs">{t.name}</div>
+                          <div className="text-[11px] text-slate-400">📞 {t.phone || 'N/A'}</div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-slate-200">{parentProp?.title || 'प्रॉपर्टी'}</div>
+                          <div className="text-[11px] text-amber-400/80 font-mono">
+                            {t.room_id || t.room_number ? `कमरा/यूनिट: ${t.room_id || t.room_number}` : 'पूरी प्रॉपर्टी'}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-semibold text-[10px]">
+                            👤 {parentProp?.owner_member_name || 'Papa'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <span className="text-sm font-black font-mono text-amber-400">
+                            ₹{(t.security_deposit || 0).toLocaleString('en-IN')}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="text-slate-300 text-[11px]">{t.advance_payment_date || t.joining_date || 'N/A'}</div>
+                          <div className="text-[10px] text-slate-500 uppercase">{t.advance_payment_mode || 'UPI / Cash'}</div>
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
+                          ₹{t.monthly_rent.toLocaleString('en-IN')}/माह
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="text-xs text-slate-300 font-medium">
+                            हर महीने की <b>{t.cycle_start_day || t.rent_due_day || 5}</b> तारीख
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">
+                            सुरक्षित जमा (Held)
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          {parentProp && (
+                            <button
+                              onClick={() => {
+                                setVacateFinalMeter(t.move_in_meter_reading || 0);
+                                setShowVacateModal({ tenant: t, property: parentProp });
+                              }}
+                              className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-lg text-[10px] font-bold transition"
+                            >
+                              निकास व सेटलमेंट
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
 
       {(viewMode === "single" && activeProperty) ? (

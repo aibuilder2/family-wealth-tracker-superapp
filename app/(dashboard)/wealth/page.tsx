@@ -319,6 +319,94 @@ export default function WealthPage() {
           </div>
         </div>
 
+        {/* 🏙️ Properties Portfolio Cards (Valuation, Paper Owner, Size, Due Date & Batwara) */}
+        {rentalProperties.length > 0 && (
+          <div className="space-y-2 mt-1">
+            <div className="flex items-center justify-between text-xs font-bold text-ink px-1">
+              <span>🏙️ कुल संपत्तियां ({rentalProperties.length}) - वैल्यूएशन, ओनर व विलेख</span>
+              <Link href="/rentals" className="text-teal-600 hover:underline text-[11px] font-bold">
+                सब देखें / संशोधित करें →
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {rentalProperties.map((p) => {
+                const pDeposit = (p.tenants || []).reduce((sum, t) => sum + (t.security_deposit || 0), 0);
+                const pRent = p.monthly_target_rent || p.monthly_target_revenue || (p.tenants || []).reduce((sum, t) => sum + t.monthly_rent, 0);
+                const dueDay = p.tenants?.[0]?.cycle_start_day || p.tenants?.[0]?.rent_due_day || 5;
+
+                return (
+                  <div
+                    key={p.id}
+                    className="p-3.5 bg-paper rounded-2xl border border-paper-dim shadow-xs hover:border-teal-500/40 transition-all space-y-2 text-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base">
+                            {p.property_type === 'commercial_shop' ? '🏪' : p.property_type === 'warehouse_godown' ? '📦' : p.has_hostel_model ? '🏢' : '🏠'}
+                          </span>
+                          <h4 className="font-bold text-ink text-xs sm:text-sm">{p.title}</h4>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-ink-muted flex-wrap">
+                          {p.property_size && <span>📐 {p.property_size} {p.size_unit || 'sqft'}</span>}
+                          {p.registration_deed_no && <span>· विलेख: <b className="font-mono text-ink">{p.registration_deed_no}</b></span>}
+                        </div>
+                      </div>
+
+                      <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-md text-[10px] font-bold shrink-0">
+                        📄 {p.owner_member_name || 'Makan Malik'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5 bg-paper-dim/40 p-2 rounded-xl text-[11px]">
+                      <div>
+                        <span className="text-ink-muted text-[10px] block">💎 बाजार वैल्यूएशन</span>
+                        <Mono className="font-bold text-teal-800">
+                          ₹{(p.estimated_market_value || 0).toLocaleString('en-IN')}
+                        </Mono>
+                      </div>
+                      <div>
+                        <span className="text-ink-muted text-[10px] block">💰 मासिक किराया</span>
+                        <Mono className="font-bold text-emerald-700">
+                          ₹{pRent.toLocaleString('en-IN')}<span className="text-[9px] text-ink-muted font-sans">/माह</span>
+                        </Mono>
+                      </div>
+                      <div className="pt-1 border-t border-paper-dim/50">
+                        <span className="text-ink-muted text-[10px] block">📅 किराया देय तारीख</span>
+                        <span className="font-semibold text-ink">हर महीने की {dueDay} तारीख</span>
+                      </div>
+                      <div className="pt-1 border-t border-paper-dim/50">
+                        <span className="text-ink-muted text-[10px] block">🛡️ जमा अमानत (Advance)</span>
+                        <Mono className="font-bold text-amber-700">₹{pDeposit.toLocaleString('en-IN')}</Mono>
+                      </div>
+                    </div>
+
+                    {p.rent_diversions && p.rent_diversions.length > 0 && (
+                      <div className="text-[10px] text-purple-800 bg-purple-50/70 p-1.5 rounded-lg flex items-center gap-1">
+                        <span>👥 बंटवारा:</span>
+                        <span className="font-medium">
+                          {p.rent_diversions.map(d => `${d.target_member_name} (${d.split_type === 'percentage' ? d.split_value + '%' : '₹' + d.split_value})`).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 👥 Tenants & Advance List */}
+        <div className="pt-1">
+          <div className="flex items-center justify-between text-xs font-bold text-ink px-1 mb-1.5">
+            <span>🛡️ सक्रिय किरायेदार व जमा अमानत ({rentalTenants.length})</span>
+            <Link href="/rentals" className="text-teal-600 hover:underline text-[11px] font-bold">
+              अमानत बही-खाता →
+            </Link>
+          </div>
+        </div>
+
         {rentalTenants.length === 0 ? (
           <div className="p-5 text-center bg-paper rounded-2xl border border-dashed border-paper-dim space-y-2 shadow-xs">
             <Home size={22} className="text-teal-600 mx-auto" />
