@@ -1504,6 +1504,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const updateRentalProperty = (propertyId: string, updates: Partial<RentalProperty>) => {
     saveRentalProperties(prev => prev.map(p => p.id === propertyId ? { ...p, ...updates } : p));
+    if (updates.estimated_market_value !== undefined) {
+      setAssets(prev => prev.map(a => {
+        if (a.notes?.includes(propertyId) || (updates.title && a.label === updates.title)) {
+          return { ...a, value: Number(updates.estimated_market_value) };
+        }
+        return a;
+      }));
+    }
   };
 
   const deleteRentalProperty = (propertyId: string) => {
@@ -1639,19 +1647,29 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (typeof propIdOrTenant === 'object') {
       const updatedTenant = propIdOrTenant;
-      saveRentalProperties(prev => prev.map(p => ({
-        ...p,
-        tenants: p.tenants.map(t => t.id === updatedTenant.id ? updatedTenant : t)
-      })));
+      saveRentalProperties(prev => prev.map(p => {
+        const hasTenant = p.tenants.some(t => t.id === updatedTenant.id);
+        if (!hasTenant) return p;
+        const newTenants = p.tenants.map(t => t.id === updatedTenant.id ? updatedTenant : t);
+        const totalHolding = newTenants.reduce((sum, t) => sum + (Number(t.security_deposit) || 0), 0);
+        return {
+          ...p,
+          tenants: newTenants,
+          security_deposit_holding: totalHolding
+        };
+      }));
       return;
     }
     const propertyId = propIdOrTenant;
     const tenantId = tenantIdParam!;
     saveRentalProperties(prev => prev.map(p => {
       if (p.id !== propertyId) return p;
+      const newTenants = p.tenants.map(t => t.id === tenantId ? { ...t, ...updates } : t);
+      const totalHolding = newTenants.reduce((sum, t) => sum + (Number(t.security_deposit) || 0), 0);
       return {
         ...p,
-        tenants: p.tenants.map(t => t.id === tenantId ? { ...t, ...updates } : t)
+        tenants: newTenants,
+        security_deposit_holding: totalHolding
       };
     }));
   };

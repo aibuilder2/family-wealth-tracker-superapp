@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="hi">
-      <body className="min-h-screen bg-[#E7E1D2] antialiased">
+    <html lang="hi" suppressHydrationWarning>
+      <body className="min-h-screen bg-[#E7E1D2] antialiased" suppressHydrationWarning>
         <UserScopedStorageInit />
         <FamilyProvider>
           {children}

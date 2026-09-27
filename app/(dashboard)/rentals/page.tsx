@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useFamilyStore } from "@/lib/store/familyStore";
 import {
   Building,
@@ -77,7 +77,16 @@ export default function RentalsPage() {
     staff
   } = useFamilyStore();
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const [selectedPropId, setSelectedPropId] = useState<string>(rentalProperties[0]?.id || "");
+  
+  // Single Unified Master Edit Modal State (Property + Tenant + Advance)
+  const [masterEditData, setMasterEditData] = useState<{ property: RentalProperty; tenant?: RentalTenant | null } | null>(null);
+  const [masterEditTab, setMasterEditTab] = useState<"property" | "tenant" | "advance">("property");
   
   // Rent Diversion / Batwara states
   const [rentDivTargetMemberId, setRentDivTargetMemberId] = useState("");
@@ -533,115 +542,111 @@ export default function RentalsPage() {
     resetMasterForm();
   };
 
-  // Open Edit Tenant Modal
+  // =========================================================================
+  // SINGLE UNIFIED MASTER EDIT HANDLER (PROPERTY + TENANT + ADVANCE IN ONE PLACE)
+  // =========================================================================
+  const openMasterEdit = (
+    property: RentalProperty,
+    tenant?: RentalTenant | null,
+    initialTab: "property" | "tenant" | "advance" = "property"
+  ) => {
+    const t = tenant || property.tenants?.[0] || null;
+    setMasterEditData({ property, tenant: t });
+    setMasterEditTab(initialTab);
+
+    // 1. Populate Property fields
+    setPropTitle(property.title || "");
+    setPropType(property.property_type || "commercial_shop");
+    setPropAddress(property.address || "");
+    setPropCity(property.city || "Delhi NCR");
+    setPropPincode(property.pincode || "");
+    setPropGpsCoordinates(property.gps_coordinates || "");
+    setPropOwnerMemberId(property.owner_member_id || currentUserId || members[0]?.id || "m-head");
+    setPropOwnerName(property.owner_member_name || property.landlord_name || "");
+    setPropOwnerPhone((property.landlord_phone || "").replace("+91", "").trim());
+    setPropOwnerPan(property.landlord_pan || "");
+    setPropSize(property.property_size || 0);
+    setPropSizeUnit(property.size_unit || "sqft");
+    setPropMarketValue(property.estimated_market_value || 0);
+    setPropPurchasePrice(property.purchase_price || 0);
+    setPropPurchaseDate(property.purchase_date || new Date().toISOString().split("T")[0]);
+    setPropAppreciationRate(property.annual_appreciation_rate || 12);
+    setPropRegistryNo(property.registration_deed_no || "");
+    setPropTargetRent(property.monthly_target_revenue || (t ? t.monthly_rent : 0));
+    setPropDefaultRules(property.default_rules || propDefaultRules);
+    setPropRentIncreaseType(property.rent_increase_type || 'percentage');
+    setPropRentIncreaseValue(property.rent_increase_value !== undefined ? property.rent_increase_value : 10);
+    setPropRentIncreaseFreq(property.rent_increase_frequency || 'every_11_months');
+    setPropNextRentIncreaseDate(property.next_rent_increase_date || '');
+    setPropRentIncreaseTerms(property.rent_increase_terms || '');
+
+    // 2. Populate Tenant & Advance fields
+    if (t) {
+      setTenantName(t.name || "");
+      setTenantFatherSpouse(t.father_or_spouse_name || "");
+      setTenantPhone((t.phone || "").replace("+91", "").trim());
+      setTenantAltPhone((t.alternate_phone || "").replace("+91", "").trim());
+      setTenantAadhaar(t.aadhaar_no || "");
+      setTenantPan(t.pan_no || "");
+      setTenantPermAddress(t.permanent_address || "");
+      setTenantOccupation(t.occupation || "");
+      setTenantRent(t.monthly_rent || 0);
+      setTenantDeposit(t.security_deposit !== undefined ? t.security_deposit : 0);
+      setTenantDepositMode(t.advance_payment_mode || "upi");
+      setTenantJoiningDate(t.joining_date || new Date().toISOString().split("T")[0]);
+      setTenantCycleStartDay(t.cycle_start_day || 1);
+      setTenantCycleEndDay(t.cycle_end_day || 30);
+      setTenantDueDay(t.rent_due_day || 5);
+      setTenantMoveInMeter(t.move_in_meter_reading || 0);
+      setTenantNotes(t.notes || "");
+      setAdvanceAmount(t.security_deposit !== undefined ? t.security_deposit : 0);
+      setAdvanceDate(t.advance_payment_date || t.joining_date || new Date().toISOString().split("T")[0]);
+      setAdvanceMode((t.advance_payment_mode as any) || "cash");
+    } else {
+      setTenantName("");
+      setTenantFatherSpouse("");
+      setTenantPhone("");
+      setTenantAltPhone("");
+      setTenantAadhaar("");
+      setTenantPan("");
+      setTenantPermAddress("");
+      setTenantOccupation("");
+      setTenantRent(property.monthly_target_revenue || 0);
+      setTenantDeposit(0);
+      setTenantDepositMode("upi");
+      setTenantJoiningDate(new Date().toISOString().split("T")[0]);
+      setTenantCycleStartDay(1);
+      setTenantCycleEndDay(30);
+      setTenantDueDay(5);
+      setTenantMoveInMeter(0);
+      setTenantNotes("");
+      setAdvanceAmount(0);
+      setAdvanceDate(new Date().toISOString().split("T")[0]);
+      setAdvanceMode("cash");
+    }
+  };
+
+  // Compatibility callers - all delegate to openMasterEdit!
   const openEditModal = (t: RentalTenant) => {
-    setShowEditTenantModal(t);
-    setTenantName(t.name || "");
-    setTenantFatherSpouse(t.father_or_spouse_name || "");
-    setTenantPhone((t.phone || "").replace("+91", "").trim());
-    setTenantAltPhone((t.alternate_phone || "").replace("+91", "").trim());
-    setTenantAadhaar(t.aadhaar_no || "");
-    setTenantPan(t.pan_no || "");
-    setTenantAadhaarUrl(t.aadhaar_card_url || "");
-    setTenantPanUrl(t.pan_card_url || "");
-    setTenantPhotoUrl(t.photo_url || "");
-    setTenantPermAddress(t.permanent_address || "");
-    setTenantOldAddress(t.current_address || "");
-    setTenantOccupation(t.occupation || "");
-    setTenantRent(t.monthly_rent || 0);
-    setTenantDeposit(t.security_deposit || 0);
-    setTenantDepositMode(t.advance_payment_mode || "upi");
-    setTenantJoiningDate(t.joining_date || new Date().toISOString().split("T")[0]);
-    setTenantCycleStartDay(t.cycle_start_day || 5);
-    setTenantCycleEndDay(t.cycle_end_day || 4);
-    setTenantDueDay(t.rent_due_day || 5);
-    setTenantMoveInMeter(t.move_in_meter_reading || 0);
-    setTenantAgreementMonths(t.agreement_duration_months || 11);
-    setTenantLockInMonths(t.lock_in_period_months || 6);
-    setTenantNoticeDays(t.notice_period_days || 30);
-    setTenantEarlyExitPenalty(t.early_exit_penalty || "1 Month Rent");
-    setTenantSpecialTerms(t.special_terms || "");
-    setTenantNotes(t.notes || "");
+    const parent = rentalProperties.find((p) => p.id === t.property_id) || activeProperty;
+    openMasterEdit(parent, t, "tenant");
   };
 
-  // Save Edited Tenant
-  const handleSaveEditedTenant = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!showEditTenantModal || !activeProperty) return;
-
-    const formattedPhone = tenantPhone ? (tenantPhone.startsWith("+91") ? tenantPhone : `+91 ${tenantPhone}`) : "";
-    const formattedAltPhone = tenantAltPhone ? (tenantAltPhone.startsWith("+91") ? tenantAltPhone : `+91 ${tenantAltPhone}`) : "";
-
-    updateRentalTenant(activeProperty.id, showEditTenantModal.id, {
-      name: tenantName,
-      father_or_spouse_name: tenantFatherSpouse,
-      phone: formattedPhone,
-      alternate_phone: formattedAltPhone,
-      aadhaar_no: tenantAadhaar,
-      pan_no: tenantPan,
-      aadhaar_card_url: tenantAadhaarUrl,
-      pan_card_url: tenantPanUrl,
-      photo_url: tenantPhotoUrl,
-      permanent_address: tenantPermAddress,
-      occupation: tenantOccupation,
-      move_in_meter_reading: Number(tenantMoveInMeter || 0),
-      joining_date: tenantJoiningDate,
-      cycle_start_day: Number(tenantCycleStartDay || 1),
-      cycle_end_day: Number(tenantCycleEndDay || 30),
-      rent_due_day: Number(tenantDueDay || 5),
-      monthly_rent: Number(tenantRent || 0),
-      security_deposit: Number(tenantDeposit || 0),
-      advance_payment_mode: tenantDepositMode,
-      agreement_duration_months: Number(tenantAgreementMonths || 11),
-      lock_in_period_months: Number(tenantLockInMonths || 6),
-      notice_period_days: Number(tenantNoticeDays || 30),
-      early_exit_penalty: tenantEarlyExitPenalty,
-      special_terms: tenantSpecialTerms,
-      notes: tenantNotes
-    });
-
-    setShowEditTenantModal(null);
-    resetMasterForm();
-  };
-
-  // Open Edit Property Modal
   const openEditPropertyModal = (p: RentalProperty) => {
-    setShowEditPropModal(p);
-    setPropTitle(p.title || "");
-    setPropType(p.property_type || "commercial_shop");
-    setPropAddress(p.address || "");
-    setPropCity(p.city || "Delhi NCR");
-    setPropPincode(p.pincode || "");
-    setPropGpsCoordinates(p.gps_coordinates || "");
-    setPropOwnerMemberId(p.owner_member_id || currentUserId || members[0]?.id || "m-head");
-    setPropSize(p.property_size || 0);
-    setPropSizeUnit(p.size_unit || "sqft");
-    setPropMarketValue(p.estimated_market_value || 0);
-    setPropPurchasePrice(p.purchase_price || 0);
-    setPropPurchaseDate(p.purchase_date || new Date().toISOString().split("T")[0]);
-    setPropAppreciationRate(p.annual_appreciation_rate || 12);
-    setPropRegistryNo(p.registration_deed_no || "");
-    setPropTargetRent(p.monthly_target_revenue || 0);
-    setPropOwnerName(p.landlord_name || "");
-    setPropOwnerPhone((p.landlord_phone || "").replace("+91", "").trim());
-    setPropOwnerPan(p.landlord_pan || "");
-    setPropDefaultRules(p.default_rules || propDefaultRules);
-    setPropRentIncreaseType(p.rent_increase_type || 'percentage');
-    setPropRentIncreaseValue(p.rent_increase_value !== undefined ? p.rent_increase_value : 10);
-    setPropRentIncreaseFreq(p.rent_increase_frequency || 'every_11_months');
-    setPropNextRentIncreaseDate(p.next_rent_increase_date || '');
-    setPropRentIncreaseTerms(p.rent_increase_terms || '');
+    openMasterEdit(p, undefined, "property");
   };
 
-  // Save Edited Property
-  const handleSaveEditedProperty = (e: React.FormEvent) => {
+  // Save Unified Master Edit
+  const handleSaveMasterEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!showEditPropModal) return;
+    if (!masterEditData) return;
 
+    const { property, tenant } = masterEditData;
     const selectedOwner = members.find((m) => m.id === propOwnerMemberId);
     const formattedOwnerPhone = propOwnerPhone ? (propOwnerPhone.startsWith("+91") ? propOwnerPhone : `+91 ${propOwnerPhone}`) : "";
 
-    updateRentalProperty(showEditPropModal.id, {
+    // 1. Update Property details
+    updateRentalProperty(property.id, {
       title: propTitle,
       property_type: propType,
       address: propAddress,
@@ -660,11 +665,79 @@ export default function RentalsPage() {
       landlord_name: selectedOwner?.name || propOwnerName || "Makan Malik",
       landlord_phone: formattedOwnerPhone,
       landlord_pan: propOwnerPan,
-      monthly_target_revenue: Number(propTargetRent || 0),
-      default_rules: propDefaultRules
+      monthly_target_revenue: Number(propTargetRent || tenantRent || 0),
+      default_rules: propDefaultRules,
+      rent_increase_type: propRentIncreaseType,
+      rent_increase_value: Number(propRentIncreaseValue || 0),
+      rent_increase_frequency: propRentIncreaseFreq,
+      next_rent_increase_date: propNextRentIncreaseDate || undefined,
+      rent_increase_terms: propRentIncreaseTerms || undefined,
     });
 
-    setShowEditPropModal(null);
+    const formattedTenantPhone = tenantPhone ? (tenantPhone.startsWith("+91") ? tenantPhone : `+91 ${tenantPhone}`) : "";
+    const formattedAltPhone = tenantAltPhone ? (tenantAltPhone.startsWith("+91") ? tenantAltPhone : `+91 ${tenantAltPhone}`) : "";
+    const cleanDeposit = Number(tenantDeposit || 0);
+
+    // 2. Update or Create Tenant & Advance details
+    if (tenant) {
+      updateRentalTenant(property.id, tenant.id, {
+        name: tenantName,
+        father_or_spouse_name: tenantFatherSpouse,
+        phone: formattedTenantPhone,
+        alternate_phone: formattedAltPhone,
+        aadhaar_no: tenantAadhaar,
+        pan_no: tenantPan,
+        permanent_address: tenantPermAddress,
+        occupation: tenantOccupation,
+        move_in_meter_reading: Number(tenantMoveInMeter || 0),
+        joining_date: tenantJoiningDate,
+        cycle_start_day: Number(tenantCycleStartDay || 1),
+        cycle_end_day: Number(tenantCycleEndDay || 30),
+        rent_due_day: Number(tenantDueDay || 5),
+        monthly_rent: Number(tenantRent || 0),
+        security_deposit: cleanDeposit,
+        advance_payment_date: advanceDate || tenantJoiningDate,
+        advance_payment_mode: tenantDepositMode,
+        notes: tenantNotes
+      });
+    } else if (tenantName && tenantName.trim().length > 0) {
+      addRentalTenant(property.id, {
+        name: tenantName,
+        father_or_spouse_name: tenantFatherSpouse,
+        phone: formattedTenantPhone,
+        alternate_phone: formattedAltPhone,
+        aadhaar_no: tenantAadhaar,
+        pan_no: tenantPan,
+        permanent_address: tenantPermAddress,
+        current_address: propAddress || property.address || "",
+        native_or_permanent_address: tenantPermAddress,
+        occupation: tenantOccupation,
+        is_commercial: propType === "commercial_shop" || propType === "warehouse_godown",
+        tenant_status: "active",
+        move_in_meter_reading: Number(tenantMoveInMeter || 0),
+        joining_date: tenantJoiningDate,
+        cycle_start_day: Number(tenantCycleStartDay || 1),
+        cycle_end_day: Number(tenantCycleEndDay || 30),
+        rent_due_day: Number(tenantDueDay || 5),
+        monthly_rent: Number(tenantRent || 0),
+        security_deposit: cleanDeposit,
+        advance_payment_date: advanceDate || tenantJoiningDate,
+        advance_payment_mode: tenantDepositMode,
+        advance_status: "held",
+        agreement_duration_months: 11,
+        agreement_start_date: tenantJoiningDate,
+        lock_in_period_months: 6,
+        notice_period_days: 30,
+        early_exit_penalty: "1 Month Rent",
+        special_terms: "Damage will be adjusted from deposit",
+        rent_status: "paid",
+        room_number: propType === "commercial_shop" ? "Shop Unit" : "Unit 1",
+        last_paid_date: new Date().toISOString().split("T")[0],
+        notes: tenantNotes
+      });
+    }
+
+    setMasterEditData(null);
   };
 
   // Open Vacate & Settle Modal
@@ -740,23 +813,9 @@ export default function RentalsPage() {
     setCollectingTenant(null);
   };
 
-  // Edit Advance Security Deposit Handler
+  // Edit Advance Security Deposit Handler -> Opens Master Unified Edit on Advance Tab
   const handleOpenEditAdvance = (tenant: RentalTenant, property: RentalProperty) => {
-    setEditingAdvance({ tenant, property });
-    setAdvanceAmount(tenant.security_deposit || 0);
-    setAdvanceDate(tenant.advance_payment_date || tenant.joining_date || new Date().toISOString().split("T")[0]);
-    setAdvanceMode((tenant.advance_payment_mode as any) || "cash");
-  };
-
-  const handleSaveAdvance = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingAdvance) return;
-    updateRentalTenant(editingAdvance.property.id, editingAdvance.tenant.id, {
-      security_deposit: advanceAmount,
-      advance_payment_date: advanceDate,
-      advance_payment_mode: advanceMode
-    });
-    setEditingAdvance(null);
+    openMasterEdit(property, tenant, "advance");
   };
 
   // Create Room Handler (PG)
@@ -878,6 +937,17 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
 
     return `https://wa.me/${tenant.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(text)}`;
   };
+
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-[#0B0F19] text-slate-200 p-8 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm font-bold text-slate-300">किराया व प्रॉपर्टी ERP लोड हो रहा है...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-slate-200 p-4 md:p-8 font-sans pb-28">
@@ -1403,9 +1473,15 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <span className="text-sm font-black font-mono text-amber-400">
-                            ₹{(t.security_deposit || 0).toLocaleString('en-IN')}
-                          </span>
+                          {(t.security_deposit || 0) > 0 ? (
+                            <span className="text-sm font-black font-mono text-amber-400">
+                              ₹{(t.security_deposit || 0).toLocaleString('en-IN')}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 font-semibold bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-700/60">
+                              ₹0 (कोई अमानत नहीं)
+                            </span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4">
                           <div className="text-slate-300 text-[11px]">{t.advance_payment_date || t.joining_date || 'N/A'}</div>
@@ -1420,9 +1496,15 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-center">
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">
-                            सुरक्षित जमा (Held)
-                          </span>
+                          {(t.security_deposit || 0) > 0 ? (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">
+                              सुरक्षित जमा (Held)
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-medium text-[10px]">
+                              शून्य अमानत (₹0)
+                            </span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           {parentProp && (
@@ -3594,227 +3676,521 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
         </div>
       )}
 
+            {/* ========================================================================= */}
+      {/* MASTER UNIFIED EDIT MODAL (PROPERTY + TENANT + ADVANCE IN ONE PLACE)       */}
       {/* ========================================================================= */}
-      {/* MODAL 2: EDIT PROPERTY & VALUATION MODAL                                   */}
-      {/* ========================================================================= */}
-      {showEditPropModal && (
+      {masterEditData && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-2xl space-y-5 my-auto max-h-[92vh] overflow-y-auto shadow-2xl">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-3xl space-y-5 my-auto max-h-[92vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
             <div className="flex justify-between items-center border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-lg font-black text-white flex items-center gap-2">
                   <Edit3 className="w-5 h-5 text-amber-400" />
-                  Property Details & Wealth Valuation Edit Karein
+                  <span>Property, Kiraya & Amanat Master Editor</span>
                 </h3>
-                <p className="text-xs text-slate-400">{showEditPropModal.title} ki jankari update karein.</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  <strong className="text-amber-300">{masterEditData.property.title}</strong>
+                  {masterEditData.tenant?.name ? ` • Kirayedaar: ${masterEditData.tenant.name}` : " • Naya Kirayedaar Jodein"}
+                </p>
               </div>
-              <button onClick={() => setShowEditPropModal(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
+              <button onClick={() => setMasterEditData(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedProperty} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Property Title *</label>
-                  <input
-                    type="text"
-                    required
-                    value={propTitle}
-                    onChange={(e) => setPropTitle(e.target.value)}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Property Type</label>
-                  <select
-                    value={propType}
-                    onChange={(e) => setPropType(e.target.value as any)}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
-                  >
-                    <option value="commercial_shop">🏪 Commercial Shop</option>
-                    <option value="residential_flat">🏠 Residential Flat</option>
-                    <option value="independent_house">🏡 Independent House</option>
-                    <option value="warehouse_godown">📦 Warehouse / Godown</option>
-                    <option value="pg_hostel">🏢 PG & Hostel Model</option>
-                  </select>
-                </div>
-              </div>
+            {/* Section Tabs inside Master Modal */}
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+              <button
+                type="button"
+                onClick={() => setMasterEditTab("property")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  masterEditTab === "property"
+                    ? "bg-amber-500 text-slate-950 font-black shadow"
+                    : "bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-800"
+                }`}
+              >
+                <Building className="w-3.5 h-3.5" />
+                <span>1. प्रॉपर्टी व वैल्युएशन</span>
+              </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-purple-300">Owner Member (Parivar Sadasya)</label>
-                  <select
-                    value={propOwnerMemberId}
-                    onChange={(e) => setPropOwnerMemberId(e.target.value)}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
-                  >
-                    {members.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.relationship || m.role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Size (क्षेत्रफल)</label>
-                  <input
-                    type="number"
-                    value={propSize === 0 ? "" : propSize}
-                    onChange={(e) => setPropSize(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Unit</label>
-                  <select
-                    value={propSizeUnit}
-                    onChange={(e) => setPropSizeUnit(e.target.value as any)}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
-                  >
-                    <option value="sqft">Sq. Ft</option>
-                    <option value="sqyards">Sq. Yards (Gaj)</option>
-                    <option value="sqmeters">Sq. Meters</option>
-                    <option value="bigha">Bigha</option>
-                    <option value="dhur">Dhur</option>
-                  </select>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setMasterEditTab("tenant")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  masterEditTab === "tenant"
+                    ? "bg-emerald-600 text-white font-black shadow"
+                    : "bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-800"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>2. किरायेदार व मासिक किराया</span>
+              </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                <div>
-                  <label className="text-xs font-bold text-amber-300">Estimated Market Value (₹)</label>
-                  <input
-                    type="number"
-                    value={propMarketValue === 0 ? "" : propMarketValue}
-                    onChange={(e) => setPropMarketValue(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-amber-500/40 rounded-xl text-amber-300 font-bold text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Monthly Target Rent (₹)</label>
-                  <input
-                    type="number"
-                    value={propTargetRent === 0 ? "" : propTargetRent}
-                    onChange={(e) => setPropTargetRent(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold text-xs"
-                  />
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setMasterEditTab("advance")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  masterEditTab === "advance"
+                    ? "bg-blue-600 text-white font-black shadow"
+                    : "bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-800"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>3. अमानत (Advance Deposit - ऐच्छिक)</span>
+              </button>
+            </div>
 
-              {/* Purchase Cost, Date & Appreciation Rate */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-900/60 border border-slate-800 rounded-xl">
-                <div>
-                  <label className="text-xs font-bold text-slate-300">Purchase Cost (₹)</label>
-                  <input
-                    type="number"
-                    placeholder="Optional"
-                    value={propPurchasePrice === 0 ? "" : propPurchasePrice}
-                    onChange={(e) => setPropPurchasePrice(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Purchase Date</label>
-                  <input
-                    type="date"
-                    value={propPurchaseDate}
-                    onChange={(e) => setPropPurchaseDate(e.target.value)}
-                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-emerald-400">Appreciation Rate (% p.a.)</label>
-                  <input
-                    type="number"
-                    value={propAppreciationRate}
-                    onChange={(e) => setPropAppreciationRate(Number(e.target.value || 12))}
-                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-emerald-500/30 rounded-xl text-emerald-300 font-bold text-xs"
-                  />
-                </div>
-              </div>
+            <form onSubmit={handleSaveMasterEdit} className="space-y-4">
+              {/* TAB 1: PROPERTY & VALUATION */}
+              {masterEditTab === "property" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Property / Dukan Title *</label>
+                      <input
+                        type="text"
+                        required
+                        value={propTitle}
+                        onChange={(e) => setPropTitle(e.target.value)}
+                        placeholder="e.g. Main Road Corner Shop 1"
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Property Type</label>
+                      <select
+                        value={propType}
+                        onChange={(e) => setPropType(e.target.value as any)}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                      >
+                        <option value="commercial_shop">🏪 Commercial Shop (दुकान)</option>
+                        <option value="residential_flat">🏠 Residential Flat (फ्लैट)</option>
+                        <option value="independent_house">🏡 Independent House (मकान)</option>
+                        <option value="warehouse_godown">📦 Warehouse / Godown (गोदाम)</option>
+                        <option value="vacant_plot">📐 Vacant Plot / Land (प्लॉट / ज़मीन)</option>
+                        <option value="pg_hostel">🏢 PG & Hostel Model (हॉस्टल)</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="md:col-span-2">
-                  <label className="text-xs font-bold text-slate-400">Address</label>
-                  <input
-                    type="text"
-                    value={propAddress}
-                    onChange={(e) => setPropAddress(e.target.value)}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400">City</label>
-                  <input
-                    type="text"
-                    value={propCity}
-                    onChange={(e) => setPropCity(e.target.value)}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-purple-300">Owner Member (परिवार सदस्य - नाम)</label>
+                      <select
+                        value={propOwnerMemberId}
+                        onChange={(e) => {
+                          setPropOwnerMemberId(e.target.value);
+                          const m = members.find(mem => mem.id === e.target.value);
+                          if (m) setPropOwnerName(m.name);
+                        }}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                      >
+                        {members.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            👤 {m.name} ({m.role || "Member"})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-              {/* PIN Code & Free GPS Detection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800">
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Pincode (डाक पिन कोड)</label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="e.g. 110001 (Optional)"
-                    value={propPincode}
-                    onChange={(e) => setPropPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-mono"
-                  />
-                </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Property Size (क्षेत्रफल)</label>
+                      <div className="flex gap-1.5 mt-1">
+                        <input
+                          type="number"
+                          placeholder="e.g. 350"
+                          value={propSize === 0 ? "" : propSize}
+                          onChange={(e) => setPropSize(e.target.value === "" ? 0 : Number(e.target.value))}
+                          className="w-full p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs font-bold"
+                        />
+                        <select
+                          value={propSizeUnit}
+                          onChange={(e) => setPropSizeUnit(e.target.value as any)}
+                          className="p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold shrink-0"
+                        >
+                          <option value="sqft">Sq. Ft</option>
+                          <option value="sqyards">Gaj / Sq.Yds</option>
+                          <option value="sqmeters">Sq. Mtr</option>
+                          <option value="bigha">Bigha</option>
+                          <option value="dhur">Dhur</option>
+                        </select>
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-rose-400" /> GPS Coordinates
-                  </label>
-                  <div className="flex gap-1.5 mt-1">
-                    <input
-                      type="text"
-                      placeholder="e.g. 28.6139, 77.2090"
-                      value={propGpsCoordinates}
-                      onChange={(e) => setPropGpsCoordinates(e.target.value)}
-                      className="w-full p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleDetectGPS}
-                      disabled={gpsDetecting}
-                      className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-xl text-[11px] font-bold shrink-0 transition flex items-center gap-1"
-                    >
-                      <Navigation className={`w-3.5 h-3.5 ${gpsDetecting ? "animate-spin" : ""}`} />
-                      <span>{gpsDetecting ? "..." : "Free GPS"}</span>
-                    </button>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Registry / Deed No.</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. REG/2021/4492"
+                        value={propRegistryNo}
+                        onChange={(e) => setPropRegistryNo(e.target.value)}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Market Valuation & Purchase Cost */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-900/60 border border-slate-800 rounded-2xl">
+                    <div>
+                      <label className="text-xs font-bold text-amber-400">Estimated Market Value (₹) *</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={propMarketValue === 0 ? "" : propMarketValue}
+                        onChange={(e) => setPropMarketValue(e.target.value === "" ? 0 : Number(e.target.value))}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-amber-500/40 rounded-xl text-amber-400 font-mono font-black text-sm"
+                      />
+                      <p className="text-[10px] text-slate-500 mt-1">Family Wealth Vault me judegi</p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300">Purchase Cost / Lagat (₹)</label>
+                      <input
+                        type="number"
+                        placeholder="Optional"
+                        value={propPurchasePrice === 0 ? "" : propPurchasePrice}
+                        onChange={(e) => setPropPurchasePrice(e.target.value === "" ? 0 : Number(e.target.value))}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Purchase Date (Kharid Taarikh)</label>
+                      <input
+                        type="date"
+                        value={propPurchaseDate}
+                        onChange={(e) => setPropPurchaseDate(e.target.value)}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Address, City & Pincode */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="md:col-span-2">
+                      <label className="text-xs font-bold text-slate-400">Address (Pata)</label>
+                      <input
+                        type="text"
+                        value={propAddress}
+                        onChange={(e) => setPropAddress(e.target.value)}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">City / Shahar</label>
+                      <input
+                        type="text"
+                        value={propCity}
+                        onChange={(e) => setPropCity(e.target.value)}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Rent Escalation / Increase Terms */}
+                  <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">वार्षिक किराया वृद्धि (Rent Escalation)</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div>
+                        <label className="text-[11px] text-slate-400">बढ़ोतरी प्रकार</label>
+                        <select
+                          value={propRentIncreaseType}
+                          onChange={(e) => setPropRentIncreaseType(e.target.value as any)}
+                          className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold"
+                        >
+                          <option value="percentage">प्रतिशत (%)</option>
+                          <option value="fixed_amount">फिक्स्ड राशि (₹)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-slate-400">बढ़ोतरी मूल्य</label>
+                        <input
+                          type="number"
+                          value={propRentIncreaseValue}
+                          onChange={(e) => setPropRentIncreaseValue(Number(e.target.value || 0))}
+                          className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-amber-300 font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-slate-400">आवृति (Frequency)</label>
+                        <select
+                          value={propRentIncreaseFreq}
+                          onChange={(e) => setPropRentIncreaseFreq(e.target.value as any)}
+                          className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold"
+                        >
+                          <option value="every_11_months">हर 11 महीने में</option>
+                          <option value="annually">हर 1 साल (वार्षिक)</option>
+                          <option value="every_2_years">हर 2 साल में</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowEditPropModal(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black shadow"
-                >
-                  Save Property Details
-                </button>
+              {/* TAB 2: TENANT & MONTHLY RENT */}
+              {masterEditTab === "tenant" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-emerald-400">Kirayedaar ka Poora Naam *</label>
+                      <input
+                        type="text"
+                        required
+                        value={tenantName}
+                        onChange={(e) => setTenantName(e.target.value)}
+                        placeholder="e.g. Ramesh Chandra (Kirayedaar)"
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Pita / Pati ka Naam</label>
+                      <input
+                        type="text"
+                        value={tenantFatherSpouse}
+                        onChange={(e) => setTenantFatherSpouse(e.target.value)}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Mobile No. (WhatsApp)</label>
+                      <div className="flex items-center mt-1 bg-[#0B0F19] border border-slate-800 rounded-xl overflow-hidden">
+                        <span className="px-3 py-2 bg-slate-800 text-slate-400 text-xs font-bold select-none border-r border-slate-700">
+                          +91
+                        </span>
+                        <input
+                          type="tel"
+                          maxLength={10}
+                          value={tenantPhone}
+                          onChange={(e) => setTenantPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                          placeholder="9876543210"
+                          className="w-full p-2 bg-transparent text-white text-xs font-bold outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-emerald-400">Masik Kiraya / Monthly Rent (₹) *</label>
+                      <input
+                        type="number"
+                        required
+                        value={tenantRent === 0 ? "" : tenantRent}
+                        onChange={(e) => setTenantRent(e.target.value === "" ? 0 : Number(e.target.value))}
+                        placeholder="0"
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-emerald-500/40 rounded-xl text-emerald-400 font-mono font-black text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Rent Due Date (महीने की तारीख)</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-slate-400">हर माह की</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={31}
+                          value={tenantDueDay}
+                          onChange={(e) => setTenantDueDay(Number(e.target.value || 5))}
+                          className="w-20 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold text-center"
+                        />
+                        <span className="text-xs text-slate-400">तारीख को</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Kiraya / Agreement Shuru Date</label>
+                      <input
+                        type="date"
+                        value={tenantJoiningDate}
+                        onChange={(e) => setTenantJoiningDate(e.target.value)}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Move-in Bijli Sub-Meter Reading (Optional)</label>
+                      <input
+                        type="number"
+                        value={tenantMoveInMeter === 0 ? "" : tenantMoveInMeter}
+                        onChange={(e) => setTenantMoveInMeter(e.target.value === "" ? 0 : Number(e.target.value))}
+                        placeholder="0"
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-400">Permanent Home Address</label>
+                    <input
+                      type="text"
+                      value={tenantPermAddress}
+                      onChange={(e) => setTenantPermAddress(e.target.value)}
+                      placeholder="e.g. Village/Town, Dist, State"
+                      className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">Aadhaar Card No. (Optional)</label>
+                      <input
+                        type="text"
+                        value={tenantAadhaar}
+                        onChange={(e) => setTenantAadhaar(e.target.value)}
+                        placeholder="XXXX-XXXX-XXXX"
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400">PAN Card No. (Optional)</label>
+                      <input
+                        type="text"
+                        value={tenantPan}
+                        onChange={(e) => setTenantPan(e.target.value.toUpperCase())}
+                        placeholder="ABCDE1234F"
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs uppercase"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: ADVANCE DEPOSIT (100% OPTIONAL / ₹0 BY DEFAULT) */}
+              {masterEditTab === "advance" && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-950/20 border border-blue-500/30 rounded-2xl space-y-2">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-blue-400" />
+                      <h4 className="text-sm font-bold text-blue-300">अमानत (Advance Security Deposit) - ऐच्छिक विवरण</h4>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      यह राशि अनिवार्य नहीं है। यदि आपने किरायेदार से कोई अमानत (एडवांस) नहीं ली है तो इसे <strong>₹0</strong> रखें। कोई पेनल्टी या रुकावट नहीं होगी।
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-blue-300">
+                        जमा अमानत राशि (Advance Deposit ₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={tenantDeposit === 0 ? "" : tenantDeposit}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          setTenantDeposit(val);
+                          setAdvanceAmount(val);
+                        }}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-blue-500/40 rounded-xl text-blue-300 font-mono font-black text-base"
+                      />
+                      {tenantDeposit === 0 ? (
+                        <p className="text-[11px] text-emerald-400 mt-1.5 flex items-center gap-1 font-semibold">
+                          <Check className="w-3.5 h-3.5" />
+                          <span>₹0 — कोई अमानत नहीं ली गई है (Optional)</span>
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-amber-300 mt-1.5 font-semibold">
+                          कुल अमानत: ₹{Number(tenantDeposit).toLocaleString("en-IN")} सुरक्षित जमा
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                        <Calendar size={13} className="text-blue-400" />
+                        <span>अमानत मिलने की तारीख (Deposit Date)</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={advanceDate}
+                        onChange={(e) => setAdvanceDate(e.target.value)}
+                        className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-400">भुगतान माध्यम (Payment Mode)</label>
+                    <select
+                      value={tenantDepositMode}
+                      onChange={(e) => {
+                        setTenantDepositMode(e.target.value as any);
+                        setAdvanceMode(e.target.value as any);
+                      }}
+                      className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
+                    >
+                      <option value="upi">📱 UPI / PhonePe / GPay</option>
+                      <option value="cash">💵 Cash (नकद)</option>
+                      <option value="bank_transfer">🏦 Net Banking / Bank Transfer</option>
+                      <option value="cheque">📝 Cheque (चेक)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-400">अमानत व एग्रीमेंट नोट्स (Remarks)</label>
+                    <input
+                      type="text"
+                      value={tenantNotes}
+                      onChange={(e) => setTenantNotes(e.target.value)}
+                      placeholder="e.g. 11 mahine ka agreement, khali karte samay wapas ki jayegi"
+                      className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Form Footer Buttons */}
+              <div className="flex justify-between items-center pt-4 border-t border-slate-800">
+                <div className="flex gap-2">
+                  {masterEditTab !== "property" && (
+                    <button
+                      type="button"
+                      onClick={() => setMasterEditTab(masterEditTab === "advance" ? "tenant" : "property")}
+                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
+                    >
+                      ← पिछला सेक्शन
+                    </button>
+                  )}
+                  {masterEditTab !== "advance" && (
+                    <button
+                      type="button"
+                      onClick={() => setMasterEditTab(masterEditTab === "property" ? "tenant" : "advance")}
+                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
+                    >
+                      अगला सेक्शन →
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMasterEditData(null)}
+                    className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+                  >
+                    रद्द करें (Cancel)
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-black rounded-xl text-xs shadow-lg transition"
+                  >
+                    ✓ सभी बदलाव एक साथ सुरक्षित करें (Save All)
+                  </button>
+                </div>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ========================================================================= */}
+{/* ========================================================================= */}
       {/* MODAL 3: TENANT VACATE & SETTLEMENT MODAL (KHALI KARNA & HISAB)             */}
       {/* ========================================================================= */}
       {showVacateModal && (
@@ -3967,152 +4343,6 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl shadow-lg shadow-rose-600/20"
                 >
                   Confirm Exit & Vacate Unit
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL 4: EDIT TENANT MODAL                                                 */}
-      {/* ========================================================================= */}
-      {showEditTenantModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 overflow-y-auto">
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-2xl space-y-5 my-auto max-h-[92vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-lg font-black text-white flex items-center gap-2">
-                  <Edit3 className="w-5 h-5 text-amber-400" />
-                  Kirayedaar Profile & Agreement Edit Karein
-                </h3>
-                <p className="text-xs text-slate-400">{showEditTenantModal.name} ki details update karein.</p>
-              </div>
-              <button onClick={() => setShowEditTenantModal(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditedTenant} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Kirayedaar ka Poora Naam *</label>
-                  <input
-                    type="text"
-                    required
-                    value={tenantName}
-                    onChange={(e) => setTenantName(e.target.value)}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Pita / Pati ka Naam</label>
-                  <input
-                    type="text"
-                    value={tenantFatherSpouse}
-                    onChange={(e) => setTenantFatherSpouse(e.target.value)}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Mobile No. (WhatsApp)</label>
-                  <div className="flex items-center mt-1 bg-[#0B0F19] border border-slate-800 rounded-xl overflow-hidden">
-                    <span className="px-3 py-2 bg-slate-800 text-slate-400 text-xs font-bold select-none border-r border-slate-700">
-                      +91
-                    </span>
-                    <input
-                      type="tel"
-                      maxLength={10}
-                      value={tenantPhone}
-                      onChange={(e) => setTenantPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      className="w-full p-2 bg-transparent text-white text-xs font-bold outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Aadhaar Card No.</label>
-                  <input
-                    type="text"
-                    value={tenantAadhaar}
-                    onChange={(e) => setTenantAadhaar(e.target.value)}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-400">PAN Card No.</label>
-                  <input
-                    type="text"
-                    value={tenantPan}
-                    onChange={(e) => setTenantPan(e.target.value.toUpperCase())}
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs uppercase"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Move-in Sub-meter Reading (Units)</label>
-                  <input
-                    type="number"
-                    value={tenantMoveInMeter === 0 ? "" : tenantMoveInMeter}
-                    onChange={(e) => setTenantMoveInMeter(e.target.value === "" ? 0 : Number(e.target.value))}
-                    placeholder="0"
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400">Permanent Home Address</label>
-                <input
-                  type="text"
-                  value={tenantPermAddress}
-                  onChange={(e) => setTenantPermAddress(e.target.value)}
-                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Monthly Rent (₹)</label>
-                  <input
-                    type="number"
-                    value={tenantRent === 0 ? "" : tenantRent}
-                    onChange={(e) => setTenantRent(e.target.value === "" ? 0 : Number(e.target.value))}
-                    placeholder="0"
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400">Advance Deposit (₹)</label>
-                  <input
-                    type="number"
-                    value={tenantDeposit === 0 ? "" : tenantDeposit}
-                    onChange={(e) => setTenantDeposit(e.target.value === "" ? 0 : Number(e.target.value))}
-                    placeholder="0"
-                    className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowEditTenantModal(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow"
-                >
-                  Save Changes
                 </button>
               </div>
             </form>
@@ -4865,83 +5095,6 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
         </div>
       )}
 
-      {/* 🛡️ MODAL: EDIT ADVANCE SECURITY DEPOSIT WITH CALENDAR */}
-      {editingAdvance && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 overflow-y-auto">
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-5 md:p-6 w-full max-w-md space-y-4 shadow-2xl my-auto">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <div>
-                <h4 className="text-sm font-black text-white flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-blue-400" />
-                  <span>अमानत (Advance Deposit) दर्ज व अपडेट करें</span>
-                </h4>
-                <p className="text-[11px] text-slate-400">
-                  {editingAdvance.tenant.name} • {editingAdvance.property.title}
-                </p>
-              </div>
-              <button onClick={() => setEditingAdvance(null)} className="p-1 text-slate-400 hover:text-white rounded-lg">
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveAdvance} className="space-y-3.5 text-xs">
-              <div>
-                <label className="font-bold text-blue-300">जमा अमानत राशि (Advance Deposit ₹) <span className="text-slate-400 font-normal">(वैकल्पिक - यदि नहीं लिया तो ₹0 छोड़ें)</span></label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={advanceAmount === 0 ? "0" : (advanceAmount || "")}
-                  onChange={(e) => setAdvanceAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-blue-500/40 rounded-xl text-blue-300 font-black text-base font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-300 flex items-center gap-1">
-                  <Calendar size={13} className="text-blue-400" />
-                  <span>अमानत मिलने की तारीख (Deposit Date) <span className="text-slate-400 font-normal">(यदि अमानत ली हो)</span></span>
-                </label>
-                <input
-                  type="date"
-                  value={advanceDate}
-                  onChange={(e) => setAdvanceDate(e.target.value)}
-                  className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-300">भुगतान माध्यम (Deposit Mode)</label>
-                <select
-                  value={advanceMode}
-                  onChange={(e) => setAdvanceMode(e.target.value as any)}
-                  className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold"
-                >
-                  <option value="upi">UPI / GPay / PhonePe</option>
-                  <option value="cash">Cash (नकद)</option>
-                  <option value="bank_transfer">Net Banking / IMPS</option>
-                  <option value="cheque">Cheque (चेक)</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2 pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setEditingAdvance(null)}
-                  className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold"
-                >
-                  रद्द करें
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black shadow"
-                >
-                  ✓ अमानत सुरक्षित करें
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }
