@@ -114,6 +114,21 @@ export default function RentalsPage() {
   const [showDamageModal, setShowDamageModal] = useState<RentalTenant | null>(null);
   const [showDocPreview, setShowDocPreview] = useState<{ title: string; url: string } | null>(null);
 
+  // Collect Rent Modal State with Date & Time Calendar
+  const [collectingTenant, setCollectingTenant] = useState<{ tenant: RentalTenant; property: RentalProperty } | null>(null);
+  const [collectAmount, setCollectAmount] = useState<number>(0);
+  const [collectDate, setCollectDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [collectTime, setCollectTime] = useState<string>("10:00");
+  const [collectMode, setCollectMode] = useState<"upi" | "cash" | "bank_transfer" | "cheque">("upi");
+  const [collectRef, setCollectRef] = useState<string>("");
+  const [collectNotes, setCollectNotes] = useState<string>("");
+
+  // Edit Advance Security Deposit Modal State with Date Calendar
+  const [editingAdvance, setEditingAdvance] = useState<{ tenant: RentalTenant; property: RentalProperty } | null>(null);
+  const [advanceAmount, setAdvanceAmount] = useState<number>(0);
+  const [advanceDate, setAdvanceDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [advanceMode, setAdvanceMode] = useState<"upi" | "cash" | "bank_transfer" | "cheque">("cash");
+
   // Tenant Checkout / Settle & Vacate Modal State
   const [showVacateModal, setShowVacateModal] = useState<{ tenant: RentalTenant; property: RentalProperty } | null>(null);
   const [vacateFinalMeter, setVacateFinalMeter] = useState<number>(0);
@@ -692,6 +707,58 @@ export default function RentalsPage() {
     setShowVacateModal(null);
   };
 
+  // Collect Rent Handler
+  const handleOpenCollectModal = (tenant: RentalTenant, property: RentalProperty) => {
+    setCollectingTenant({ tenant, property });
+    setCollectAmount(tenant.monthly_rent || 0);
+    setCollectDate(new Date().toISOString().split("T")[0]);
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    setCollectTime(`${hh}:${mm}`);
+    setCollectMode((tenant.last_payment_mode as any) || "upi");
+    setCollectRef(tenant.last_transaction_id || "");
+    setCollectNotes("");
+  };
+
+  const handleSaveRentCollection = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!collectingTenant) return;
+    collectRentPayment(
+      collectingTenant.property.id,
+      collectingTenant.tenant.id,
+      collectAmount,
+      true,
+      {
+        payment_mode: collectMode,
+        payment_date: collectDate,
+        payment_time: collectTime,
+        transaction_id: collectRef,
+        notes: collectNotes
+      }
+    );
+    setCollectingTenant(null);
+  };
+
+  // Edit Advance Security Deposit Handler
+  const handleOpenEditAdvance = (tenant: RentalTenant, property: RentalProperty) => {
+    setEditingAdvance({ tenant, property });
+    setAdvanceAmount(tenant.security_deposit || 0);
+    setAdvanceDate(tenant.advance_payment_date || tenant.joining_date || new Date().toISOString().split("T")[0]);
+    setAdvanceMode((tenant.advance_payment_mode as any) || "cash");
+  };
+
+  const handleSaveAdvance = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAdvance) return;
+    updateRentalTenant(editingAdvance.property.id, editingAdvance.tenant.id, {
+      security_deposit: advanceAmount,
+      advance_payment_date: advanceDate,
+      advance_payment_mode: advanceMode
+    });
+    setEditingAdvance(null);
+  };
+
   // Create Room Handler (PG)
   const handleCreateRoom = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1047,7 +1114,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                         </div>
                       </div>
 
-                      {/* Valuation & Monthly Rent Box */}
+                      {/* Valuation, Purchase Cost & Monthly Rent Box */}
                       <div className="p-3 bg-slate-900/90 rounded-2xl border border-slate-800/80 space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-[10px] text-slate-400 font-medium">Bazar Bhav (Market Value):</span>
@@ -1055,6 +1122,15 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                             ₹{(p.estimated_market_value || 0).toLocaleString("en-IN")}
                           </span>
                         </div>
+
+                        {(p.purchase_price !== undefined && p.purchase_price > 0) && (
+                          <div className="flex justify-between items-center text-[10px] text-slate-400">
+                            <span>खरीद लागत (Purchase Cost):</span>
+                            <span className="font-mono text-slate-300 font-semibold">
+                              ₹{p.purchase_price.toLocaleString("en-IN")} {p.purchase_date ? `(${p.purchase_date})` : ''}
+                            </span>
+                          </div>
+                        )}
 
                         <div className="flex justify-between items-center pt-1 border-t border-slate-800">
                           <span className="text-[10px] text-amber-300 font-bold">मासिक किराया (Monthly Rent):</span>
@@ -1096,25 +1172,33 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-black text-purple-300 flex items-center gap-1.5 uppercase">
                               <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
-                              <span>किराया बंटवारा व खर्च (Collection & Allocation)</span>
+                              <span>किराया बंटवारा व खर्च (Allocation)</span>
                             </span>
                             <span className="text-[9px] text-purple-400 font-bold">
                               ₹{(p.monthly_target_revenue || 0).toLocaleString('en-IN')}/माह
                             </span>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-1.5">
                             {p.rent_diversions.map((d) => {
                               const calculatedAmt = d.split_type === 'percentage' 
                                 ? Math.round(((p.monthly_target_revenue || 0) * d.split_value) / 100)
                                 : d.split_value;
                               return (
-                                <div key={d.id} className="flex items-center justify-between text-[10px] bg-purple-900/40 px-2 py-1 rounded-lg border border-purple-500/20">
-                                  <span className="font-bold text-white flex items-center gap-1">
-                                    👤 {d.target_member_name} ({d.split_type === 'percentage' ? `${d.split_value}%` : `₹${d.split_value}`}):
-                                  </span>
-                                  <span className="text-purple-200 font-medium">
-                                    👉 {d.purpose} <span className="font-mono font-bold text-emerald-400">(₹{calculatedAmt.toLocaleString('en-IN')})</span>
-                                  </span>
+                                <div key={d.id} className="bg-purple-900/40 p-2 rounded-xl border border-purple-500/20 text-[10px] space-y-1">
+                                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                                    <div className="flex items-center gap-1.5 font-bold text-white">
+                                      <span>👤 {d.target_member_name}</span>
+                                      <span className="bg-purple-800/80 text-purple-200 text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold">
+                                        {d.split_type === 'percentage' ? `${d.split_value}%` : `₹${d.split_value}`}
+                                      </span>
+                                    </div>
+                                    <span className="font-mono font-black text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                                      ₹{calculatedAmt.toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                  <div className="text-purple-200 font-medium text-[9.5px] truncate flex items-center gap-1" title={d.purpose}>
+                                    <span>🎯 {d.purpose}</span>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -1342,15 +1426,24 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           {parentProp && (
-                            <button
-                              onClick={() => {
-                                setVacateFinalMeter(t.move_in_meter_reading || 0);
-                                setShowVacateModal({ tenant: t, property: parentProp });
-                              }}
-                              className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-lg text-[10px] font-bold transition"
-                            >
-                              निकास व सेटलमेंट
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditAdvance(t, parentProp)}
+                                className="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 rounded-lg text-[10px] font-bold transition whitespace-nowrap"
+                                title="अमानत व तारीख बदलें"
+                              >
+                                अमानत बदलें
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setVacateFinalMeter(t.move_in_meter_reading || 0);
+                                  setShowVacateModal({ tenant: t, property: parentProp });
+                                }}
+                                className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-lg text-[10px] font-bold transition whitespace-nowrap"
+                              >
+                                निकास व सेटलमेंट
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -1689,9 +1782,15 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
-                              {/* Mark Paid Toggle */}
+                              {/* Collect Rent with Date & Time Calendar */}
                               <button
-                                onClick={() => collectRentPayment(activeProperty.id, tenant.id, tenant.monthly_rent, tenant.rent_status !== "paid")}
+                                onClick={() => {
+                                  if (tenant.rent_status === "paid") {
+                                    collectRentPayment(activeProperty.id, tenant.id, tenant.monthly_rent, false);
+                                  } else {
+                                    handleOpenCollectModal(tenant, activeProperty);
+                                  }
+                                }}
                                 className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition ${
                                   tenant.rent_status === "paid"
                                     ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
@@ -4639,6 +4738,205 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-600/30"
                 >
                   Confirm Property Sale
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 💰 MODAL: COLLECT RENT WITH EXACT DATE & TIME CALENDAR */}
+      {collectingTenant && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 overflow-y-auto">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-5 md:p-6 w-full max-w-md space-y-4 shadow-2xl my-auto">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div>
+                <h4 className="text-sm font-black text-white flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-400" />
+                  <span>किराया कलेक्शन रसीद (Collect Rent)</span>
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  {collectingTenant.tenant.name} • {collectingTenant.property.title}
+                </p>
+              </div>
+              <button onClick={() => setCollectingTenant(null)} className="p-1 text-slate-400 hover:text-white rounded-lg">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveRentCollection} className="space-y-3.5 text-xs">
+              <div>
+                <label className="font-bold text-amber-300">किराया राशि (Rent Amount ₹) *</label>
+                <input
+                  type="number"
+                  required
+                  value={collectAmount || ""}
+                  onChange={(e) => setCollectAmount(Number(e.target.value))}
+                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-amber-500/40 rounded-xl text-amber-300 font-black text-base font-mono"
+                />
+              </div>
+
+              {/* Exact Collection Date & Time Calendar */}
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+                <div>
+                  <label className="font-bold text-slate-300 flex items-center gap-1">
+                    <Calendar size={13} className="text-emerald-400" />
+                    <span>कलेक्शन तारीख (Date)</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={collectDate}
+                    onChange={(e) => setCollectDate(e.target.value)}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-300 flex items-center gap-1">
+                    <Clock size={13} className="text-cyan-400" />
+                    <span>कलेक्शन समय (Time)</span>
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={collectTime}
+                    onChange={(e) => setCollectTime(e.target.value)}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-300">भुगतान माध्यम (Mode)</label>
+                  <select
+                    value={collectMode}
+                    onChange={(e) => setCollectMode(e.target.value as any)}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold"
+                  >
+                    <option value="upi">UPI / GPay / PhonePe</option>
+                    <option value="cash">Cash (नकद)</option>
+                    <option value="bank_transfer">Net Banking / IMPS</option>
+                    <option value="cheque">Cheque (चेक)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-300">UPI Ref / Cheque No</label>
+                  <input
+                    type="text"
+                    placeholder="उदा. UPI/98765432"
+                    value={collectRef}
+                    onChange={(e) => setCollectRef(e.target.value)}
+                    className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-400">नोट्स / विवरण (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="उदा. समय पर प्राप्त हुआ"
+                  value={collectNotes}
+                  onChange={(e) => setCollectNotes(e.target.value)}
+                  className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setCollectingTenant(null)}
+                  className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black shadow"
+                >
+                  ✓ भुगतान दर्ज करें
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🛡️ MODAL: EDIT ADVANCE SECURITY DEPOSIT WITH CALENDAR */}
+      {editingAdvance && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 overflow-y-auto">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-5 md:p-6 w-full max-w-md space-y-4 shadow-2xl my-auto">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div>
+                <h4 className="text-sm font-black text-white flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-blue-400" />
+                  <span>अमानत (Advance Deposit) दर्ज व अपडेट करें</span>
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  {editingAdvance.tenant.name} • {editingAdvance.property.title}
+                </p>
+              </div>
+              <button onClick={() => setEditingAdvance(null)} className="p-1 text-slate-400 hover:text-white rounded-lg">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAdvance} className="space-y-3.5 text-xs">
+              <div>
+                <label className="font-bold text-blue-300">जमा अमानत राशि (Advance Deposit ₹) *</label>
+                <input
+                  type="number"
+                  required
+                  value={advanceAmount || ""}
+                  onChange={(e) => setAdvanceAmount(Number(e.target.value))}
+                  className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-blue-500/40 rounded-xl text-blue-300 font-black text-base font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-300 flex items-center gap-1">
+                  <Calendar size={13} className="text-blue-400" />
+                  <span>अमानत मिलने की तारीख (Deposit Date Calendar) *</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={advanceDate}
+                  onChange={(e) => setAdvanceDate(e.target.value)}
+                  className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-300">भुगतान माध्यम (Deposit Mode)</label>
+                <select
+                  value={advanceMode}
+                  onChange={(e) => setAdvanceMode(e.target.value as any)}
+                  className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-bold"
+                >
+                  <option value="upi">UPI / GPay / PhonePe</option>
+                  <option value="cash">Cash (नकद)</option>
+                  <option value="bank_transfer">Net Banking / IMPS</option>
+                  <option value="cheque">Cheque (चेक)</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingAdvance(null)}
+                  className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black shadow"
+                >
+                  ✓ अमानत सुरक्षित करें
                 </button>
               </div>
             </form>

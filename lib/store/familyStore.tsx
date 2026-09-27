@@ -611,7 +611,7 @@ interface FamilyContextType {
   deleteRentalTenant: (propertyIdOrTenantId: string, tenantId?: string) => void;
   toggleTenantRentStatus: (tenantId: string) => void;
   vacateAndSettleTenant: (propertyId: string, tenantId: string, settlement: { final_meter_reading: number; final_electricity_charge: number; final_damage_deduction: number; final_advance_refunded: number; vacate_date: string; reason?: string; notes?: string }) => void;
-  collectRentPayment: (propertyId: string, tenantId: string, amount: number, isPaid: boolean, details?: { payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque'; transaction_id?: string; maintenance_deduction?: number; damage_deduction?: number; notes?: string }) => void;
+  collectRentPayment: (propertyId: string, tenantId: string, amount: number, isPaid: boolean, details?: { payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque'; payment_date?: string; payment_time?: string; transaction_id?: string; maintenance_deduction?: number; damage_deduction?: number; notes?: string }) => void;
   addRentalExpense: (propertyId: string, expense: Omit<RentalExpense, 'id' | 'property_id'>) => void;
   deleteRentalExpense: (propertyId: string, expenseId: string) => void;
   addRentDiversion: (propertyId: string, rule: Omit<RentDiversionRule, 'id'>) => void;
@@ -1206,7 +1206,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
                 const existingSupaIds = new Set((supaTenants || []).map((t: any) => t.id));
                 for (const t of parsed) {
                   if (!['ten-1', 'ten-2', 'ten-3'].includes(t.id) && !existingSupaIds.has(t.id)) {
-                    supabase.from('rental_tenants').insert({
+                    supabase.from('rental_tenants').upsert({
                       id: t.id,
                       property_id: t.property_id || 'prop-kesharwani-1',
                       room_id: t.room_id || t.roomNumber || 'Room 101',
@@ -1216,7 +1216,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
                       security_deposit: Number(t.security_deposit || t.securityDeposit || 0),
                       joining_date: t.joining_date || t.joiningDate || new Date().toISOString().split('T')[0],
                       rent_status: (t.rent_status === 'due' || t.paymentStatus === 'DUE') ? 'due' : 'paid',
-                    }).then();
+                    }, { onConflict: 'id' }).then(() => {}, () => {});
                   }
                 }
               }
@@ -1745,6 +1745,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     isPaid: boolean,
     details?: {
       payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque';
+      payment_date?: string;
+      payment_time?: string;
       transaction_id?: string;
       maintenance_deduction?: number;
       damage_deduction?: number;
@@ -1760,7 +1762,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           return {
             ...t,
             rent_status: (isPaid ? 'paid' : 'pending') as 'paid' | 'pending',
-            last_paid_date: isPaid ? new Date().toISOString().split('T')[0] : t.last_paid_date,
+            last_paid_date: isPaid ? (details?.payment_date || new Date().toISOString().split('T')[0]) : t.last_paid_date,
             last_paid_amount: isPaid ? amount : t.last_paid_amount,
             last_payment_mode: details?.payment_mode || t.last_payment_mode || 'upi',
             last_transaction_id: details?.transaction_id || t.last_transaction_id,
