@@ -784,7 +784,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length >= 6) {
+            const hasDiversions = parsed.some((p: any) => p.rent_diversions && p.rent_diversions.length > 0);
+            if (hasDiversions) return parsed;
+          }
         } catch (e) {}
       }
     }
@@ -798,7 +801,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed) && parsed.length >= 6) {
             return parsed.map((t: any) => ({
               id: t.id || 'ten-' + Math.random().toString(36).substring(7),
               property_id: t.property_id || 'prop-kesharwani-1',

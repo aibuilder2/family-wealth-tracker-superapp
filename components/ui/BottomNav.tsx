@@ -137,7 +137,7 @@ export function BottomNav() {
                     className="flex items-center justify-between p-3 rounded-2xl bg-paper border border-paper-dim hover:border-gold/40 transition-all shadow-sm"
                   >
                     <Link
-                      href={mod.id === 'hostel-pg' ? '/rentals' : `/business?tab=${mod.id}`}
+                      href={mod.id === 'rental-properties' ? '/rentals' : `/business?tab=${mod.id}`}
                       onClick={() => setIsMoreOpen(false)}
                       className="flex items-center gap-3 flex-1 min-w-0 pr-2"
                     >

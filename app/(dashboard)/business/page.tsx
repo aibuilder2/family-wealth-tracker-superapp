@@ -19,6 +19,7 @@ import EventsFunctionsModule from '@/components/business-modules/events-function
 import HostelPgModule from '@/components/business-modules/hostel-pg/HostelPgModule';
 import InsurancePropertyCrmModule from '@/components/business-modules/insurance-property-crm/InsurancePropertyCrmModule';
 import PetrolPumpModule from '@/components/business-modules/petrol-pump/PetrolPumpModule';
+import RentalPropertiesModule from '@/components/business-modules/rental-properties/RentalPropertiesModule';
 
 // Newly Modularized Core Life & Family Modules
 import { BankLoansModule } from '@/components/business-modules/bank-loans/BankLoansModule';
@@ -48,7 +49,8 @@ const BUSINESS_TABS = [
   { id: 'business-setup', label: 'Business Setup', icon: Briefcase },
   { id: 'transport', label: 'ट्रांसपोर्ट व JCB', icon: Truck },
   { id: 'construction', label: 'मकान निर्माण', icon: Building2 },
-  { id: 'hostel-pg', label: 'हॉस्टल/किराया', icon: Bed },
+  { id: 'rental-properties', label: '🏠 दुकान व मकान किराया', icon: Building2 },
+  { id: 'hostel-pg', label: '🏢 हॉस्टल व पीजी (PG ERP)', icon: Bed },
   { id: 'agriculture', label: 'कृषि व मंडी बोनस', icon: Sprout },
   { id: 'household-staff', label: 'घरेलू स्टाफ', icon: Users },
   { id: 'jewellery-loan', label: 'सोना गिरवी', icon: Gem },
@@ -116,6 +118,7 @@ function BusinessHubContent() {
         {activeTab === 'business-setup' && <BusinessSetupModule />}
         {activeTab === 'transport' && <TransportModule />}
         {activeTab === 'construction' && <ConstructionModule />}
+        {activeTab === 'rental-properties' && <RentalPropertiesModule />}
         {activeTab === 'hostel-pg' && <HostelPgModule />}
         {activeTab === 'agriculture' && <AgricultureModule />}
         {activeTab === 'household-staff' && <HouseholdStaffModule />}

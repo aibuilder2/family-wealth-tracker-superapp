@@ -157,12 +157,21 @@ export const ALL_APP_MODULES: AppModuleConfig[] = [
     color: 'from-stone-600 to-stone-800'
   },
   {
-    id: 'hostel-pg',
-    title: 'Hostel, PG & Rentals',
-    subtitle: 'कमरा नंबर, किरायेदार रिकॉर्ड, बकाया किराया व डिपॉजिट',
+    id: 'rental-properties',
+    title: 'दुकान व मकान किराया (Rent & Valuation)',
+    subtitle: '6 संपत्तियां, ₹67,000 किराया, ₹1.12 Cr वैल्यूएशन व पारिवारिक बंटवारा',
     category: 'business',
     icon: Building2,
-    defaultPinned: false,
+    defaultPinned: true,
+    color: 'from-amber-600 to-amber-800'
+  },
+  {
+    id: 'hostel-pg',
+    title: 'Hostel & PG (रूम, बेड व मेस ERP)',
+    subtitle: 'कमरा नंबर, बेड मैट्रिक्स, सब-मीटर बिजली व मेस भोजन (व्यापारिक ERP)',
+    category: 'business',
+    icon: Building2,
+    defaultPinned: true,
     color: 'from-blue-500 to-cyan-600'
   },
   {
