@@ -45,7 +45,8 @@ import {
   Percent,
   RefreshCw,
   Tag,
-  Split
+  Split,
+  Check
 } from "lucide-react";
 import { RentalProperty, RentalPropertyType, HostelRoom, RentalTenant, RentalExpense } from "@/types";
 import Link from "next/link";
@@ -986,6 +987,8 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                 const owner = members.find(m => m.id === p.owner_member_id);
                 const isSelected = selectedPropId === p.id;
                 const activeCount = p.tenants?.filter(t => t.tenant_status === 'active').length || 0;
+                const firstActiveTenant = p.tenants?.find(t => t.tenant_status === 'active') || p.tenants?.[0];
+                const totalPropAdvance = (p.tenants || []).reduce((acc, t) => acc + (t.security_deposit || 0), 0);
 
                 // Projected next rent if increase configured
                 let projectedNextRent = 0;
@@ -1019,15 +1022,29 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                           </span>
                           <div>
                             <h4 className="text-sm font-black text-white leading-tight">{p.title}</h4>
-                            <span className="text-[10px] text-slate-400 capitalize">
-                              {p.property_type.replace("_", " ")} {p.property_size ? `· ${p.property_size} ${p.size_unit || 'sqft'}` : ''}
-                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] text-slate-400 capitalize">
+                                {p.property_type.replace("_", " ")}
+                              </span>
+                              {p.property_size && (
+                                <span className="text-[10px] font-bold text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded border border-blue-500/30">
+                                  📏 {p.property_size} {p.size_unit || 'sqft'}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                          👤 {p.owner_member_name || owner?.name || 'Papa'}
-                        </span>
+                        <div className="text-right space-y-1">
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 block">
+                            👤 {p.owner_member_name || owner?.name || 'Papa'}
+                          </span>
+                          {p.registration_deed_no && (
+                            <span className="text-[9px] font-mono text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 block truncate max-w-[140px]" title={p.registration_deed_no}>
+                              📄 {p.registration_deed_no}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Valuation & Monthly Rent Box */}
@@ -1039,36 +1056,68 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                           </span>
                         </div>
 
-                        {p.purchase_price ? (
-                          <div className="flex justify-between items-center text-[10px] text-slate-400">
-                            <span>Kharid Lagat (Purchase):</span>
-                            <span className="font-mono text-slate-300">
-                              ₹{p.purchase_price.toLocaleString("en-IN")} {p.purchase_date ? `(${p.purchase_date})` : ''}
-                            </span>
-                          </div>
-                        ) : null}
-
                         <div className="flex justify-between items-center pt-1 border-t border-slate-800">
-                          <span className="text-[10px] text-amber-300/90 font-bold">Monthly Target Rent:</span>
-                          <span className="text-xs font-black text-amber-300 font-mono">
-                            ₹{(p.monthly_target_revenue || 0).toLocaleString("en-IN")} / mo
+                          <span className="text-[10px] text-amber-300 font-bold">मासिक किराया (Monthly Rent):</span>
+                          <span className="text-sm font-black text-amber-300 font-mono">
+                            ₹{(p.monthly_target_revenue || 0).toLocaleString("en-IN")} / माह
                           </span>
                         </div>
                       </div>
 
-                      
-                      {/* Rent Diversion / Batwara Badge if active */}
-                      {p.rent_diversions && p.rent_diversions.length > 0 && (
-                        <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl space-y-1">
-                          <span className="text-[10px] font-bold text-purple-300 flex items-center gap-1">
-                            <span>🔄 Kiraya Batwara (Diversions):</span>
+                      {/* Dates: Start Date & Rent Due Date */}
+                      <div className="grid grid-cols-2 gap-2 text-[10px] p-2.5 bg-slate-900/60 rounded-xl border border-slate-800/60">
+                        <div>
+                          <span className="text-slate-400 block text-[9px]">📅 शुरुआत (Start Date):</span>
+                          <span className="font-bold text-slate-200">
+                            {firstActiveTenant?.joining_date || '01/01/2026'}
                           </span>
-                          <div className="flex flex-wrap gap-1">
-                            {p.rent_diversions.map(d => (
-                              <span key={d.id} className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 font-semibold">
-                                ➡️ {d.target_member_name}: {d.split_type === 'percentage' ? `${d.split_value}%` : `₹${d.split_value}`} ({d.purpose})
-                              </span>
-                            ))}
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9px]">⏰ किराया Due तारीख:</span>
+                          <span className="font-bold text-amber-300">
+                            हर महीने {firstActiveTenant?.cycle_start_day || firstActiveTenant?.rent_due_day || 5} तारीख
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Advance Deposit Held Badge */}
+                      {totalPropAdvance > 0 && (
+                        <div className="flex items-center justify-between text-[10px] px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                          <span className="text-amber-300 font-bold flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" /> जमा अमानत (Advance Held):
+                          </span>
+                          <span className="font-mono font-black text-amber-400">₹{totalPropAdvance.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+
+                      {/* Rent Diversion / Batwara & Kharch Box */}
+                      {p.rent_diversions && p.rent_diversions.length > 0 && (
+                        <div className="p-3 bg-purple-950/30 border border-purple-500/30 rounded-2xl space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black text-purple-300 flex items-center gap-1.5 uppercase">
+                              <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+                              <span>किराया बंटवारा व खर्च (Collection & Allocation)</span>
+                            </span>
+                            <span className="text-[9px] text-purple-400 font-bold">
+                              ₹{(p.monthly_target_revenue || 0).toLocaleString('en-IN')}/माह
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {p.rent_diversions.map((d) => {
+                              const calculatedAmt = d.split_type === 'percentage' 
+                                ? Math.round(((p.monthly_target_revenue || 0) * d.split_value) / 100)
+                                : d.split_value;
+                              return (
+                                <div key={d.id} className="flex items-center justify-between text-[10px] bg-purple-900/40 px-2 py-1 rounded-lg border border-purple-500/20">
+                                  <span className="font-bold text-white flex items-center gap-1">
+                                    👤 {d.target_member_name} ({d.split_type === 'percentage' ? `${d.split_value}%` : `₹${d.split_value}`}):
+                                  </span>
+                                  <span className="text-purple-200 font-medium">
+                                    👉 {d.purpose} <span className="font-mono font-bold text-emerald-400">(₹{calculatedAmt.toLocaleString('en-IN')})</span>
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -1336,6 +1385,15 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                     💎 Market Value: ₹{activeProperty.estimated_market_value.toLocaleString("en-IN")}
                   </span>
                 )}
+                <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-400 rounded-full font-bold text-[10px] font-mono">
+                  💰 किराया: ₹{(activeProperty.monthly_target_revenue || 0).toLocaleString("en-IN")}/माह
+                </span>
+                <span className="px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-full font-bold text-[10px]">
+                  📅 शुरुआत: {activeProperty.tenants?.[0]?.joining_date || '01/01/2026'}
+                </span>
+                <span className="px-2.5 py-0.5 bg-rose-500/20 text-rose-300 rounded-full font-bold text-[10px]">
+                  ⏰ Due: हर महीने {activeProperty.tenants?.[0]?.cycle_start_day || activeProperty.tenants?.[0]?.rent_due_day || 5} तारीख
+                </span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2">
@@ -1343,8 +1401,25 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
               </h2>
               <p className="text-xs text-slate-400">
                 📍 {activeProperty.address}, {activeProperty.city}
-                {activeProperty.registration_deed_no ? ` | Deed No: ${activeProperty.registration_deed_no}` : ""}
+                {activeProperty.registration_deed_no ? ` | 📄 Registry Deed: ${activeProperty.registration_deed_no}` : ""}
               </p>
+
+              {activeProperty.rent_diversions && activeProperty.rent_diversions.length > 0 && (
+                <div className="flex items-center gap-2 pt-1 flex-wrap">
+                  <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1">
+                    🔄 किराया बंटवारा व खर्च:
+                  </span>
+                  {activeProperty.rent_diversions.map(d => (
+                    <button
+                      key={d.id}
+                      onClick={() => setActiveTab("diversions")}
+                      className="text-[10px] px-2 py-0.5 rounded-lg bg-purple-900/50 hover:bg-purple-800/60 border border-purple-500/30 text-purple-200 transition font-medium"
+                    >
+                      {d.target_member_name} ➔ {d.purpose} ({d.split_type === 'percentage' ? `${d.split_value}%` : `₹${d.split_value}`})
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -1462,6 +1537,17 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                 <Zap className="w-4 h-4" /> Electricity Sub-meter Calculator
               </button>
             )}
+
+            <button
+              onClick={() => setActiveTab("diversions")}
+              className={`px-5 py-3 text-xs font-bold flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
+                activeTab === "diversions"
+                  ? "border-amber-500 text-amber-400 bg-amber-500/10"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <RefreshCw className="w-4 h-4" /> 🔄 किराया बंटवारा व खर्च (Diversions)
+            </button>
           </div>
 
           {/* TAB 1: Tenants Directory & Ledger */}
@@ -2340,6 +2426,245 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                 <div className="text-right">
                   <span className="text-xs text-slate-400 uppercase font-bold">कुल बिजली बिल:</span>
                   <div className="text-2xl font-black text-amber-400">₹{Math.max(0, meterCurrUnit - meterPrevUnit) * meterRate}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 8: Rent Diversion, Collection & Allocation (किराया बंटवारा व खर्च) */}
+          {activeTab === "diversions" && (
+            <div className="space-y-6">
+              {/* Header Box */}
+              <div className="bg-[#111827] border border-slate-800 rounded-2xl p-6 space-y-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider">
+                      <RefreshCw className="w-5 h-5 text-amber-400" /> किराया कलेक्शन, पारिवारिक बंटवारा व खर्च प्रबंधन
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      इस प्रॉपर्टी का मासिक किराया ({activeProperty.title}: ₹{(activeProperty.monthly_target_revenue || activeProperty.monthly_target_rent || 0).toLocaleString("en-IN")}/माह) किसके पास जाता है और वह कहाँ खर्च/बचत होता है।
+                    </p>
+                  </div>
+
+                  <div className="px-4 py-2 bg-[#0B0F19] rounded-xl border border-slate-800 text-right">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">कागजात किसके नाम हैं</span>
+                    <span className="text-sm font-bold text-purple-300">
+                      📄 {activeProperty.owner_member_name || "Makan Malik"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Existing Diversions List */}
+                <div className="space-y-3 pt-2">
+                  <div className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Split className="w-4 h-4 text-purple-400" /> सक्रिय बंटवारा व खर्च नियम ({activeProperty.rent_diversions?.length || 0})
+                  </div>
+
+                  {(!activeProperty.rent_diversions || activeProperty.rent_diversions.length === 0) ? (
+                    <div className="p-6 bg-[#0B0F19] rounded-xl border border-dashed border-slate-800 text-center space-y-2">
+                      <p className="text-xs text-slate-400 font-semibold">अभी कोई पारिवारिक बंटवारा नियम नहीं बनाया गया है।</p>
+                      <p className="text-[11px] text-slate-500">
+                        आप तय कर सकते हैं कि इस किराये का कितना हिस्सा किसे मिलेगा (जैसे पापा, मम्मी) और वह पैसा कहाँ खर्च होगा (राशन, बैंक RD, या पर्सनल)।
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {activeProperty.rent_diversions.map((rule) => {
+                        const grossRent = activeProperty.monthly_target_revenue || activeProperty.monthly_target_rent || 0;
+                        const ruleAmount = rule.split_type === "percentage" 
+                          ? Math.round((grossRent * rule.split_value) / 100) 
+                          : rule.split_value;
+
+                        return (
+                          <div key={rule.id} className="p-4 bg-[#0B0F19] rounded-xl border border-slate-800 space-y-3 flex flex-col justify-between">
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                                    👤 {rule.target_member_name}
+                                  </span>
+                                  <span className="text-[11px] text-purple-300 font-medium block">
+                                    {rule.purpose}
+                                  </span>
+                                </div>
+                                <span className="text-sm font-black font-mono text-emerald-400">
+                                  ₹{ruleAmount.toLocaleString("en-IN")}/माह
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap">
+                                <span className="px-2 py-0.5 rounded bg-slate-800 font-mono">
+                                  {rule.split_type === "percentage" ? `${rule.split_value}% हिस्सा` : "फिक्स राशि"}
+                                </span>
+                                <span className="px-2 py-0.5 rounded bg-slate-800 capitalize">
+                                  माध्यम: {rule.payment_mode || "bank_transfer"}
+                                </span>
+                                <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-semibold">
+                                  आवंटन: {rule.allocation_target === "ghar_ration_expense" ? "घर राशन व खर्च" : rule.allocation_target === "fd_rd_investment" ? "बैंक RD/FD बचत" : "पर्सनल फंड"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                              <button
+                                type="button"
+                                onClick={() => handleExecuteDiversionInRentals(activeProperty.id, rule.id)}
+                                className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-[11px] font-bold flex items-center gap-1 transition"
+                              >
+                                <Check className="w-3.5 h-3.5" /> इस महीने का पैसा ट्रांसफर करें
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => deleteRentDiversion(activeProperty.id, rule.id)}
+                                className="p-1.5 text-slate-500 hover:text-rose-400 transition"
+                                title="नियम हटाएं"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Add New Diversion Rule Form */}
+                  <div className="p-5 bg-[#0B0F19] rounded-2xl border border-slate-800 space-y-4 mt-4">
+                    <h5 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Plus className="w-4 h-4" /> नया पारिवारिक बंटवारा व खर्च नियम जोड़ें
+                    </h5>
+
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const selectedMember = members.find((m) => m.id === rentDivTargetMemberId) || members[0];
+                        if (!selectedMember) return;
+
+                        addRentDiversion(activeProperty.id, {
+                          target_member_id: selectedMember.id,
+                          target_member_name: selectedMember.name,
+                          split_type: rentDivSplitType,
+                          split_value: Number(rentDivSplitValue || 0),
+                          purpose: rentDivPurpose,
+                          allocation_target: rentDivAllocTarget,
+                          linked_asset_id: rentDivLinkedAssetId || undefined,
+                          payment_mode: rentDivPaymentMode,
+                          is_active: true,
+                        });
+
+                        setRentDivPurpose("Ghar Kharcha");
+                        alert(`किराया बंटवारा नियम सफलता से सेव हो गया!`);
+                      }}
+                      className="space-y-3 text-xs"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">किराया किसके पास जाएगा (सदस्य) *</label>
+                          <select
+                            value={rentDivTargetMemberId || members[0]?.id || ""}
+                            onChange={(e) => setRentDivTargetMemberId(e.target.value)}
+                            className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-bold"
+                          >
+                            {members.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name} ({m.relationship || m.role})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">कहाँ खर्च या संचय होगा (Allocation) *</label>
+                          <select
+                            value={rentDivAllocTarget}
+                            onChange={(e: any) => setRentDivAllocTarget(e.target.value)}
+                            className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-bold"
+                          >
+                            <option value="ghar_ration_expense">घर का राशन व मासिक खर्च (Ghar Ration)</option>
+                            <option value="fd_rd_investment">बैंक RD / FD में बचत निवेश (Bank RD)</option>
+                            <option value="member_personal">सदस्य का व्यक्तिगत खर्च (Personal)</option>
+                            <option value="staff_payment">घरेलू स्टाफ व मेंटेनेंस वेतन (Staff/Maid)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">उद्देश्य / विवरण (Purpose Note)</label>
+                          <input
+                            type="text"
+                            value={rentDivPurpose}
+                            onChange={(e) => setRentDivPurpose(e.target.value)}
+                            placeholder="उदा. पापा की बैंक RD, या घर का राशन"
+                            className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">बंटवारा प्रकार</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setRentDivSplitType("fixed_amount")}
+                              className={`py-2 rounded-xl font-bold border transition ${
+                                rentDivSplitType === "fixed_amount"
+                                  ? "bg-amber-500 text-slate-950 border-amber-500"
+                                  : "bg-slate-900 text-slate-400 border-slate-800"
+                              }`}
+                            >
+                              फिक्स राशि (₹)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRentDivSplitType("percentage")}
+                              className={`py-2 rounded-xl font-bold border transition ${
+                                rentDivSplitType === "percentage"
+                                  ? "bg-amber-500 text-slate-950 border-amber-500"
+                                  : "bg-slate-900 text-slate-400 border-slate-800"
+                              }`}
+                            >
+                              प्रतिशत (%)
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">
+                            {rentDivSplitType === "percentage" ? "हिस्सा प्रतिशत (%)" : "फिक्स राशि (₹)"}
+                          </label>
+                          <input
+                            type="number"
+                            value={rentDivSplitValue}
+                            onChange={(e) => setRentDivSplitValue(Number(e.target.value))}
+                            className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-bold font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">भुगतान माध्यम (Mode)</label>
+                          <select
+                            value={rentDivPaymentMode}
+                            onChange={(e: any) => setRentDivPaymentMode(e.target.value)}
+                            className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-bold"
+                          >
+                            <option value="bank_transfer">बैंक ट्रांसफर (Bank Transfer / Auto)</option>
+                            <option value="upi">UPI / ऑनलाइन</option>
+                            <option value="cash">नकद (Cash)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <button
+                          type="submit"
+                          className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition"
+                        >
+                          + बंटवारा नियम सेव करें
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               </div>
             </div>

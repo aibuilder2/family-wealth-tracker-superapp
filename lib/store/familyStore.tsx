@@ -206,7 +206,29 @@ export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
         agreement_duration_months: 11
       }
     ],
-    expenses: []
+    expenses: [],
+    rent_diversions: [
+      {
+        id: 'rdiv-p1-1',
+        target_member_id: 'm-1789566869147',
+        target_member_name: 'Ankush kesharwani',
+        split_type: 'percentage',
+        split_value: 50,
+        purpose: 'बैंक RD बचत निवेश (Bank RD)',
+        allocation_target: 'fd_rd_investment',
+        payment_mode: 'bank_transfer'
+      },
+      {
+        id: 'rdiv-p1-2',
+        target_member_id: 'm-1789566869148',
+        target_member_name: 'Pooja kesharwani',
+        split_type: 'percentage',
+        split_value: 50,
+        purpose: 'घर का राशन व मासिक खर्च (Ghar Ration)',
+        allocation_target: 'ghar_ration_expense',
+        payment_mode: 'upi'
+      }
+    ]
   },
   {
     id: 'rent-prop-2',
@@ -249,7 +271,19 @@ export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
         agreement_duration_months: 11
       }
     ],
-    expenses: []
+    expenses: [],
+    rent_diversions: [
+      {
+        id: 'rdiv-p2-1',
+        target_member_id: 'm-1789566869147',
+        target_member_name: 'Ankush kesharwani',
+        split_type: 'fixed_amount',
+        split_value: 12000,
+        purpose: 'व्यापारिक री-इन्वेस्टमेंट व कैपिटल फंड',
+        allocation_target: 'member_personal',
+        payment_mode: 'bank_transfer'
+      }
+    ]
   },
   {
     id: 'rent-prop-3',
@@ -292,7 +326,19 @@ export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
         agreement_duration_months: 11
       }
     ],
-    expenses: []
+    expenses: [],
+    rent_diversions: [
+      {
+        id: 'rdiv-p3-1',
+        target_member_id: 'm-1789566869148',
+        target_member_name: 'Pooja kesharwani',
+        split_type: 'fixed_amount',
+        split_value: 10000,
+        purpose: 'घरेलू बचत व बेटी (Arvi) एजुकेशन फंड',
+        allocation_target: 'fd_rd_investment',
+        payment_mode: 'bank_transfer'
+      }
+    ]
   },
   {
     id: 'rent-prop-4',
@@ -335,7 +381,19 @@ export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
         agreement_duration_months: 11
       }
     ],
-    expenses: []
+    expenses: [],
+    rent_diversions: [
+      {
+        id: 'rdiv-p4-1',
+        target_member_id: 'm-1789566869147',
+        target_member_name: 'Ankush kesharwani',
+        split_type: 'fixed_amount',
+        split_value: 10000,
+        purpose: 'पारिवारिक मेडिकल व इमरजेंसी फंड',
+        allocation_target: 'member_personal',
+        payment_mode: 'bank_transfer'
+      }
+    ]
   },
   {
     id: 'rent-prop-5',
@@ -408,6 +466,28 @@ export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
     ],
     expenses: [
       { id: 'exp-h1', property_id: 'rent-prop-5', category: 'wifi_internet', amount: 800, date: '2026-09-01', note: 'Wi-Fi Plan' }
+    ],
+    rent_diversions: [
+      {
+        id: 'rdiv-p5-1',
+        target_member_id: 'm-1789566869147',
+        target_member_name: 'Ankush kesharwani',
+        split_type: 'fixed_amount',
+        split_value: 5000,
+        purpose: 'मेस राशन व हॉस्टल बिजली मेंटेनेंस',
+        allocation_target: 'ghar_ration_expense',
+        payment_mode: 'cash'
+      },
+      {
+        id: 'rdiv-p5-2',
+        target_member_id: 'm-1789566869147',
+        target_member_name: 'Ankush kesharwani',
+        split_type: 'fixed_amount',
+        split_value: 4000,
+        purpose: 'हॉस्टल शुद्ध व्यावसायिक मुनाफा',
+        allocation_target: 'member_personal',
+        payment_mode: 'bank_transfer'
+      }
     ]
   },
   {
@@ -451,7 +531,19 @@ export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
         agreement_duration_months: 11
       }
     ],
-    expenses: []
+    expenses: [],
+    rent_diversions: [
+      {
+        id: 'rdiv-p6-1',
+        target_member_id: 'm-1789566869147',
+        target_member_name: 'Ankush kesharwani',
+        split_type: 'fixed_amount',
+        split_value: 9000,
+        purpose: 'प्रॉपर्टी निर्माण व संचय फंड',
+        allocation_target: 'fd_rd_investment',
+        payment_mode: 'bank_transfer'
+      }
+    ]
   },
 ];
 
@@ -737,7 +829,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   // Automatic one-time cleanup of legacy demo/dummy data across all modules
   useEffect(() => {
     try {
-      const isPurged = localStorage.getItem('fwa_dummy_purged_v12');
+      const isPurged = localStorage.getItem('fwa_dummy_purged_v18');
       if (!isPurged) {
         const dummyIds = ['m-1', 'm-2', 'm-3', 'm-4', 'm-rohan', 'm-priya', 'm-papa', 'm-mummy', 'm-self'];
         
@@ -862,7 +954,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('fwa_assets', JSON.stringify(INITIAL_ASSETS));
         setAssets(INITIAL_ASSETS);
 
-        localStorage.setItem('fwa_dummy_purged_v12', 'true');
+        localStorage.setItem('fwa_dummy_purged_v18', 'true');
       }
     } catch (e) {
       console.warn('Cleanup error:', e);

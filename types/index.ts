@@ -373,7 +373,7 @@ export interface RentDiversionRule {
   split_value: number;
   purpose: string;
   payment_mode?: 'bank_transfer' | 'cash' | 'upi';
-  is_active: boolean;
+  is_active?: boolean;
   notes?: string;
   allocation_target?: 'member_personal' | 'fd_rd_investment' | 'ghar_ration_expense' | 'staff_payment' | 'loan_emi';
   linked_asset_id?: string;
