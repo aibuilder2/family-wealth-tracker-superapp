@@ -4886,12 +4886,12 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
 
             <form onSubmit={handleSaveAdvance} className="space-y-3.5 text-xs">
               <div>
-                <label className="font-bold text-blue-300">जमा अमानत राशि (Advance Deposit ₹) *</label>
+                <label className="font-bold text-blue-300">जमा अमानत राशि (Advance Deposit ₹) <span className="text-slate-400 font-normal">(वैकल्पिक - यदि नहीं लिया तो ₹0 छोड़ें)</span></label>
                 <input
                   type="number"
-                  required
-                  value={advanceAmount || ""}
-                  onChange={(e) => setAdvanceAmount(Number(e.target.value))}
+                  placeholder="0"
+                  value={advanceAmount === 0 ? "0" : (advanceAmount || "")}
+                  onChange={(e) => setAdvanceAmount(e.target.value === "" ? 0 : Number(e.target.value))}
                   className="w-full mt-1 p-2.5 bg-[#0B0F19] border border-blue-500/40 rounded-xl text-blue-300 font-black text-base font-mono"
                 />
               </div>
@@ -4899,11 +4899,10 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
               <div>
                 <label className="font-bold text-slate-300 flex items-center gap-1">
                   <Calendar size={13} className="text-blue-400" />
-                  <span>अमानत मिलने की तारीख (Deposit Date Calendar) *</span>
+                  <span>अमानत मिलने की तारीख (Deposit Date) <span className="text-slate-400 font-normal">(यदि अमानत ली हो)</span></span>
                 </label>
                 <input
                   type="date"
-                  required
                   value={advanceDate}
                   onChange={(e) => setAdvanceDate(e.target.value)}
                   className="w-full mt-1 p-2 bg-[#0B0F19] border border-slate-800 rounded-xl text-white font-mono"

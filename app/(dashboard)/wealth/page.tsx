@@ -7,8 +7,8 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { AssetCard } from '@/components/wealth/AssetCard';
 import { GoalCard } from '@/components/wealth/GoalCard';
 import { Mono } from '@/components/ui/Mono';
-import { Plus, PiggyBank, Landmark, X, Building2, Home, CheckCircle2, AlertCircle, Trash2, Phone, Pencil } from 'lucide-react';
-import { AssetCategory, AssetType, RentalTenant } from '@/types';
+import { Plus, PiggyBank, Landmark, X, Building2, Home, CheckCircle2, AlertCircle } from 'lucide-react';
+import { AssetCategory, AssetType } from '@/types';
 
 export default function WealthPage() {
   const {
@@ -20,13 +20,7 @@ export default function WealthPage() {
     addGoal,
     addAsset,
     rentalProperties,
-    rentalTenants,
     totalRentalIncomePerMonth,
-    totalSecurityDepositHeld,
-    addRentalTenant,
-    updateRentalTenant,
-    toggleTenantRentStatus,
-    deleteRentalTenant,
   } = useFamilyStore();
   const [viewTab, setViewTab] = useState<'all' | 'liquid' | 'fixed'>('all');
 
@@ -45,72 +39,7 @@ export default function WealthPage() {
   const [goalSaved, setGoalSaved] = useState('');
   const [goalDate, setGoalDate] = useState('');
 
-  // Add Rental Tenant / Property Modal State
-  const [isAddTenantOpen, setIsAddTenantOpen] = useState(false);
-  const [tName, setTName] = useState('');
-  const [tRoom, setTRoom] = useState('');
-  const [tPhone, setTPhone] = useState('');
-  const [tRent, setTRent] = useState('7500');
-  const [tDeposit, setTDeposit] = useState('7500');
-
-  // Edit Rental Tenant / Property Modal State
-  const [editingTenant, setEditingTenant] = useState<RentalTenant | null>(null);
-  const [editRoom, setEditRoom] = useState('');
-  const [editName, setEditName] = useState('');
-  const [editPhone, setEditPhone] = useState('');
-  const [editRent, setEditRent] = useState('');
-  const [editDeposit, setEditDeposit] = useState('');
-  const [editStatus, setEditStatus] = useState<'paid' | 'due'>('paid');
-
-  const handleOpenEdit = (tenant: RentalTenant) => {
-    setEditingTenant(tenant);
-    setEditRoom(tenant.room_id || tenant.room_number || '');
-    setEditName(tenant.name);
-    setEditPhone(tenant.phone || '');
-    setEditRent(String(tenant.monthly_rent));
-    setEditDeposit(String(tenant.security_deposit));
-    setEditStatus((tenant.rent_status === 'due' || tenant.rent_status === 'overdue' || tenant.rent_status === 'pending') ? 'due' : 'paid');
-  };
-
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingTenant || !editRoom.trim() || !editName.trim()) return;
-
-    updateRentalTenant({
-      ...editingTenant,
-      room_id: editRoom.trim(),
-      name: editName.trim(),
-      phone: editPhone.trim(),
-      monthly_rent: Number(editRent) || 0,
-      security_deposit: Number(editDeposit) || 0,
-      rent_status: editStatus,
-    });
-
-    setEditingTenant(null);
-  };
-
-  const handleAddTenantSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tName.trim() || !tRoom.trim()) return;
-
-    addRentalTenant({
-      property_id: 'prop-kesharwani-main',
-      room_id: tRoom.trim(),
-      name: tName.trim(),
-      phone: tPhone.trim(),
-      monthly_rent: Number(tRent) || 0,
-      security_deposit: Number(tDeposit) || 0,
-      rent_status: 'paid',
-      joining_date: new Date().toISOString().split('T')[0],
-    });
-
-    setTName('');
-    setTRoom('');
-    setTPhone('');
-    setTRent('7500');
-    setTDeposit('7500');
-    setIsAddTenantOpen(false);
-  };
+  // Filtered Assets
 
   const filteredAssets = assets.filter((a) => {
     if (viewTab === 'all') return true;
@@ -268,210 +197,33 @@ export default function WealthPage() {
         )}
       </div>
 
-      {/* 🏢 Rental Properties & Tenants Section */}
-      <div className="px-4 pt-2 space-y-2.5">
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 border border-emerald-800/40 text-paper shadow-md">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-teal-400" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-bold text-xs sm:text-sm text-paper">किराया संपत्ति व किरायेदार (Rent ERP)</h3>
-                  <span className="text-[10px] bg-teal-500/25 text-teal-300 px-1.5 py-0.5 rounded font-mono font-bold">
-                    {rentalTenants.length} किरायेदार
-                  </span>
-                </div>
-                <p className="text-[11px] text-teal-200/80">मासिक किराया, अमानत व रूम रसीद ट्रैकिंग</p>
-              </div>
+      {/* 🏢 Family Real Estate Portfolio (High-level Wealth Summary) */}
+      <div className="px-4 pt-2">
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 border border-emerald-800/40 text-paper shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center shrink-0">
+              <Building2 className="w-5 h-5 text-teal-400" />
             </div>
-
-            <div className="flex items-center gap-2">
-              <Link
-                href="/rentals"
-                className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-              >
-                🏢 पूरा ERP खोलें →
-              </Link>
-              <button
-                onClick={() => setIsAddTenantOpen(true)}
-                className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-              >
-                <Plus size={14} /> + किरायेदार
-              </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm text-paper">पारिवारिक अचल संपत्ति (Real Estate Wealth)</h3>
+                <span className="text-[10px] bg-teal-500/25 text-teal-300 px-2 py-0.5 rounded font-mono font-bold">
+                  {rentalProperties.length} संपत्तियां
+                </span>
+              </div>
+              <p className="text-xs text-teal-200/80 mt-0.5">
+                कुल वैल्यूएशन: <b className="font-mono text-emerald-400">₹{(rentalProperties.reduce((sum, p) => sum + (p.estimated_market_value || 0), 0)).toLocaleString('en-IN')}</b> • मासिक किराया आय: <b className="font-mono text-teal-300">₹{totalRentalIncomePerMonth.toLocaleString('en-IN')}/माह</b>
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-white/10 text-center">
-            <div className="bg-white/5 p-2 rounded-xl">
-              <span className="text-[10px] text-teal-200 uppercase tracking-wider block">मासिक कुल किराया</span>
-              <Mono className="text-sm sm:text-base font-bold text-emerald-400 block mt-0.5">
-                ₹{totalRentalIncomePerMonth.toLocaleString('en-IN')}<span className="text-[10px] text-teal-200/70 font-sans">/माह</span>
-              </Mono>
-            </div>
-            <div className="bg-white/5 p-2 rounded-xl">
-              <span className="text-[10px] text-teal-200 uppercase tracking-wider block">जमा अमानत (Deposit)</span>
-              <Mono className="text-sm sm:text-base font-bold text-teal-300 block mt-0.5">
-                ₹{totalSecurityDepositHeld.toLocaleString('en-IN')}
-              </Mono>
-            </div>
-          </div>
+          <Link
+            href="/rentals"
+            className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all whitespace-nowrap self-start sm:self-auto"
+          >
+            <span>🏢 पूरा किराया व संपत्ति खाता खोलें →</span>
+          </Link>
         </div>
-
-        {/* 🏙️ Properties Portfolio Cards (Valuation, Paper Owner, Size, Due Date & Batwara) */}
-        {rentalProperties.length > 0 && (
-          <div className="space-y-2 mt-1">
-            <div className="flex items-center justify-between text-xs font-bold text-ink px-1">
-              <span>🏙️ कुल संपत्तियां ({rentalProperties.length}) - वैल्यूएशन, ओनर व विलेख</span>
-              <Link href="/rentals" className="text-teal-600 hover:underline text-[11px] font-bold">
-                सब देखें / संशोधित करें →
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {rentalProperties.map((p) => {
-                const pDeposit = (p.tenants || []).reduce((sum, t) => sum + (t.security_deposit || 0), 0);
-                const pRent = p.monthly_target_rent || p.monthly_target_revenue || (p.tenants || []).reduce((sum, t) => sum + t.monthly_rent, 0);
-                const dueDay = p.tenants?.[0]?.cycle_start_day || p.tenants?.[0]?.rent_due_day || 5;
-
-                return (
-                  <div
-                    key={p.id}
-                    className="p-3.5 bg-paper rounded-2xl border border-paper-dim shadow-xs hover:border-teal-500/40 transition-all space-y-2 text-xs"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-base">
-                            {p.property_type === 'commercial_shop' ? '🏪' : p.property_type === 'warehouse_godown' ? '📦' : p.has_hostel_model ? '🏢' : '🏠'}
-                          </span>
-                          <h4 className="font-bold text-ink text-xs sm:text-sm">{p.title}</h4>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-ink-muted flex-wrap">
-                          {p.property_size && <span>📐 {p.property_size} {p.size_unit || 'sqft'}</span>}
-                          {p.registration_deed_no && <span>· विलेख: <b className="font-mono text-ink">{p.registration_deed_no}</b></span>}
-                        </div>
-                      </div>
-
-                      <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-md text-[10px] font-bold shrink-0">
-                        📄 {p.owner_member_name || 'Makan Malik'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-1.5 bg-paper-dim/40 p-2 rounded-xl text-[11px]">
-                      <div>
-                        <span className="text-ink-muted text-[10px] block">💎 बाजार वैल्यूएशन</span>
-                        <Mono className="font-bold text-teal-800">
-                          ₹{(p.estimated_market_value || 0).toLocaleString('en-IN')}
-                        </Mono>
-                      </div>
-                      <div>
-                        <span className="text-ink-muted text-[10px] block">💰 मासिक किराया</span>
-                        <Mono className="font-bold text-emerald-700">
-                          ₹{pRent.toLocaleString('en-IN')}<span className="text-[9px] text-ink-muted font-sans">/माह</span>
-                        </Mono>
-                      </div>
-                      <div className="pt-1 border-t border-paper-dim/50">
-                        <span className="text-ink-muted text-[10px] block">📅 किराया देय तारीख</span>
-                        <span className="font-semibold text-ink">हर महीने की {dueDay} तारीख</span>
-                      </div>
-                      <div className="pt-1 border-t border-paper-dim/50">
-                        <span className="text-ink-muted text-[10px] block">🛡️ जमा अमानत (Advance)</span>
-                        <Mono className="font-bold text-amber-700">₹{pDeposit.toLocaleString('en-IN')}</Mono>
-                      </div>
-                    </div>
-
-                    {p.rent_diversions && p.rent_diversions.length > 0 && (
-                      <div className="text-[10px] text-purple-800 bg-purple-50/70 p-1.5 rounded-lg flex items-center gap-1">
-                        <span>👥 बंटवारा:</span>
-                        <span className="font-medium">
-                          {p.rent_diversions.map(d => `${d.target_member_name} (${d.split_type === 'percentage' ? d.split_value + '%' : '₹' + d.split_value})`).join(', ')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* 👥 Tenants & Advance List */}
-        <div className="pt-1">
-          <div className="flex items-center justify-between text-xs font-bold text-ink px-1 mb-1.5">
-            <span>🛡️ सक्रिय किरायेदार व जमा अमानत ({rentalTenants.length})</span>
-            <Link href="/rentals" className="text-teal-600 hover:underline text-[11px] font-bold">
-              अमानत बही-खाता →
-            </Link>
-          </div>
-        </div>
-
-        {rentalTenants.length === 0 ? (
-          <div className="p-5 text-center bg-paper rounded-2xl border border-dashed border-paper-dim space-y-2 shadow-xs">
-            <Home size={22} className="text-teal-600 mx-auto" />
-            <p className="text-xs font-bold text-ink">अभी कोई किरायेदार दर्ज नहीं है</p>
-            <p className="text-[11px] text-ink-muted max-w-xs mx-auto">
-              अपनी प्रॉपर्टी, फ्लैट, दुकान या हॉस्टल रूम के किरायेदार, मासिक किराया और सिक्योरिटी डिपॉजिट दर्ज करें।
-            </p>
-            <button
-              onClick={() => setIsAddTenantOpen(true)}
-              className="px-3.5 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-xl shadow-xs hover:bg-teal-700 transition-all"
-            >
-              + पहला किरायेदार जोड़ें
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {rentalTenants.map((t) => (
-              <div
-                key={t.id}
-                className="p-3 bg-paper rounded-xl border border-paper-dim shadow-xs flex items-center justify-between text-xs hover:border-teal-300/40 transition-all"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md text-[11px]">
-                      {t.room_id}
-                    </span>
-                    <h4 className="font-bold text-ink text-xs">{t.name}</h4>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-ink-muted">
-                    {t.phone && <span>📞 {t.phone}</span>}
-                    <span>मासिक: <b className="text-ink font-mono">₹{t.monthly_rent.toLocaleString('en-IN')}/माह</b></span>
-                    <span>अमानत: <b className="text-emerald-700 font-mono">₹{t.security_deposit.toLocaleString('en-IN')}</b></span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => toggleTenantRentStatus(t.id)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                      t.rent_status === 'paid'
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                        : 'bg-rose-50 text-rose-800 border-rose-300 animate-pulse'
-                    }`}
-                  >
-                    {t.rent_status === 'paid' ? '✓ किराया जमा' : 'बाकी (Due)'}
-                  </button>
-                  <button
-                    onClick={() => handleOpenEdit(t)}
-                    className="p-1.5 text-ink-muted hover:text-teal-700 bg-paper-dim/60 hover:bg-teal-50 rounded-lg transition-all cursor-pointer"
-                    title="संशोधित करें / बदलें (Edit)"
-                  >
-                    <Pencil size={12} />
-                  </button>
-                  <button
-                    onClick={() => deleteRentalTenant(t.id)}
-                    className="p-1 text-ink-muted hover:text-rose-600 transition-all cursor-pointer"
-                    title="हटाएं"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Goals Section */}
@@ -757,249 +509,6 @@ export default function WealthPage() {
         </div>
       )}
 
-      {/* Add Rental Tenant / Property Modal */}
-      {isAddTenantOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-paper rounded-2xl shadow-xl p-5 border border-paper-dim space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-ink flex items-center gap-2">
-                <Building2 size={18} className="text-teal-600" />
-                नया किरायेदार / रूम प्रविष्टि
-              </h3>
-              <button
-                onClick={() => setIsAddTenantOpen(false)}
-                className="text-ink-muted hover:text-ink p-1"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddTenantSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                  रूम / फ्लैट / दुकान नंबर * (उदा. रूम 204, फ्लैट 2B)
-                </label>
-                <input
-                  type="text"
-                  placeholder="उदा. Room 101, Shop 4, 1st Floor Flat"
-                  value={tRoom}
-                  onChange={(e) => setTRoom(e.target.value)}
-                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-bold"
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                  किरायेदार का नाम *
-                </label>
-                <input
-                  type="text"
-                  placeholder="उदा. राहुल वर्मा, शर्मा जी"
-                  value={tName}
-                  onChange={(e) => setTName(e.target.value)}
-                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-medium"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                  मोबाइल नंबर (वैकल्पिक)
-                </label>
-                <input
-                  type="tel"
-                  placeholder="उदा. 98765 43210"
-                  value={tPhone}
-                  onChange={(e) => setTPhone(e.target.value)}
-                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                    मासिक किराया ₹ *
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="₹ 7,500"
-                    value={tRent}
-                    onChange={(e) => setTRent(e.target.value)}
-                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono font-bold text-ink"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                    सिक्योरिटी डिपॉजिट ₹
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="₹ 7,500"
-                    value={tDeposit}
-                    onChange={(e) => setTDeposit(e.target.value)}
-                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono text-ink"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddTenantOpen(false)}
-                  className="flex-1 py-2 rounded-xl bg-paper-dim text-ink-muted font-bold"
-                >
-                  रद्द करें
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 shadow-sm"
-                >
-                  किरायेदार जोड़ें
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Rental Tenant / Property Modal */}
-      {editingTenant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-paper rounded-2xl shadow-xl p-5 border border-paper-dim space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-ink flex items-center gap-2">
-                <Pencil size={18} className="text-teal-600" />
-                किराया संपत्ति / किरायेदार विवरण बदलें
-              </h3>
-              <button
-                onClick={() => setEditingTenant(null)}
-                className="text-ink-muted hover:text-ink p-1 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
-              <div>
-                <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                  संपत्ति / रूम / दुकान का नाम *
-                </label>
-                <input
-                  type="text"
-                  value={editRoom}
-                  onChange={(e) => setEditRoom(e.target.value)}
-                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-bold"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                  किरायेदार का नाम *
-                </label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-medium"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                  मोबाइल नंबर (वैकल्पिक)
-                </label>
-                <input
-                  type="tel"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                    मासिक किराया ₹ *
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={editRent}
-                    onChange={(e) => setEditRent(e.target.value)}
-                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono font-bold text-ink"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                    सिक्योरिटी डिपॉजिट ₹
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={editDeposit}
-                    onChange={(e) => setEditDeposit(e.target.value)}
-                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl focus:outline-none focus:border-teal-600 font-mono text-ink"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                  किराया भुगतान स्थिति
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditStatus('paid')}
-                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                      editStatus === 'paid'
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-400 font-bold'
-                        : 'bg-paper text-ink-muted border-paper-dim'
-                    }`}
-                  >
-                    ✓ किराया जमा (Paid)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditStatus('due')}
-                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                      editStatus === 'due'
-                        ? 'bg-rose-50 text-rose-800 border-rose-400 font-bold'
-                        : 'bg-paper text-ink-muted border-paper-dim'
-                    }`}
-                  >
-                    बाकी है (Due)
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingTenant(null)}
-                  className="flex-1 py-2 rounded-xl bg-paper-dim text-ink-muted font-bold cursor-pointer"
-                >
-                  रद्द करें
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 shadow-sm cursor-pointer"
-                >
-                  अपडेट करें (Save)
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
