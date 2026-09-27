@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useFamilyStore } from '@/lib/store/familyStore';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { AssetCard } from '@/components/wealth/AssetCard';
@@ -63,12 +64,12 @@ export default function WealthPage() {
 
   const handleOpenEdit = (tenant: RentalTenant) => {
     setEditingTenant(tenant);
-    setEditRoom(tenant.room_id);
+    setEditRoom(tenant.room_id || tenant.room_number || '');
     setEditName(tenant.name);
     setEditPhone(tenant.phone || '');
     setEditRent(String(tenant.monthly_rent));
     setEditDeposit(String(tenant.security_deposit));
-    setEditStatus(tenant.rent_status);
+    setEditStatus((tenant.rent_status === 'due' || tenant.rent_status === 'overdue' || tenant.rent_status === 'pending') ? 'due' : 'paid');
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -286,12 +287,20 @@ export default function WealthPage() {
               </div>
             </div>
 
-            <button
-              onClick={() => setIsAddTenantOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-            >
-              <Plus size={14} /> + किरायेदार जोड़ें
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/rentals"
+                className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+              >
+                🏢 पूरा ERP खोलें →
+              </Link>
+              <button
+                onClick={() => setIsAddTenantOpen(true)}
+                className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+              >
+                <Plus size={14} /> + किरायेदार
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-white/10 text-center">

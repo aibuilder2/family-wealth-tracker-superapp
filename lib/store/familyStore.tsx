@@ -1,7 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Family, Member, Transaction, Asset, Goal, Reminder, DocumentItem, MedicalRecord, RentalProperty, RentalTenant } from '@/types';
+import {
+  Family, Member, Transaction, Asset, Goal, Reminder, DocumentItem, MedicalRecord,
+  RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentDiversionRule,
+  HouseholdStaff
+} from '@/types';
 import { initUserScopedStorage, getActiveUser } from '@/lib/storage/userScopedStorage';
 import { createClient } from '@/lib/supabase/client';
 
@@ -162,86 +166,296 @@ export const INITIAL_ASSETS: Asset[] = [
 
 export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
   {
-    id: 'prop-kesharwani-main',
+    id: 'rent-prop-1',
     family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
-    name: 'पारिवारिक 6 संपत्तियां (कमर्शियल व आवासीय रेंटल पोर्टफोलियो)',
-    type: 'commercial_residential',
-    address: 'Kesharwani Bhawan & Properties',
-    total_units: 6,
-    monthly_target_rent: 67000,
-    collected_rent: 67000,
+    owner_member_name: 'Ankush kesharwani',
+    title: 'संपत्ति 1: मुख्य कमर्शियल दुकान 1',
+    name: 'संपत्ति 1: मुख्य कमर्शियल दुकान 1',
+    property_type: 'commercial_shop',
+    type: 'commercial_shop',
+    address: 'दुकान नंबर 1, मुख्य बाजार',
+    city: 'City Center',
+    total_units_or_rooms: 1,
+    has_hostel_model: false,
+    property_size: 450,
+    size_unit: 'sqft',
+    estimated_market_value: 3000000,
+    purchase_price: 1800000,
+    purchase_date: '2019-04-10',
+    registration_deed_no: 'REG/MAIN/SHOP1',
+    annual_appreciation_rate: 10,
+    monthly_target_revenue: 17000,
+    monthly_target_rent: 17000,
+    collected_rent: 17000,
     pending_rent: 0,
+    security_deposit_holding: 34000,
+    notes: 'मुख्य कमर्शियल दुकान - रजिस्टर्ड रेंट एग्रीमेंट',
+    tenants: [
+      {
+        id: 't-prop-1',
+        property_id: 'rent-prop-1',
+        room_id: 'संपत्ति 1 (कमर्शियल दुकान 1)',
+        room_number: 'दुकान 1',
+        name: 'किरायेदार 1 (दुकान 1)',
+        phone: '',
+        monthly_rent: 17000,
+        security_deposit: 34000,
+        rent_due_day: 5,
+        rent_status: 'paid',
+        joining_date: '2026-01-01',
+        agreement_duration_months: 11
+      }
+    ],
+    expenses: []
+  },
+  {
+    id: 'rent-prop-2',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    owner_member_name: 'Ankush kesharwani',
+    title: 'संपत्ति 2: कमर्शियल दुकान / ऑफिस 2',
+    name: 'संपत्ति 2: कमर्शियल दुकान / ऑफिस 2',
+    property_type: 'commercial_shop',
+    type: 'commercial_shop',
+    address: 'दुकान/ऑफिस 2, प्रथम तल',
+    city: 'City Center',
+    total_units_or_rooms: 1,
+    has_hostel_model: false,
+    property_size: 380,
+    size_unit: 'sqft',
+    estimated_market_value: 2400000,
+    purchase_price: 1500000,
+    purchase_date: '2020-08-15',
+    registration_deed_no: 'REG/MAIN/SHOP2',
+    annual_appreciation_rate: 10,
+    monthly_target_revenue: 12000,
+    monthly_target_rent: 12000,
+    collected_rent: 12000,
+    pending_rent: 0,
+    security_deposit_holding: 24000,
+    notes: 'कमर्शियल ऑफिस स्पेस',
+    tenants: [
+      {
+        id: 't-prop-2',
+        property_id: 'rent-prop-2',
+        room_id: 'संपत्ति 2 (कमर्शियल दुकान / ऑफिस 2)',
+        room_number: 'दुकान 2',
+        name: 'किरायेदार 2 (ऑफिस 2)',
+        phone: '',
+        monthly_rent: 12000,
+        security_deposit: 24000,
+        rent_due_day: 5,
+        rent_status: 'paid',
+        joining_date: '2026-01-01',
+        agreement_duration_months: 11
+      }
+    ],
+    expenses: []
+  },
+  {
+    id: 'rent-prop-3',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    owner_member_name: 'Ankush kesharwani',
+    title: 'संपत्ति 3: आवासीय पोर्शन / फ्लैट 1',
+    name: 'संपत्ति 3: आवासीय पोर्शन / फ्लैट 1',
+    property_type: 'residential_flat',
+    type: 'residential_flat',
+    address: 'फ्लैट 1, आवासीय विंग',
+    city: 'City Center',
+    total_units_or_rooms: 1,
+    has_hostel_model: false,
+    property_size: 850,
+    size_unit: 'sqft',
+    estimated_market_value: 2000000,
+    purchase_price: 1200000,
+    purchase_date: '2021-03-20',
+    registration_deed_no: 'REG/FLAT/01',
+    annual_appreciation_rate: 8,
+    monthly_target_revenue: 10000,
+    monthly_target_rent: 10000,
+    collected_rent: 10000,
+    pending_rent: 0,
+    security_deposit_holding: 20000,
+    notes: 'पारिवारिक 2BHK फ्लैट',
+    tenants: [
+      {
+        id: 't-prop-3',
+        property_id: 'rent-prop-3',
+        room_id: 'संपत्ति 3 (आवासीय पोर्शन / फ्लैट 1)',
+        room_number: 'फ्लैट 1',
+        name: 'किरायेदार 3 (फ्लैट 1)',
+        phone: '',
+        monthly_rent: 10000,
+        security_deposit: 20000,
+        rent_due_day: 5,
+        rent_status: 'paid',
+        joining_date: '2026-01-01',
+        agreement_duration_months: 11
+      }
+    ],
+    expenses: []
+  },
+  {
+    id: 'rent-prop-4',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    owner_member_name: 'Ankush kesharwani',
+    title: 'संपत्ति 4: आवासीय पोर्शन / फ्लैट 2',
+    name: 'संपत्ति 4: आवासीय पोर्शन / फ्लैट 2',
+    property_type: 'residential_flat',
+    type: 'residential_flat',
+    address: 'फ्लैट 2, आवासीय विंग',
+    city: 'City Center',
+    total_units_or_rooms: 1,
+    has_hostel_model: false,
+    property_size: 850,
+    size_unit: 'sqft',
+    estimated_market_value: 2000000,
+    purchase_price: 1200000,
+    purchase_date: '2021-03-20',
+    registration_deed_no: 'REG/FLAT/02',
+    annual_appreciation_rate: 8,
+    monthly_target_revenue: 10000,
+    monthly_target_rent: 10000,
+    collected_rent: 10000,
+    pending_rent: 0,
+    security_deposit_holding: 20000,
+    notes: 'पारिवारिक 2BHK फ्लैट',
+    tenants: [
+      {
+        id: 't-prop-4',
+        property_id: 'rent-prop-4',
+        room_id: 'संपत्ति 4 (आवासीय पोर्शन / फ्लैट 2)',
+        room_number: 'फ्लैट 2',
+        name: 'किरायेदार 4 (फ्लैट 2)',
+        phone: '',
+        monthly_rent: 10000,
+        security_deposit: 20000,
+        rent_due_day: 5,
+        rent_status: 'paid',
+        joining_date: '2026-01-01',
+        agreement_duration_months: 11
+      }
+    ],
+    expenses: []
+  },
+  {
+    id: 'rent-prop-5',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    owner_member_name: 'Ankush kesharwani',
+    title: 'संपत्ति 5: हॉस्टल रूम्स / रेंटल सेट',
+    name: 'संपत्ति 5: हॉस्टल रूम्स / रेंटल सेट',
+    property_type: 'pg_hostel',
+    type: 'pg_hostel',
+    address: 'हॉस्टल विंग, प्रथम तल',
+    city: 'City Center',
+    total_units_or_rooms: 1,
+    total_capacity_beds: 2,
+    has_hostel_model: true,
+    monthly_target_revenue: 9000,
+    monthly_target_rent: 9000,
+    collected_rent: 9000,
+    pending_rent: 0,
+    security_deposit_holding: 18000,
+    notes: 'हॉस्टल रूम्स व बेड मॉडल (मेस व सब-मीटर बिजली सहित)',
+    rooms: [
+      {
+        id: 'rm-101',
+        room_number: 'Room 101',
+        floor: '1st Floor',
+        sharing_type: 'double',
+        total_beds: 2,
+        sub_meter_last_reading: 240,
+        sub_meter_current_reading: 290,
+        electricity_rate_per_unit: 9,
+        beds: [
+          { id: 'b-101a', room_number: '101', bed_number: 'Bed A', monthly_rent: 4500, status: 'occupied', current_tenant_name: 'किरायेदार छात्र 1', food_included: true },
+          { id: 'b-101b', room_number: '101', bed_number: 'Bed B', monthly_rent: 4500, status: 'occupied', current_tenant_name: 'किरायेदार छात्र 2', food_included: true }
+        ]
+      }
+    ],
+    tenants: [
+      {
+        id: 't-prop-5a',
+        property_id: 'rent-prop-5',
+        room_id: 'संपत्ति 5: हॉस्टल रूम्स / रेंटल सेट (Bed A)',
+        room_number: 'Room 101',
+        bed_number: 'Bed A',
+        name: 'किरायेदार 5A (छात्र 1)',
+        phone: '',
+        monthly_rent: 4500,
+        security_deposit: 9000,
+        rent_due_day: 5,
+        rent_status: 'paid',
+        food_included: true,
+        electricity_due: 225,
+        joining_date: '2026-01-01'
+      },
+      {
+        id: 't-prop-5b',
+        property_id: 'rent-prop-5',
+        room_id: 'संपत्ति 5: हॉस्टल रूम्स / रेंटल सेट (Bed B)',
+        room_number: 'Room 101',
+        bed_number: 'Bed B',
+        name: 'किरायेदार 5B (छात्र 2)',
+        phone: '',
+        monthly_rent: 4500,
+        security_deposit: 9000,
+        rent_due_day: 5,
+        rent_status: 'paid',
+        food_included: true,
+        electricity_due: 225,
+        joining_date: '2026-01-01'
+      }
+    ],
+    expenses: [
+      { id: 'exp-h1', property_id: 'rent-prop-5', category: 'wifi_internet', amount: 800, date: '2026-09-01', note: 'Wi-Fi Plan' }
+    ]
+  },
+  {
+    id: 'rent-prop-6',
+    family_id: 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
+    owner_member_name: 'Ankush kesharwani',
+    title: 'संपत्ति 6: गोदाम / स्वतंत्र स्पेस',
+    name: 'संपत्ति 6: गोदाम / स्वतंत्र स्पेस',
+    property_type: 'warehouse_godown',
+    type: 'warehouse_godown',
+    address: 'गोदाम स्पेस, ग्राउंड फ्लोर रियर',
+    city: 'City Center',
+    total_units_or_rooms: 1,
+    has_hostel_model: false,
+    property_size: 1100,
+    size_unit: 'sqft',
+    estimated_market_value: 1800000,
+    purchase_price: 1000000,
+    purchase_date: '2022-01-15',
+    registration_deed_no: 'REG/GDN/01',
+    annual_appreciation_rate: 9,
+    monthly_target_revenue: 9000,
+    monthly_target_rent: 9000,
+    collected_rent: 9000,
+    pending_rent: 0,
+    security_deposit_holding: 18000,
+    notes: 'स्वतंत्र स्टोरेज/गोदाम स्पेस (मूल ₹8,000 + ₹1,000 अतिरिक्त)',
+    tenants: [
+      {
+        id: 't-prop-6',
+        property_id: 'rent-prop-6',
+        room_id: 'संपत्ति 6: गोदाम / स्वतंत्र स्पेस',
+        room_number: 'गोदाम',
+        name: 'किरायेदार 6 (गोदाम)',
+        phone: '',
+        monthly_rent: 9000,
+        security_deposit: 18000,
+        rent_due_day: 5,
+        rent_status: 'paid',
+        joining_date: '2026-01-01',
+        agreement_duration_months: 11
+      }
+    ],
+    expenses: []
   },
 ];
 
-export const INITIAL_RENTAL_TENANTS: RentalTenant[] = [
-  {
-    id: 'prop-unit-1',
-    property_id: 'prop-kesharwani-main',
-    room_id: 'संपत्ति 1 (कमर्शियल दुकान 1)',
-    name: 'किरायेदार 1',
-    phone: '',
-    monthly_rent: 17000,
-    security_deposit: 34000,
-    joining_date: '2026-01-01',
-    rent_status: 'paid',
-  },
-  {
-    id: 'prop-unit-2',
-    property_id: 'prop-kesharwani-main',
-    room_id: 'संपत्ति 2 (कमर्शियल दुकान / ऑफिस 2)',
-    name: 'किरायेदार 2',
-    phone: '',
-    monthly_rent: 12000,
-    security_deposit: 24000,
-    joining_date: '2026-01-01',
-    rent_status: 'paid',
-  },
-  {
-    id: 'prop-unit-3',
-    property_id: 'prop-kesharwani-main',
-    room_id: 'संपत्ति 3 (आवासीय पोर्शन / फ्लैट 1)',
-    name: 'किरायेदार 3',
-    phone: '',
-    monthly_rent: 10000,
-    security_deposit: 20000,
-    joining_date: '2026-01-01',
-    rent_status: 'paid',
-  },
-  {
-    id: 'prop-unit-4',
-    property_id: 'prop-kesharwani-main',
-    room_id: 'संपत्ति 4 (आवासीय पोर्शन / फ्लैट 2)',
-    name: 'किरायेदार 4',
-    phone: '',
-    monthly_rent: 10000,
-    security_deposit: 20000,
-    joining_date: '2026-01-01',
-    rent_status: 'paid',
-  },
-  {
-    id: 'prop-unit-5',
-    property_id: 'prop-kesharwani-main',
-    room_id: 'संपत्ति 5: हॉस्टल रूम्स / रेंटल सेट',
-    name: 'किरायेदार 5',
-    phone: '',
-    monthly_rent: 9000,
-    security_deposit: 18000,
-    joining_date: '2026-01-01',
-    rent_status: 'paid',
-  },
-  {
-    id: 'prop-unit-6',
-    property_id: 'prop-kesharwani-main',
-    room_id: 'संपत्ति 6: गोदाम / स्वतंत्र स्पेस',
-    name: 'किरायेदार 6',
-    phone: '',
-    monthly_rent: 9000,
-    security_deposit: 18000,
-    joining_date: '2026-01-01',
-    rent_status: 'paid',
-  },
-];
+export const INITIAL_RENTAL_TENANTS: RentalTenant[] = INITIAL_RENTAL_PROPERTIES.flatMap(p => p.tenants || []);
 
 export const INITIAL_GOALS: Goal[] = [];
 export const INITIAL_REMINDERS: Reminder[] = [];
@@ -288,11 +502,30 @@ interface FamilyContextType {
   addMember: (member: Omit<Member, 'id' | 'family_id'>) => void;
   addDocument: (doc: Omit<DocumentItem, 'id' | 'family_id'>) => void;
   deleteDocument: (id: string) => void;
-  addRentalProperty: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'created_at'>) => void;
-  addRentalTenant: (tenant: Omit<RentalTenant, 'id' | 'created_at'>) => void;
-  updateRentalTenant: (tenant: RentalTenant) => void;
+  updateAsset: (id: string, updates: Partial<Asset>) => void;
+  currentUserId: string;
+  staff: HouseholdStaff[];
+
+  // Rental & Hostel ERP Methods
+  addRentalProperty: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'created_at' | 'tenants' | 'expenses'> & { tenants?: RentalTenant[]; expenses?: RentalExpense[] }) => RentalProperty;
+  addRentalPropertyWithTenant: (prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>, tenant?: Omit<RentalTenant, 'id' | 'property_id'>) => RentalProperty;
+  updateRentalProperty: (propertyId: string, updates: Partial<RentalProperty>) => void;
+  deleteRentalProperty: (propertyId: string) => void;
+  transferRentalProperty: (propertyId: string, toMemberId: string, details: { transfer_date: string; notes?: string }) => void;
+  sellRentalProperty: (propertyId: string, details: { sold_to_name: string; sold_price: number; sold_date: string; capital_gain?: number; notes?: string }) => void;
+  addHostelRoom: (propertyId: string, room: Omit<HostelRoom, 'id'>) => void;
+  addRentalTenant: (propertyIdOrTenant: string | Omit<RentalTenant, 'id' | 'created_at'>, tenant?: Omit<RentalTenant, 'id' | 'property_id'>) => void;
+  updateRentalTenant: (propertyIdOrTenant: string | RentalTenant, tenantId?: string, updates?: Partial<RentalTenant>) => void;
+  deleteRentalTenant: (propertyIdOrTenantId: string, tenantId?: string) => void;
   toggleTenantRentStatus: (tenantId: string) => void;
-  deleteRentalTenant: (tenantId: string) => void;
+  vacateAndSettleTenant: (propertyId: string, tenantId: string, settlement: { final_meter_reading: number; final_electricity_charge: number; final_damage_deduction: number; final_advance_refunded: number; vacate_date: string; reason?: string; notes?: string }) => void;
+  collectRentPayment: (propertyId: string, tenantId: string, amount: number, isPaid: boolean, details?: { payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque'; transaction_id?: string; maintenance_deduction?: number; damage_deduction?: number; notes?: string }) => void;
+  addRentalExpense: (propertyId: string, expense: Omit<RentalExpense, 'id' | 'property_id'>) => void;
+  deleteRentalExpense: (propertyId: string, expenseId: string) => void;
+  addRentDiversion: (propertyId: string, rule: Omit<RentDiversionRule, 'id'>) => void;
+  updateRentDiversion: (propertyId: string, ruleId: string, updates: Partial<RentDiversionRule>) => void;
+  deleteRentDiversion: (propertyId: string, ruleId: string) => void;
+  executeRentDiversion: (propertyId: string, ruleId: string, customAmount?: number) => { success: boolean; message: string };
   // Computed
   totalWealth: number;
   liquidWealth: number;
@@ -440,6 +673,19 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
 
+  const [staff, setStaff] = useState<HouseholdStaff[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_staff_v1');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
+
   const [rentalProperties, setRentalProperties] = useState<RentalProperty[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_rental_properties');
@@ -491,7 +737,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   // Automatic one-time cleanup of legacy demo/dummy data across all modules
   useEffect(() => {
     try {
-      const isPurged = localStorage.getItem('fwa_dummy_purged_v9');
+      const isPurged = localStorage.getItem('fwa_dummy_purged_v12');
       if (!isPurged) {
         const dummyIds = ['m-1', 'm-2', 'm-3', 'm-4', 'm-rohan', 'm-priya', 'm-papa', 'm-mummy', 'm-self'];
         
@@ -605,31 +851,18 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             }
           } catch (e) {}
         }
-        if (needs6Properties) {
-          localStorage.setItem('fwa_rental_properties', JSON.stringify(INITIAL_RENTAL_PROPERTIES));
-          setRentalProperties(INITIAL_RENTAL_PROPERTIES);
-          localStorage.setItem('fwa_rental_tenants', JSON.stringify(INITIAL_RENTAL_TENANTS));
-          localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(INITIAL_RENTAL_TENANTS));
-          setRentalTenants(INITIAL_RENTAL_TENANTS);
-        }
+        localStorage.setItem('fwa_rental_properties', JSON.stringify(INITIAL_RENTAL_PROPERTIES));
+        localStorage.setItem('fwa_rentals_v1', JSON.stringify(INITIAL_RENTAL_PROPERTIES));
+        setRentalProperties(INITIAL_RENTAL_PROPERTIES);
+        localStorage.setItem('fwa_rental_tenants', JSON.stringify(INITIAL_RENTAL_TENANTS));
+        localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(INITIAL_RENTAL_TENANTS));
+        setRentalTenants(INITIAL_RENTAL_TENANTS);
 
-        // Also update assets to the 6 properties if old assets were present
-        const curAssetsRaw = localStorage.getItem('fwa_assets');
-        let needsAssetsUpdate = true;
-        if (curAssetsRaw) {
-          try {
-            const list = JSON.parse(curAssetsRaw);
-            if (Array.isArray(list) && list.length === 6 && list.some((a: any) => a.id?.startsWith('ast-prop-'))) {
-              needsAssetsUpdate = false;
-            }
-          } catch (e) {}
-        }
-        if (needsAssetsUpdate) {
-          localStorage.setItem('fwa_assets', JSON.stringify(INITIAL_ASSETS));
-          setAssets(INITIAL_ASSETS);
-        }
+        // Also update assets to the 6 properties
+        localStorage.setItem('fwa_assets', JSON.stringify(INITIAL_ASSETS));
+        setAssets(INITIAL_ASSETS);
 
-        localStorage.setItem('fwa_dummy_purged_v10', 'true');
+        localStorage.setItem('fwa_dummy_purged_v12', 'true');
       }
     } catch (e) {
       console.warn('Cleanup error:', e);
@@ -812,15 +1045,20 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
                 merged.push({
                   id: p.id,
                   family_id: p.family_id || 'fam-d9c05204-02ae-4aed-9637-a13391f4c02a',
-                  name: p.name || 'पुश्तैनी संपत्ति',
-                  type: p.type || 'residential_flat',
+                  title: p.title || p.name || 'पुश्तैनी संपत्ति',
+                  name: p.name || p.title || 'पुश्तैनी संपत्ति',
+                  property_type: p.property_type || p.type || 'residential',
+                  type: p.type || p.property_type || 'residential',
                   address: p.address || '',
+                  has_hostel_model: Boolean(p.has_hostel_model || p.type === 'hostel_pg'),
                   total_floors: p.total_floors,
                   total_units: p.total_units || 1,
                   total_beds: p.total_beds,
-                  monthly_target_rent: Number(p.monthly_target_rent || 0),
+                  monthly_target_rent: Number(p.monthly_target_rent || p.target_rent || 0),
                   collected_rent: Number(p.collected_rent || 0),
                   pending_rent: Number(p.pending_rent || 0),
+                  tenants: p.tenants || [],
+                  expenses: p.expenses || [],
                   created_at: p.created_at,
                 });
               }
@@ -1051,153 +1289,533 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setIsQuickAddOpen(false);
   };
 
-  const addRentalProperty = (p: Omit<RentalProperty, 'id' | 'family_id' | 'created_at'>) => {
-    const newP: RentalProperty = {
-      ...p,
-      id: 'prop-' + Date.now(),
+  const currentUserId = members[0]?.id || 'm-ankush';
+
+  const updateAsset = (id: string, updates: Partial<Asset>) => {
+    const updated = assets.map(a => a.id === id ? { ...a, ...updates } : a);
+    setAssets(updated);
+    try { localStorage.setItem('fwa_assets', JSON.stringify(updated)); } catch (e) {}
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('assets').update(updates).eq('id', id).then();
+    }
+  };
+
+  const saveRentalProperties = (updater: RentalProperty[] | ((prev: RentalProperty[]) => RentalProperty[])) => {
+    setRentalProperties(prev => {
+      const currentList = Array.isArray(updater) ? updater : updater(prev);
+      try {
+        localStorage.setItem('fwa_rental_properties', JSON.stringify(currentList));
+        localStorage.setItem('fwa_rentals_v1', JSON.stringify(currentList));
+        const allTenants = currentList.flatMap(p => p.tenants || []);
+        localStorage.setItem('fwa_rental_tenants', JSON.stringify(allTenants));
+        setRentalTenants(allTenants);
+      } catch (e) {}
+      return currentList;
+    });
+  };
+
+  const addRentalProperty = (prop: Omit<RentalProperty, 'id' | 'family_id' | 'created_at' | 'tenants' | 'expenses'> & { tenants?: RentalTenant[]; expenses?: RentalExpense[] }): RentalProperty => {
+    const newProp: RentalProperty = {
+      ...prop,
+      id: `rent-${Date.now()}`,
       family_id: family.id,
-      created_at: new Date().toISOString(),
+      title: prop.title || prop.name || 'नई संपत्ति',
+      name: prop.name || prop.title || 'नई संपत्ति',
+      property_type: prop.property_type || (prop.type as any) || 'residential_flat',
+      address: prop.address || '',
+      has_hostel_model: prop.has_hostel_model ?? false,
+      monthly_target_revenue: prop.monthly_target_revenue || prop.monthly_target_rent || 0,
+      monthly_target_rent: prop.monthly_target_revenue || prop.monthly_target_rent || 0,
+      collected_rent: prop.collected_rent || 0,
+      pending_rent: prop.pending_rent || 0,
+      tenants: prop.tenants || [],
+      past_tenants: prop.past_tenants || [],
+      expenses: prop.expenses || [],
+      ownership_status: 'owned'
     };
-    const updated = [newP, ...rentalProperties];
-    setRentalProperties(updated);
-    try { localStorage.setItem('fwa_rental_properties', JSON.stringify(updated)); } catch (e) {}
+    saveRentalProperties(prev => [newProp, ...prev]);
 
-    const supabase = createClient();
-    if (supabase) {
-      supabase.from('rental_properties').insert({
-        id: newP.id,
-        family_id: newP.family_id,
-        name: newP.name,
-        type: newP.type,
-        address: newP.address,
-        total_units: newP.total_units || 1,
-        monthly_target_rent: newP.monthly_target_rent || 0,
-      }).then();
+    // Auto-sync property market valuation to Family Wealth Assets
+    if (prop.estimated_market_value && prop.estimated_market_value > 0) {
+      addAsset({
+        category: 'fixed',
+        type: 'property',
+        label: `${newProp.title}`,
+        value: Number(prop.estimated_market_value),
+        notes: `रेंटल संपत्ति - आकार: ${prop.property_size || ''} ${prop.size_unit || 'sqft'}, पता: ${prop.address || ''}`
+      });
+    }
+
+    return newProp;
+  };
+
+  const addRentalPropertyWithTenant = (
+    prop: Omit<RentalProperty, 'id' | 'family_id' | 'tenants' | 'expenses'>,
+    tenant?: Omit<RentalTenant, 'id' | 'property_id'>
+  ): RentalProperty => {
+    const propId = `rent-${Date.now()}`;
+    let newTenantList: RentalTenant[] = [];
+
+    if (tenant && tenant.name && tenant.name.trim().length > 0) {
+      const newTenant: RentalTenant = {
+        ...tenant,
+        id: `t-${Date.now()}`,
+        property_id: propId,
+        cycle_start_day: tenant.cycle_start_day || 1,
+        cycle_end_day: tenant.cycle_end_day || 30,
+        rent_due_day: tenant.rent_due_day || 5,
+        security_deposit: tenant.security_deposit || 0,
+        monthly_rent: tenant.monthly_rent || 0,
+        rent_status: tenant.rent_status || 'paid'
+      };
+      newTenantList = [newTenant];
+    }
+
+    const newProp: RentalProperty = {
+      ...prop,
+      id: propId,
+      family_id: family.id,
+      title: prop.title || prop.name || 'नई संपत्ति',
+      name: prop.name || prop.title || 'नई संपत्ति',
+      property_type: prop.property_type || (prop.type as any) || 'residential_flat',
+      address: prop.address || '',
+      has_hostel_model: prop.has_hostel_model ?? false,
+      monthly_target_revenue: prop.monthly_target_revenue || prop.monthly_target_rent || 0,
+      monthly_target_rent: prop.monthly_target_revenue || prop.monthly_target_rent || 0,
+      collected_rent: prop.collected_rent || 0,
+      pending_rent: prop.pending_rent || 0,
+      tenants: newTenantList,
+      past_tenants: [],
+      expenses: [],
+      security_deposit_holding: newTenantList[0]?.security_deposit || 0,
+      ownership_status: 'owned'
+    };
+
+    saveRentalProperties(prev => [newProp, ...prev]);
+
+    if (prop.estimated_market_value && prop.estimated_market_value > 0) {
+      addAsset({
+        category: 'fixed',
+        type: 'property',
+        label: `${newProp.title}`,
+        value: Number(prop.estimated_market_value),
+        notes: `रेंटल संपत्ति - आकार: ${prop.property_size || ''} ${prop.size_unit || 'sqft'}, पता: ${prop.address || ''}`
+      });
+    }
+
+    return newProp;
+  };
+
+  const updateRentalProperty = (propertyId: string, updates: Partial<RentalProperty>) => {
+    saveRentalProperties(prev => prev.map(p => p.id === propertyId ? { ...p, ...updates } : p));
+  };
+
+  const deleteRentalProperty = (propertyId: string) => {
+    saveRentalProperties(prev => prev.filter(p => p.id !== propertyId));
+  };
+
+  const transferRentalProperty = (
+    propertyId: string,
+    toMemberId: string,
+    details: { transfer_date: string; notes?: string }
+  ) => {
+    const toMember = members.find(m => m.id === toMemberId);
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        owner_member_id: toMemberId,
+        owner_member_name: toMember?.name || 'Family Member',
+        ownership_status: 'transferred' as const,
+        transfer_details: {
+          transferred_to_member_id: toMemberId,
+          transferred_to_name: toMember?.name || 'Family Member',
+          transfer_date: details.transfer_date,
+          notes: details.notes
+        }
+      };
+    }));
+  };
+
+  const sellRentalProperty = (
+    propertyId: string,
+    details: { sold_to_name: string; sold_price: number; sold_date: string; capital_gain?: number; notes?: string }
+  ) => {
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        ownership_status: 'sold' as const,
+        sold_details: details
+      };
+    }));
+
+    if (details.sold_price > 0) {
+      addTransaction({
+        member_id: currentUserId,
+        type: 'income',
+        amount: details.sold_price,
+        category: 'Property Sale (Capital Gain)',
+        mode: 'online',
+        scope: 'ghar',
+        note: `Property Sold: #${propertyId} to ${details.sold_to_name} for ₹${details.sold_price.toLocaleString('en-IN')}`,
+        txn_date: details.sold_date || new Date().toISOString().split('T')[0]
+      });
     }
   };
 
-  const addRentalTenant = (t: Omit<RentalTenant, 'id' | 'created_at'>) => {
-    const newT: RentalTenant = {
-      ...t,
-      id: 'ten-' + Date.now(),
-      created_at: new Date().toISOString(),
-    };
-    const updated = [newT, ...rentalTenants];
-    setRentalTenants(updated);
-    try {
-      localStorage.setItem('fwa_rental_tenants', JSON.stringify(updated));
-      localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(updated.map(item => ({
-        id: item.id,
-        roomNumber: item.room_id,
-        tenantName: item.name,
-        tenantPhone: item.phone || '',
-        monthlyRent: item.monthly_rent,
-        securityDeposit: item.security_deposit,
-        dueDayOfMonth: 5,
-        paymentStatus: item.rent_status === 'paid' ? 'PAID' : 'DUE',
-        dueAmount: item.rent_status === 'due' ? item.monthly_rent : 0,
-        joiningDate: item.joining_date || new Date().toISOString().split('T')[0],
-      }))));
-    } catch (e) {}
-
-    const supabase = createClient();
-    if (supabase) {
-      supabase.from('rental_tenants').insert({
-        id: newT.id,
-        property_id: newT.property_id || 'prop-kesharwani-main',
-        room_id: newT.room_id,
-        name: newT.name,
-        phone: newT.phone || null,
-        monthly_rent: newT.monthly_rent,
-        security_deposit: newT.security_deposit,
-        joining_date: newT.joining_date || new Date().toISOString().split('T')[0],
-        food_included: newT.food_included || false,
-        rent_status: newT.rent_status,
-        electricity_due: newT.electricity_due || 0,
-      }).then();
-    }
+  const addHostelRoom = (propertyId: string, room: Omit<HostelRoom, 'id'>) => {
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      const newRoom: HostelRoom = {
+        ...room,
+        id: `rm-${Date.now()}`
+      };
+      const updatedRooms = [...(p.rooms || []), newRoom];
+      const totalBeds = updatedRooms.reduce((acc, r) => acc + (r.total_beds || 0), 0);
+      return {
+        ...p,
+        rooms: updatedRooms,
+        total_capacity_beds: totalBeds,
+        total_units_or_rooms: updatedRooms.length
+      };
+    }));
   };
 
-  const updateRentalTenant = (updatedTenant: RentalTenant) => {
-    const updated = rentalTenants.map(t => t.id === updatedTenant.id ? updatedTenant : t);
-    setRentalTenants(updated);
-    try {
-      localStorage.setItem('fwa_rental_tenants', JSON.stringify(updated));
-      localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(updated.map(item => ({
-        id: item.id,
-        roomNumber: item.room_id,
-        tenantName: item.name,
-        tenantPhone: item.phone || '',
-        monthlyRent: item.monthly_rent,
-        securityDeposit: item.security_deposit,
-        dueDayOfMonth: 5,
-        paymentStatus: item.rent_status === 'paid' ? 'PAID' : 'DUE',
-        dueAmount: item.rent_status === 'due' ? item.monthly_rent : 0,
-        joiningDate: item.joining_date || new Date().toISOString().split('T')[0],
-      }))));
-    } catch (e) {}
-
-    const supabase = createClient();
-    if (supabase) {
-      supabase.from('rental_tenants').update({
-        room_id: updatedTenant.room_id,
-        name: updatedTenant.name,
-        phone: updatedTenant.phone || null,
-        monthly_rent: updatedTenant.monthly_rent,
-        security_deposit: updatedTenant.security_deposit,
-        rent_status: updatedTenant.rent_status,
-      }).eq('id', updatedTenant.id).then();
+  const addRentalTenant = (
+    propertyIdOrTenant: string | Omit<RentalTenant, 'id' | 'created_at'>,
+    tenantParam?: Omit<RentalTenant, 'id' | 'property_id'>
+  ) => {
+    if (typeof propertyIdOrTenant === 'object') {
+      const tenant = propertyIdOrTenant;
+      const propId = tenant.property_id || rentalProperties[0]?.id || 'rent-prop-1';
+      const newT: RentalTenant = {
+        ...tenant,
+        id: 't-' + Date.now(),
+        property_id: propId,
+        created_at: new Date().toISOString()
+      };
+      saveRentalProperties(prev => prev.map(p => {
+        if (p.id !== propId) return p;
+        return {
+          ...p,
+          tenants: [...p.tenants, newT],
+          security_deposit_holding: (p.security_deposit_holding || 0) + (newT.security_deposit || 0)
+        };
+      }));
+      return;
     }
+    const propertyId = propertyIdOrTenant;
+    const tenant = tenantParam!;
+    const newTenant: RentalTenant = {
+      ...tenant,
+      id: `t-${Date.now()}`,
+      property_id: propertyId,
+      cycle_start_day: tenant.cycle_start_day || 1,
+      cycle_end_day: tenant.cycle_end_day || 30,
+      rent_due_day: tenant.rent_due_day || 5,
+      security_deposit: tenant.security_deposit || 0,
+      monthly_rent: tenant.monthly_rent || 0,
+      rent_status: tenant.rent_status || 'paid'
+    };
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      let updatedRooms = p.rooms;
+      if (p.rooms && tenant.bed_id) {
+        updatedRooms = p.rooms.map(rm => ({
+          ...rm,
+          beds: rm.beds.map(b => b.id === tenant.bed_id ? { ...b, status: 'occupied' as const, current_tenant_id: newTenant.id, current_tenant_name: newTenant.name } : b)
+        }));
+      }
+      return {
+        ...p,
+        rooms: updatedRooms,
+        tenants: [...p.tenants, newTenant],
+        security_deposit_holding: (p.security_deposit_holding || 0) + (tenant.security_deposit || 0)
+      };
+    }));
+  };
+
+  const updateRentalTenant = (
+    propIdOrTenant: string | RentalTenant,
+    tenantIdParam?: string,
+    updates?: Partial<RentalTenant>
+  ) => {
+    if (typeof propIdOrTenant === 'object') {
+      const updatedTenant = propIdOrTenant;
+      saveRentalProperties(prev => prev.map(p => ({
+        ...p,
+        tenants: p.tenants.map(t => t.id === updatedTenant.id ? updatedTenant : t)
+      })));
+      return;
+    }
+    const propertyId = propIdOrTenant;
+    const tenantId = tenantIdParam!;
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        tenants: p.tenants.map(t => t.id === tenantId ? { ...t, ...updates } : t)
+      };
+    }));
+  };
+
+  const deleteRentalTenant = (propIdOrTenantId: string, tenantIdParam?: string) => {
+    const tenantId = tenantIdParam || propIdOrTenantId;
+    saveRentalProperties(prev => prev.map(p => {
+      const target = p.tenants.find(t => t.id === tenantId);
+      if (!target && tenantIdParam && p.id !== propIdOrTenantId) return p;
+      let updatedRooms = p.rooms;
+      if (p.rooms && target?.bed_id) {
+        updatedRooms = p.rooms.map(rm => ({
+          ...rm,
+          beds: rm.beds.map(b => b.id === target.bed_id ? { ...b, status: 'vacant' as const, current_tenant_id: undefined, current_tenant_name: undefined } : b)
+        }));
+      }
+      return {
+        ...p,
+        rooms: updatedRooms,
+        tenants: p.tenants.filter(t => t.id !== tenantId),
+        security_deposit_holding: Math.max(0, (p.security_deposit_holding || 0) - (target?.security_deposit || 0))
+      };
+    }));
   };
 
   const toggleTenantRentStatus = (tenantId: string) => {
-    const updated = rentalTenants.map(t => {
-      if (t.id === tenantId) {
-        const nextStatus: 'paid' | 'due' = t.rent_status === 'paid' ? 'due' : 'paid';
-        return { ...t, rent_status: nextStatus };
-      }
-      return t;
-    });
-    setRentalTenants(updated);
-    try {
-      localStorage.setItem('fwa_rental_tenants', JSON.stringify(updated));
-      localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(updated.map(item => ({
-        id: item.id,
-        roomNumber: item.room_id,
-        tenantName: item.name,
-        tenantPhone: item.phone || '',
-        monthlyRent: item.monthly_rent,
-        securityDeposit: item.security_deposit,
-        dueDayOfMonth: 5,
-        paymentStatus: item.rent_status === 'paid' ? 'PAID' : 'DUE',
-        dueAmount: item.rent_status === 'due' ? item.monthly_rent : 0,
-        joiningDate: item.joining_date || new Date().toISOString().split('T')[0],
-      }))));
-    } catch (e) {}
+    saveRentalProperties(prev => prev.map(p => {
+      return {
+        ...p,
+        tenants: p.tenants.map(t => {
+          if (t.id !== tenantId) return t;
+          const nextStatus: 'paid' | 'due' = (t.rent_status === 'paid' ? 'due' : 'paid');
+          return { ...t, rent_status: nextStatus };
+        })
+      };
+    }));
+  };
 
-    const target = updated.find(t => t.id === tenantId);
-    if (target) {
-      const supabase = createClient();
-      if (supabase) {
-        supabase.from('rental_tenants').update({
-          rent_status: target.rent_status,
-        }).eq('id', tenantId).then();
+  const vacateAndSettleTenant = (
+    propertyId: string,
+    tenantId: string,
+    settlement: {
+      final_meter_reading: number;
+      final_electricity_charge: number;
+      final_damage_deduction: number;
+      final_advance_refunded: number;
+      vacate_date: string;
+      reason?: string;
+      notes?: string;
+    }
+  ) => {
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      const target = p.tenants.find(t => t.id === tenantId);
+      if (!target) return p;
+
+      const vacatedTenant: RentalTenant = {
+        ...target,
+        tenant_status: 'vacated',
+        vacate_date: settlement.vacate_date,
+        final_meter_reading: settlement.final_meter_reading,
+        final_electricity_charge: settlement.final_electricity_charge,
+        final_damage_deduction: settlement.final_damage_deduction,
+        final_advance_refunded: settlement.final_advance_refunded,
+        settlement_summary: settlement.notes || `Vacated on ${settlement.vacate_date}`
+      };
+
+      let updatedRooms = p.rooms;
+      if (p.rooms && target.bed_id) {
+        updatedRooms = p.rooms.map(rm => ({
+          ...rm,
+          sub_meter_last_reading: settlement.final_meter_reading || rm.sub_meter_last_reading,
+          beds: rm.beds.map(b => b.id === target.bed_id ? { ...b, status: 'vacant' as const, current_tenant_id: undefined, current_tenant_name: undefined } : b)
+        }));
       }
+
+      return {
+        ...p,
+        rooms: updatedRooms,
+        tenants: p.tenants.filter(t => t.id !== tenantId),
+        past_tenants: [vacatedTenant, ...(p.past_tenants || [])],
+        security_deposit_holding: Math.max(0, (p.security_deposit_holding || 0) - (target.security_deposit || 0))
+      };
+    }));
+  };
+
+  const collectRentPayment = (
+    propertyId: string,
+    tenantId: string,
+    amount: number,
+    isPaid: boolean,
+    details?: {
+      payment_mode?: 'upi' | 'cash' | 'bank_transfer' | 'cheque';
+      transaction_id?: string;
+      maintenance_deduction?: number;
+      damage_deduction?: number;
+      notes?: string;
+    }
+  ) => {
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        tenants: p.tenants.map(t => {
+          if (t.id !== tenantId) return t;
+          return {
+            ...t,
+            rent_status: (isPaid ? 'paid' : 'pending') as 'paid' | 'pending',
+            last_paid_date: isPaid ? new Date().toISOString().split('T')[0] : t.last_paid_date,
+            last_paid_amount: isPaid ? amount : t.last_paid_amount,
+            last_payment_mode: details?.payment_mode || t.last_payment_mode || 'upi',
+            last_transaction_id: details?.transaction_id || t.last_transaction_id,
+            maintenance_deduction_amount: details?.maintenance_deduction !== undefined ? details.maintenance_deduction : t.maintenance_deduction_amount,
+            damage_deduction_amount: details?.damage_deduction !== undefined ? details.damage_deduction : t.damage_deduction_amount,
+            notes: details?.notes || t.notes
+          };
+        })
+      };
+    }));
+
+    if (isPaid && amount > 0) {
+      addTransaction({
+        member_id: currentUserId,
+        type: 'income',
+        amount: amount,
+        category: 'Rental Property Income',
+        mode: 'online',
+        scope: 'ghar',
+        note: `Rent collected (₹${amount}) for property #${propertyId} ${details?.notes ? ` - ${details.notes}` : ''}`,
+        txn_date: new Date().toISOString().split('T')[0]
+      });
     }
   };
 
-  const deleteRentalTenant = (tenantId: string) => {
-    const updated = rentalTenants.filter(t => t.id !== tenantId);
-    setRentalTenants(updated);
-    try {
-      localStorage.setItem('fwa_rental_tenants', JSON.stringify(updated));
-      localStorage.setItem('fwa_hostel_tenants_v1', JSON.stringify(updated));
-    } catch (e) {}
+  const addRentalExpense = (propertyId: string, expense: Omit<RentalExpense, 'id' | 'property_id'>) => {
+    const newExp: RentalExpense = {
+      ...expense,
+      id: `exp-${Date.now()}`,
+      property_id: propertyId
+    };
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        expenses: [...p.expenses, newExp]
+      };
+    }));
 
-    const supabase = createClient();
-    if (supabase) {
-      supabase.from('rental_tenants').delete().eq('id', tenantId).then();
+    if (expense.paid_by !== 'tenant' || !expense.is_adjusted_in_rent) {
+      addTransaction({
+        member_id: currentUserId,
+        type: 'expense',
+        amount: expense.amount,
+        category: 'Property Maintenance & Staff',
+        mode: 'online',
+        scope: 'ghar',
+        note: `Rental expense: ${expense.note}`,
+        txn_date: expense.date || new Date().toISOString().split('T')[0]
+      });
     }
+  };
+
+  const deleteRentalExpense = (propertyId: string, expenseId: string) => {
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        expenses: p.expenses.filter(e => e.id !== expenseId)
+      };
+    }));
+  };
+
+  const addRentDiversion = (propertyId: string, rule: Omit<RentDiversionRule, 'id'>) => {
+    const newRule: RentDiversionRule = {
+      ...rule,
+      id: 'rdiv-' + Date.now()
+    };
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        rent_diversions: [...(p.rent_diversions || []), newRule]
+      };
+    }));
+  };
+
+  const updateRentDiversion = (propertyId: string, ruleId: string, updates: Partial<RentDiversionRule>) => {
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        rent_diversions: (p.rent_diversions || []).map(r => r.id === ruleId ? { ...r, ...updates } : r)
+      };
+    }));
+  };
+
+  const deleteRentDiversion = (propertyId: string, ruleId: string) => {
+    saveRentalProperties(prev => prev.map(p => {
+      if (p.id !== propertyId) return p;
+      return {
+        ...p,
+        rent_diversions: (p.rent_diversions || []).filter(r => r.id !== ruleId)
+      };
+    }));
+  };
+
+  const executeRentDiversion = (
+    propertyId: string,
+    ruleId: string,
+    customAmount?: number
+  ): { success: boolean; message: string } => {
+    const prop = rentalProperties.find(p => p.id === propertyId);
+    if (!prop) return { success: false, message: 'Property nahi mili' };
+
+    const rule = (prop.rent_diversions || []).find(r => r.id === ruleId);
+    if (!rule) return { success: false, message: 'Diversion rule nahi mila' };
+
+    const gross = prop.monthly_target_revenue || prop.monthly_target_rent || 0;
+    const amount = customAmount || (rule.split_type === 'percentage' ? Math.round((gross * rule.split_value) / 100) : rule.split_value);
+
+    if (amount <= 0) return { success: false, message: 'Amount 0 se bada hona chahiye' };
+
+    const today = new Date().toISOString().split('T')[0];
+
+    if (rule.allocation_target === 'fd_rd_investment') {
+      if (rule.linked_asset_id) {
+        const targetAsset = assets.find(a => a.id === rule.linked_asset_id);
+        if (targetAsset) {
+          updateAsset(targetAsset.id, {
+            value: Number(targetAsset.value || 0) + amount,
+            notes: (targetAsset.notes || '') + ` (Kiraye se ₹${amount} jama hua taarikh ${today})`
+          });
+        }
+      } else {
+        addAsset({
+          category: 'liquid',
+          type: 'bank_deposit',
+          label: `${rule.target_member_name} - Rent RD (${prop.title})`,
+          value: amount,
+          notes: `Rental income diversion of ${prop.title}`
+        });
+      }
+    } else if (rule.allocation_target === 'ghar_ration_expense') {
+      addTransaction({
+        member_id: rule.target_member_id || currentUserId,
+        type: 'expense',
+        amount: amount,
+        category: 'Ghar Ration & Groceries',
+        mode: rule.payment_mode === 'cash' ? 'offline' : 'online',
+        scope: 'ghar',
+        note: `Rent Diversion for Ration: ${prop.title}`,
+        txn_date: today
+      });
+    }
+
+    return {
+      success: true,
+      message: `₹${amount.toLocaleString('en-IN')} safaltapoorvak divert kar diya gaya (${rule.purpose})`
+    };
   };
 
   // Computations
@@ -1243,6 +1861,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         medicalRecords,
         rentalProperties,
         rentalTenants,
+        currentUserId,
+        staff,
+        updateAsset,
         activeMemberId,
         setActiveMemberId,
         updateFamilyName,
@@ -1255,10 +1876,24 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addDocument,
         deleteDocument,
         addRentalProperty,
+        addRentalPropertyWithTenant,
+        updateRentalProperty,
+        deleteRentalProperty,
+        transferRentalProperty,
+        sellRentalProperty,
+        addHostelRoom,
         addRentalTenant,
         updateRentalTenant,
-        toggleTenantRentStatus,
         deleteRentalTenant,
+        toggleTenantRentStatus,
+        vacateAndSettleTenant,
+        collectRentPayment,
+        addRentalExpense,
+        deleteRentalExpense,
+        addRentDiversion,
+        updateRentDiversion,
+        deleteRentDiversion,
+        executeRentDiversion,
         totalWealth,
         liquidWealth,
         fixedWealth,

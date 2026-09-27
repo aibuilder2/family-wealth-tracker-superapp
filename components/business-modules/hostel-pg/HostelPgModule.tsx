@@ -36,7 +36,7 @@ export default function HostelPgModule() {
 
   const tenants: RoomTenant[] = rentalTenants.map((t) => ({
     id: t.id,
-    roomNumber: t.room_id,
+    roomNumber: t.room_id || '',
     tenantName: t.name,
     tenantPhone: t.phone || '',
     monthlyRent: t.monthly_rent,

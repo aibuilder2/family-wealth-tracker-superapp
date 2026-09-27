@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Bell, Shield, Briefcase, Sparkles } from 'lucide-react';
+import { Bell, Shield, Briefcase, Sparkles, Building2 } from 'lucide-react';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { AddTransactionModal } from '@/components/money/AddTransactionModal';
 import { useFamilyStore } from '@/lib/store/familyStore';
@@ -34,6 +34,13 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/rentals"
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-navy-light text-gold-soft hover:bg-navy-light/80 transition-colors"
+              title="किराया व हॉस्टल ERP (Rentals Portal)"
+            >
+              <Building2 size={14} />
+            </Link>
             <Link
               href="/business"
               className="w-8 h-8 rounded-full flex items-center justify-center bg-navy-light text-gold-soft hover:bg-navy-light/80 transition-colors"
