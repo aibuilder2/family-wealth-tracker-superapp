@@ -4,12 +4,13 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { FamilyHisabModule } from '@/components/business-modules/family-hisab/FamilyHisabModule';
 import { PapaFamilyFundModule } from '@/components/business-modules/family-hisab/PapaFamilyFundModule';
+import { FamilyLoansModule } from '@/components/business-modules/family-loans/FamilyLoansModule';
 import { HouseholdStaffModule } from '@/components/business-modules/household-staff/HouseholdStaffModule';
 import Link from 'next/link';
-import { ChevronLeft, Users, Landmark, UserCheck } from 'lucide-react';
+import { ChevronLeft, Users, Landmark, UserCheck, CreditCard } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
-type TabType = 'aapsi' | 'fund' | 'staff';
+type TabType = 'fund' | 'loans' | 'aapsi' | 'staff';
 
 function FamilyHisabContent() {
   const searchParams = useSearchParams();
@@ -18,7 +19,7 @@ function FamilyHisabContent() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabType;
-    if (tabParam && ['aapsi', 'fund', 'staff'].includes(tabParam)) {
+    if (tabParam && ['fund', 'loans', 'aapsi', 'staff'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -27,7 +28,7 @@ function FamilyHisabContent() {
     <div className="space-y-4">
       <ScreenHeader
         title="Family Finance & Cashflow Hub"
-        subtitle="पारिवारिक कोष, सदस्य आय स्रोत (किराया/मुनाफा/ब्याज), फिक्स्ड EMI, खर्च व निवेश"
+        subtitle="पारिवारिक केंद्रीय कोष, सदस्य आय स्रोत, लोन व EMI, आपसी लेन-देन व स्टाफ"
         action={
           <Link
             href="/family"
@@ -38,9 +39,9 @@ function FamilyHisabContent() {
         }
       />
 
-      {/* 3 Main Tabs Switcher */}
+      {/* 4 Main Tabs Switcher */}
       <div className="px-4">
-        <div className="grid grid-cols-3 p-1.5 bg-paper rounded-2xl border border-paper-dim shadow-sm gap-1.5">
+        <div className="grid grid-cols-2 md:grid-cols-4 p-1.5 bg-paper rounded-2xl border border-paper-dim shadow-sm gap-1.5">
           <button
             type="button"
             onClick={() => setActiveTab('fund')}
@@ -51,7 +52,20 @@ function FamilyHisabContent() {
             }`}
           >
             <Landmark size={15} />
-            <span className="truncate">🏛️ फंड व सदस्य कैशफ्लो</span>
+            <span className="truncate">🏛️ सदस्य कैशफ्लो</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('loans')}
+            className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1.5 ${
+              activeTab === 'loans'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'text-ink-muted hover:text-ink hover:bg-paper-dim/50'
+            }`}
+          >
+            <CreditCard size={15} />
+            <span className="truncate">💳 लोन व EMI हब</span>
           </button>
 
           <button
@@ -87,6 +101,12 @@ function FamilyHisabContent() {
         {activeTab === 'fund' && (
           <div className="animate-in fade-in duration-150">
             <PapaFamilyFundModule />
+          </div>
+        )}
+
+        {activeTab === 'loans' && (
+          <div className="animate-in fade-in duration-150">
+            <FamilyLoansModule onNavigateToCashflow={() => setActiveTab('fund')} />
           </div>
         )}
 

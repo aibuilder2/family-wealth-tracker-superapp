@@ -291,6 +291,55 @@ export function PapaFamilyFundModule() {
     });
   };
 
+  // Auto-sync Central Loans where this member is the assigned payer
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const savedLoans = localStorage.getItem('fwa_family_loans_central_v1');
+      if (!savedLoans) return;
+      const parsedLoans: any[] = JSON.parse(savedLoans);
+      if (!Array.isArray(parsedLoans)) return;
+
+      const myAssignedLoans = parsedLoans.filter(l => l.status === 'active' && l.assignedPayerMemberId === selectedMemberId);
+      if (myAssignedLoans.length === 0) return;
+
+      updateCurrentProfile(prev => {
+        const existing = [...(prev.commitments || [])];
+        let hasChanges = false;
+
+        myAssignedLoans.forEach(loan => {
+          const syncId = `com-sync-${loan.id}`;
+          const foundIdx = existing.findIndex(c => c.id === syncId || c.title.toLowerCase().includes(loan.title.toLowerCase()));
+          const borrower = members.find(m => m.id === loan.borrowerMemberId);
+
+          const syncedData: RecurringCommitment = {
+            id: syncId,
+            title: `${loan.title} (${loan.bankName})`,
+            category: 'emi_loan',
+            amount: loan.monthlyEmi,
+            dueDay: loan.dueDay,
+            defaultPayerMemberId: loan.borrowerMemberId || ownerMember.id,
+            notes: `लोन धारक: ${borrower?.name || 'सदस्य'} • शेष: ₹${loan.outstandingBalance?.toLocaleString('en-IN') || 0}`,
+            isActive: true,
+            payments: foundIdx >= 0 ? existing[foundIdx].payments || [] : []
+          };
+
+          if (foundIdx >= 0) {
+            if (existing[foundIdx].amount !== loan.monthlyEmi || existing[foundIdx].dueDay !== loan.dueDay) {
+              existing[foundIdx] = { ...existing[foundIdx], ...syncedData };
+              hasChanges = true;
+            }
+          } else {
+            existing.unshift(syncedData);
+            hasChanges = true;
+          }
+        });
+
+        return hasChanges ? { ...prev, commitments: existing } : prev;
+      });
+    } catch (e) {}
+  }, [selectedMemberId, members, ownerMember.id]);
+
   // -------------------------------------------------------------
   // DYNAMIC CALCULATIONS & METRICS FOR SELECTED MEMBER
   // -------------------------------------------------------------

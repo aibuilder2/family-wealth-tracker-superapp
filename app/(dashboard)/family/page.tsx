@@ -6,7 +6,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { MemberCard } from '@/components/family/MemberCard';
 import { FamilyTreeView } from '@/components/family/FamilyTreeView';
 import Link from 'next/link';
-import { HeartPulse, Sparkles, Plus, Edit2, Check, Share2, Copy, Users, X, Landmark, UserCheck, ArrowRight, Receipt } from 'lucide-react';
+import { HeartPulse, Sparkles, Plus, Edit2, Check, Share2, Copy, Users, X, Landmark, UserCheck, ArrowRight, Receipt, CreditCard } from 'lucide-react';
 
 const MEMBER_COLORS = ['#B98B2A', '#4C7A5E', '#C1502E', '#2B4C7E', '#8E44AD', '#D35400'];
 
@@ -167,7 +167,7 @@ export default function FamilyPage() {
         <h3 className="text-xs font-bold text-ink uppercase tracking-wider">
           पारिवारिक कोष व हिसाब-किताब
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
           <Link
             href="/family/hisab?tab=fund"
             className="p-3.5 rounded-xl bg-gradient-to-br from-amber-500/10 via-paper to-paper border border-amber-500/30 hover:border-amber-500 transition-all shadow-sm block group"
@@ -176,9 +176,23 @@ export default function FamilyPage() {
               <Landmark size={20} className="text-amber-500 group-hover:scale-110 transition-transform" />
               <ArrowRight size={14} className="text-amber-500/60 group-hover:translate-x-0.5 transition-transform" />
             </div>
-            <h4 className="text-xs font-black text-ink">🏛️ पारिवारिक फंड व सदस्य कैशफ्लो</h4>
+            <h4 className="text-xs font-black text-ink">🏛️ सदस्य कैशफ्लो व फंड</h4>
             <p className="text-[10px] text-ink-muted mt-0.5 leading-relaxed">
-              किराया, व्यापार लाभ, ब्याज, फिक्स्ड EMI व निवेश
+              किराया, व्यापार लाभ, ब्याज, फिक्स्ड कमिटमेंट व निवेश
+            </p>
+          </Link>
+
+          <Link
+            href="/family/hisab?tab=loans"
+            className="p-3.5 rounded-xl bg-gradient-to-br from-rose-500/10 via-paper to-paper border border-rose-500/30 hover:border-rose-500 transition-all shadow-sm block group"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <CreditCard size={20} className="text-rose-500 group-hover:scale-110 transition-transform" />
+              <ArrowRight size={14} className="text-rose-500/60 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            <h4 className="text-xs font-black text-ink">💳 लोन व EMI हब</h4>
+            <p className="text-[10px] text-ink-muted mt-0.5 leading-relaxed">
+              सोलर, दुकान लोन, खाता धारक vs किश्त फंड ऑटो-सिंक
             </p>
           </Link>
 
