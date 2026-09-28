@@ -6,7 +6,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { MemberCard } from '@/components/family/MemberCard';
 import { FamilyTreeView } from '@/components/family/FamilyTreeView';
 import Link from 'next/link';
-import { HeartPulse, Sparkles, Plus, Edit2, Check, Share2, Copy, Users, X } from 'lucide-react';
+import { HeartPulse, Sparkles, Plus, Edit2, Check, Share2, Copy, Users, X, Landmark, UserCheck, ArrowRight, Receipt } from 'lucide-react';
 
 const MEMBER_COLORS = ['#B98B2A', '#4C7A5E', '#C1502E', '#2B4C7E', '#8E44AD', '#D35400'];
 
@@ -160,6 +160,56 @@ export default function FamilyPage() {
       {/* Family Tree Link */}
       <div className="px-4">
         <FamilyTreeView />
+      </div>
+
+      {/* Family Accounts, Central Fund & Staff Section */}
+      <div className="px-4 space-y-2">
+        <h3 className="text-xs font-bold text-ink uppercase tracking-wider">
+          पारिवारिक कोष व हिसाब-किताब
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <Link
+            href="/family/hisab?tab=fund"
+            className="p-3.5 rounded-xl bg-gradient-to-br from-amber-500/10 via-paper to-paper border border-amber-500/30 hover:border-amber-500 transition-all shadow-sm block group"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <Landmark size={20} className="text-amber-500 group-hover:scale-110 transition-transform" />
+              <ArrowRight size={14} className="text-amber-500/60 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            <h4 className="text-xs font-black text-ink">🏛️ पापा का रेंटल कोष व EMI</h4>
+            <p className="text-[10px] text-ink-muted mt-0.5 leading-relaxed">
+              किराया फंड, सोलर, दुकान EMI, नगर पालिका व मंडी
+            </p>
+          </Link>
+
+          <Link
+            href="/family/hisab?tab=aapsi"
+            className="p-3.5 rounded-xl bg-paper border border-paper-dim hover:border-gold/40 transition-all shadow-sm block group"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <Receipt size={20} className="text-gold group-hover:scale-110 transition-transform" />
+              <ArrowRight size={14} className="text-gold/60 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            <h4 className="text-xs font-bold text-ink">👥 सदस्य आपसी हिसाब</h4>
+            <p className="text-[10px] text-ink-muted mt-0.5 leading-relaxed">
+              सामान पर्ची vs एडवांस, कैलेंडर व तारीखवार रीसीट
+            </p>
+          </Link>
+
+          <Link
+            href="/family/hisab?tab=staff"
+            className="p-3.5 rounded-xl bg-paper border border-paper-dim hover:border-blue-400/40 transition-all shadow-sm block group"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <UserCheck size={20} className="text-blue-500 group-hover:scale-110 transition-transform" />
+              <ArrowRight size={14} className="text-blue-400/60 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            <h4 className="text-xs font-bold text-ink">🧹 घरेलू कर्मचारी व बाई</h4>
+            <p className="text-[10px] text-ink-muted mt-0.5 leading-relaxed">
+              31-दिन अटेंडेंस, मासिक वेतन व एडवांस हिसाब
+            </p>
+          </Link>
+        </div>
       </div>
 
       {/* Quick Links to Medical & AI Advisor */}
