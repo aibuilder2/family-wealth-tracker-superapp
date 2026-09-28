@@ -273,7 +273,7 @@ export default function RentalsPage() {
 
   const totalMonthlyTarget = rentalProperties.reduce((sum, p) => {
     const propTenantsSum = (p.tenants || []).reduce((tSum, t) => tSum + Number(t.monthly_rent || 0), 0);
-    return sum + (p.monthly_target_revenue && p.monthly_target_revenue > 0 ? p.monthly_target_revenue : propTenantsSum);
+    return sum + propTenantsSum;
   }, 0);
 
   const totalCollectedThisMonth = allTenants
@@ -449,7 +449,7 @@ export default function RentalsPage() {
       total_units_or_rooms: 1,
       total_capacity_beds: propType === "pg_hostel" ? 6 : 1,
       has_hostel_model: propType === "pg_hostel",
-      monthly_target_revenue: Number(propTargetRent || tenantRent || 0),
+      monthly_target_revenue: Number(tenantRent || propTargetRent || 0),
       rent_increase_type: propRentIncreaseType,
       rent_increase_value: Number(propRentIncreaseValue || 0),
       rent_increase_frequency: propRentIncreaseFreq,
@@ -665,7 +665,7 @@ export default function RentalsPage() {
       landlord_name: selectedOwner?.name || propOwnerName || "Makan Malik",
       landlord_phone: formattedOwnerPhone,
       landlord_pan: propOwnerPan,
-      monthly_target_revenue: Number(propTargetRent || tenantRent || 0),
+      monthly_target_revenue: Number(tenantRent || propTargetRent || 0),
       default_rules: propDefaultRules,
       rent_increase_type: propRentIncreaseType,
       rent_increase_value: Number(propRentIncreaseValue || 0),
@@ -1126,14 +1126,16 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                 const activeCount = p.tenants?.filter(t => t.tenant_status === 'active').length || 0;
                 const firstActiveTenant = p.tenants?.find(t => t.tenant_status === 'active') || p.tenants?.[0];
                 const totalPropAdvance = (p.tenants || []).reduce((acc, t) => acc + (t.security_deposit || 0), 0);
+                const propRentSum = (p.tenants || []).reduce((acc, t) => acc + (Number(t.monthly_rent) || 0), 0);
+                const currentPropRent = propRentSum > 0 ? propRentSum : (p.monthly_target_revenue || 0);
 
                 // Projected next rent if increase configured
                 let projectedNextRent = 0;
-                if (p.monthly_target_revenue && p.rent_increase_value) {
+                if (currentPropRent && p.rent_increase_value) {
                   if (p.rent_increase_type === 'fixed_amount') {
-                    projectedNextRent = p.monthly_target_revenue + p.rent_increase_value;
+                    projectedNextRent = currentPropRent + p.rent_increase_value;
                   } else {
-                    projectedNextRent = Math.round(p.monthly_target_revenue * (1 + p.rent_increase_value / 100));
+                    projectedNextRent = Math.round(currentPropRent * (1 + p.rent_increase_value / 100));
                   }
                 }
 
@@ -1205,7 +1207,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                         <div className="flex justify-between items-center pt-1 border-t border-slate-800">
                           <span className="text-[10px] text-amber-300 font-bold">मासिक किराया (Monthly Rent):</span>
                           <span className="text-sm font-black text-amber-300 font-mono">
-                            ₹{(p.monthly_target_revenue || 0).toLocaleString("en-IN")} / माह
+                            ₹{currentPropRent.toLocaleString("en-IN")} / माह
                           </span>
                         </div>
                       </div>
@@ -1245,13 +1247,13 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                               <span>किराया बंटवारा व खर्च (Allocation)</span>
                             </span>
                             <span className="text-[9px] text-purple-400 font-bold">
-                              ₹{(p.monthly_target_revenue || 0).toLocaleString('en-IN')}/माह
+                              ₹{currentPropRent.toLocaleString('en-IN')}/माह
                             </span>
                           </div>
                           <div className="space-y-1.5">
                             {p.rent_diversions.map((d) => {
                               const calculatedAmt = d.split_type === 'percentage' 
-                                ? Math.round(((p.monthly_target_revenue || 0) * d.split_value) / 100)
+                                ? Math.round((currentPropRent * d.split_value) / 100)
                                 : d.split_value;
                               return (
                                 <div key={d.id} className="bg-purple-900/40 p-2 rounded-xl border border-purple-500/20 text-[10px] space-y-1">
@@ -1378,7 +1380,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                 </span>
                 <span>{prop.title}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/20 font-mono">
-                  ₹{(prop.monthly_target_revenue || 0).toLocaleString("en-IN")}
+                  ₹{((prop.tenants && prop.tenants.length > 0 ? prop.tenants.reduce((s, t) => s + (Number(t.monthly_rent) || 0), 0) : prop.monthly_target_revenue) || 0).toLocaleString("en-IN")}
                 </span>
               </button>
             ))}
@@ -1561,7 +1563,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   </span>
                 )}
                 <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-400 rounded-full font-bold text-[10px] font-mono">
-                  💰 किराया: ₹{(activeProperty.monthly_target_revenue || 0).toLocaleString("en-IN")}/माह
+                  💰 किराया: ₹{((activeProperty.tenants && activeProperty.tenants.length > 0 ? activeProperty.tenants.reduce((s, t) => s + (Number(t.monthly_rent) || 0), 0) : activeProperty.monthly_target_revenue) || 0).toLocaleString("en-IN")}/माह
                 </span>
                 <span className="px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-full font-bold text-[10px]">
                   📅 शुरुआत: {activeProperty.tenants?.[0]?.joining_date || '01/01/2026'}
@@ -2207,14 +2209,14 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                       <div>
                         <span className="text-xs text-emerald-300 font-bold">Annual Target Rent (सालाना किराया)</span>
                         <div className="text-xl font-black text-white mt-0.5">
-                          ₹{((activeProperty.monthly_target_revenue || 0) * 12).toLocaleString("en-IN")} / year
+                          ₹{(((activeProperty.tenants && activeProperty.tenants.length > 0 ? activeProperty.tenants.reduce((s, t) => s + (Number(t.monthly_rent) || 0), 0) : activeProperty.monthly_target_revenue) || 0) * 12).toLocaleString("en-IN")} / year
                         </div>
                       </div>
                       <div className="text-right">
                         <span className="text-xs text-slate-400">Gross Rental Yield</span>
                         <div className="text-lg font-black text-emerald-400">
                           {activeProperty.estimated_market_value
-                            ? `${(((activeProperty.monthly_target_revenue || 0) * 12 / activeProperty.estimated_market_value) * 100).toFixed(2)}%`
+                            ? `${((((activeProperty.tenants && activeProperty.tenants.length > 0 ? activeProperty.tenants.reduce((s, t) => s + (Number(t.monthly_rent) || 0), 0) : activeProperty.monthly_target_revenue) || 0) * 12 / activeProperty.estimated_market_value) * 100).toFixed(2)}%`
                             : "N/A"}
                         </div>
                       </div>
@@ -2623,7 +2625,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                       <RefreshCw className="w-5 h-5 text-amber-400" /> किराया कलेक्शन, पारिवारिक बंटवारा व खर्च प्रबंधन
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
-                      इस प्रॉपर्टी का मासिक किराया ({activeProperty.title}: ₹{(activeProperty.monthly_target_revenue || activeProperty.monthly_target_rent || 0).toLocaleString("en-IN")}/माह) किसके पास जाता है और वह कहाँ खर्च/बचत होता है।
+                      इस प्रॉपर्टी का मासिक किराया ({activeProperty.title}: ₹{(((activeProperty.tenants && activeProperty.tenants.length > 0 ? activeProperty.tenants.reduce((s, t) => s + (Number(t.monthly_rent) || 0), 0) : activeProperty.monthly_target_revenue) || 0)).toLocaleString("en-IN")}/माह) किसके पास जाता है और वह कहाँ खर्च/बचत होता है।
                     </p>
                   </div>
 
@@ -2651,7 +2653,7 @@ ${(tenant.damage_deduction_amount || 0) > 0 ? `⚠️ Damage Deductions: -₹${t
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {activeProperty.rent_diversions.map((rule) => {
-                        const grossRent = activeProperty.monthly_target_revenue || activeProperty.monthly_target_rent || 0;
+                        const grossRent = ((activeProperty.tenants && activeProperty.tenants.length > 0 ? activeProperty.tenants.reduce((s, t) => s + (Number(t.monthly_rent) || 0), 0) : activeProperty.monthly_target_revenue) || 0);
                         const ruleAmount = rule.split_type === "percentage" 
                           ? Math.round((grossRent * rule.split_value) / 100) 
                           : rule.split_value;

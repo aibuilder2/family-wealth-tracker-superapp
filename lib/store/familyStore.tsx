@@ -115,7 +115,7 @@ export const INITIAL_ASSETS: Asset[] = [
     type: 'property',
     label: 'संपत्ति 1: मुख्य कमर्शियल दुकान 1',
     value: 3000000,
-    notes: 'मासिक किराया: ₹17,000/माह',
+    notes: 'rent-prop-1 | मासिक किराया: ₹17,000/माह',
   },
   {
     id: 'ast-prop-2',
@@ -124,7 +124,7 @@ export const INITIAL_ASSETS: Asset[] = [
     type: 'property',
     label: 'संपत्ति 2: कमर्शियल दुकान / ऑफिस 2',
     value: 2400000,
-    notes: 'मासिक किराया: ₹12,000/माह',
+    notes: 'rent-prop-2 | मासिक किराया: ₹12,000/माह',
   },
   {
     id: 'ast-prop-3',
@@ -133,7 +133,7 @@ export const INITIAL_ASSETS: Asset[] = [
     type: 'property',
     label: 'संपत्ति 3: आवासीय पोर्शन / फ्लैट 1',
     value: 2000000,
-    notes: 'मासिक किराया: ₹10,000/माह',
+    notes: 'rent-prop-3 | मासिक किराया: ₹10,000/माह',
   },
   {
     id: 'ast-prop-4',
@@ -142,7 +142,7 @@ export const INITIAL_ASSETS: Asset[] = [
     type: 'property',
     label: 'संपत्ति 4: आवासीय पोर्शन / फ्लैट 2',
     value: 2000000,
-    notes: 'मासिक किराया: ₹10,000/माह',
+    notes: 'rent-prop-4 | मासिक किराया: ₹10,000/माह',
   },
   {
     id: 'ast-prop-5',
@@ -151,7 +151,7 @@ export const INITIAL_ASSETS: Asset[] = [
     type: 'property',
     label: 'संपत्ति 5: हॉस्टल रूम्स / रेंटल सेट',
     value: 1800000,
-    notes: 'मासिक किराया: ₹9,000/माह',
+    notes: 'rent-prop-5 | मासिक किराया: ₹9,000/माह',
   },
   {
     id: 'ast-prop-6',
@@ -160,7 +160,7 @@ export const INITIAL_ASSETS: Asset[] = [
     type: 'property',
     label: 'संपत्ति 6: गोदाम / स्वतंत्र स्पेस',
     value: 1800000,
-    notes: 'मासिक किराया: ₹9,000/माह (मूल ₹8,000 + ₹1,000)',
+    notes: 'rent-prop-6 | मासिक किराया: ₹9,000/माह (मूल ₹8,000 + ₹1,000)',
   },
 ];
 
@@ -408,6 +408,12 @@ export const INITIAL_RENTAL_PROPERTIES: RentalProperty[] = [
     total_units_or_rooms: 1,
     total_capacity_beds: 2,
     has_hostel_model: true,
+    property_size: 800,
+    size_unit: 'sqft',
+    estimated_market_value: 1800000,
+    purchase_price: 900000,
+    purchase_date: '2021-06-01',
+    annual_appreciation_rate: 10,
     monthly_target_revenue: 9000,
     monthly_target_rent: 9000,
     collected_rent: 9000,
@@ -1652,10 +1658,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         if (!hasTenant) return p;
         const newTenants = p.tenants.map(t => t.id === updatedTenant.id ? updatedTenant : t);
         const totalHolding = newTenants.reduce((sum, t) => sum + (Number(t.security_deposit) || 0), 0);
+        const totalTenantRent = newTenants.reduce((sum, t) => sum + (Number(t.monthly_rent) || 0), 0);
         return {
           ...p,
           tenants: newTenants,
-          security_deposit_holding: totalHolding
+          security_deposit_holding: totalHolding,
+          monthly_target_revenue: totalTenantRent,
+          monthly_target_rent: totalTenantRent,
         };
       }));
       return;
@@ -1666,10 +1675,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       if (p.id !== propertyId) return p;
       const newTenants = p.tenants.map(t => t.id === tenantId ? { ...t, ...updates } : t);
       const totalHolding = newTenants.reduce((sum, t) => sum + (Number(t.security_deposit) || 0), 0);
+      const totalTenantRent = newTenants.reduce((sum, t) => sum + (Number(t.monthly_rent) || 0), 0);
       return {
         ...p,
         tenants: newTenants,
-        security_deposit_holding: totalHolding
+        security_deposit_holding: totalHolding,
+        monthly_target_revenue: totalTenantRent,
+        monthly_target_rent: totalTenantRent,
       };
     }));
   };
@@ -1938,12 +1950,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     .filter(a => a.category === 'liquid')
     .reduce((sum, a) => sum + Number(a.value || 0), 0);
 
-  const fixedWealth = assets
-    .filter(a => a.category === 'fixed')
+  const propertyWealthFromRentals = rentalProperties.reduce((sum, p) => sum + (Number(p.estimated_market_value) || 0), 0);
+  const otherFixedWealth = assets
+    .filter(a => a.category === 'fixed' && a.type !== 'property')
     .reduce((sum, a) => sum + Number(a.value || 0), 0);
+  const fixedWealth = propertyWealthFromRentals + otherFixedWealth;
 
-  const totalRentalIncomePerMonth = rentalTenants.reduce((sum, t) => sum + Number(t.monthly_rent || 0), 0);
-  const totalSecurityDepositHeld = rentalTenants.reduce((sum, t) => sum + Number(t.security_deposit || 0), 0);
+  const totalRentalIncomePerMonth = rentalProperties.flatMap(p => p.tenants || []).reduce((sum, t) => sum + Number(t.monthly_rent || 0), 0);
+  const totalSecurityDepositHeld = rentalProperties.flatMap(p => p.tenants || []).reduce((sum, t) => sum + Number(t.security_deposit || 0), 0);
 
   const totalWealth = liquidWealth + fixedWealth + totalSecurityDepositHeld;
 
