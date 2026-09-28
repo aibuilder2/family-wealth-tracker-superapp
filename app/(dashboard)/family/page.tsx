@@ -176,9 +176,9 @@ export default function FamilyPage() {
               <Landmark size={20} className="text-amber-500 group-hover:scale-110 transition-transform" />
               <ArrowRight size={14} className="text-amber-500/60 group-hover:translate-x-0.5 transition-transform" />
             </div>
-            <h4 className="text-xs font-black text-ink">🏛️ पापा का रेंटल कोष व EMI</h4>
+            <h4 className="text-xs font-black text-ink">🏛️ पारिवारिक फंड व सदस्य कैशफ्लो</h4>
             <p className="text-[10px] text-ink-muted mt-0.5 leading-relaxed">
-              किराया फंड, सोलर, दुकान EMI, नगर पालिका व मंडी
+              किराया, व्यापार लाभ, ब्याज, फिक्स्ड EMI व निवेश
             </p>
           </Link>
 

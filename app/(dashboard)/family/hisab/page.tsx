@@ -26,8 +26,8 @@ function FamilyHisabContent() {
   return (
     <div className="space-y-4">
       <ScreenHeader
-        title="Family Finance & Hisab"
-        subtitle="पापा का रेंटल कोष, मासिक EMI, सदस्य आपसी लेन-देन व कर्मचारी वेतन"
+        title="Family Finance & Cashflow Hub"
+        subtitle="पारिवारिक कोष, सदस्य आय स्रोत (किराया/मुनाफा/ब्याज), फिक्स्ड EMI, खर्च व निवेश"
         action={
           <Link
             href="/family"
@@ -51,7 +51,7 @@ function FamilyHisabContent() {
             }`}
           >
             <Landmark size={15} />
-            <span className="truncate">🏛️ पापा का फंड व EMI</span>
+            <span className="truncate">🏛️ फंड व सदस्य कैशफ्लो</span>
           </button>
 
           <button
