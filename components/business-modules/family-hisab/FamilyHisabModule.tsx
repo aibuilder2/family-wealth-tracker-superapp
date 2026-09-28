@@ -5,7 +5,7 @@ import {
   Users, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Calendar, 
   MessageSquare, CheckCircle2, ShoppingBag, Banknote, Smartphone, 
   CreditCard, Share2, Filter, ChevronDown, Check, ArrowRightLeft, 
-  Clock, DollarSign, FileText, Sparkles
+  Clock, DollarSign, FileText, Sparkles, Zap, Layers, Receipt
 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
 import { useFamilyStore } from '@/lib/store/familyStore';
@@ -15,7 +15,8 @@ export interface MemberLedgerEntry {
   fromMember: string; // kisne diya / kharch kiya
   toMember: string; // kiske liye kharch kiya / kisko diya
   amount: number;
-  type: 'cash_transfer' | 'bought_item' | 'online_bill' | 'payment_received';
+  type: 'bought_item' | 'online_bill' | 'cash_transfer' | 'payment_received' | 'advance_payment';
+  category?: 'expense' | 'advance' | 'repayment'; // Expense (saman/kaam), Advance (pehle mila), Repayment (baad me chukta)
   paymentMode: 'cash' | 'upi' | 'bank_transfer';
   title: string;
   date: string; // YYYY-MM-DD
@@ -28,6 +29,7 @@ export interface MemberLedgerEntry {
 const DEFAULT_ENTRIES: MemberLedgerEntry[] = [];
 
 type TimeFilter = 'all' | 'this_month' | 'this_week' | 'this_year' | 'custom';
+type ViewCategory = 'all' | 'expenses' | 'payments';
 
 export function FamilyHisabModule() {
   const { members } = useFamilyStore();
@@ -63,20 +65,25 @@ export function FamilyHisabModule() {
                 !isDummyPerson(e?.fromMember) &&
                 !isDummyPerson(e?.toMember)
               )
-              .map((e: any) => ({
-                id: e.id || `mle-${Math.random().toString(36).substring(7)}`,
-                fromMember: e.fromMember || mukhiya.name,
-                toMember: e.toMember || 'Ganesh Prasad kesharwani',
-                amount: Number(e.amount || 0),
-                type: e.type || 'bought_item',
-                paymentMode: e.paymentMode || (e.type === 'online_bill' ? 'upi' : 'cash'),
-                title: e.title || 'सामान',
-                date: e.date || new Date().toISOString().split('T')[0],
-                time: e.time || '',
-                referenceNo: e.referenceNo || '',
-                notes: e.notes || '',
-                isSettled: Boolean(e.isSettled)
-              }));
+              .map((e: any) => {
+                const isPmt = e.type === 'payment_received' || e.type === 'advance_payment';
+                const isAdv = e.type === 'advance_payment' || (e.title && e.title.includes('एडवांस'));
+                return {
+                  id: e.id || `mle-${Math.random().toString(36).substring(7)}`,
+                  fromMember: e.fromMember || mukhiya.name,
+                  toMember: e.toMember || 'Ganesh Prasad kesharwani',
+                  amount: Number(e.amount || 0),
+                  type: e.type || 'bought_item',
+                  category: e.category || (isAdv ? 'advance' : isPmt ? 'repayment' : 'expense'),
+                  paymentMode: e.paymentMode || (e.type === 'online_bill' ? 'upi' : 'cash'),
+                  title: e.title || 'सामान',
+                  date: e.date || new Date().toISOString().split('T')[0],
+                  time: e.time || '',
+                  referenceNo: e.referenceNo || '',
+                  notes: e.notes || '',
+                  isSettled: Boolean(e.isSettled)
+                };
+              });
           }
         } catch (e) {}
       }
@@ -90,8 +97,9 @@ export function FamilyHisabModule() {
     return partnerMembers[0]?.name || 'Ganesh Prasad kesharwani';
   });
 
-  // Time & Date Filter State
+  // Filters State
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+  const [viewCategory, setViewCategory] = useState<ViewCategory>('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
@@ -102,7 +110,7 @@ export function FamilyHisabModule() {
     }
   }, [members]);
 
-  // Form State for New Transaction
+  // Form State 1: New Shopping / Expense Slip (सामान की पर्ची)
   const [fromMember, setFromMember] = useState<string>(mukhiya.name);
   const [toMember, setToMember] = useState<string>(activePartner);
   const [amount, setAmount] = useState<number | ''>('');
@@ -113,7 +121,8 @@ export function FamilyHisabModule() {
   const [referenceNo, setReferenceNo] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Form State for Quick Payment / Settlement Modal
+  // Form State 2: Money Received / Advance Modal (पैसा मिला / एडवांस पर्ची)
+  const [payCategory, setPayCategory] = useState<'advance' | 'repayment'>('repayment');
   const [payFromMember, setPayFromMember] = useState<string>(activePartner);
   const [payToMember, setPayToMember] = useState<string>(mukhiya.name);
   const [payAmount, setPayAmount] = useState<number | ''>('');
@@ -134,6 +143,7 @@ export function FamilyHisabModule() {
     localStorage.setItem('fwa_family_hisab_v1', JSON.stringify(entries));
   }, [entries]);
 
+  // Submit Shopping / Expense Slip
   const handleAddEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !amount || fromMember === toMember) {
@@ -147,6 +157,7 @@ export function FamilyHisabModule() {
       toMember,
       amount: Number(amount),
       type,
+      category: 'expense',
       paymentMode,
       title,
       date: txDate || new Date().toISOString().split('T')[0],
@@ -163,6 +174,7 @@ export function FamilyHisabModule() {
     setNotes('');
   };
 
+  // Submit Money Received / Advance Entry
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!payAmount || payFromMember === payToMember) {
@@ -170,17 +182,23 @@ export function FamilyHisabModule() {
       return;
     }
 
+    const isAdvance = payCategory === 'advance';
+    const defaultTitle = isAdvance 
+      ? '⚡ काम के लिए एडवांस पैसा मिला' 
+      : '✅ सामान के बाद हिसाब चुकता मिला';
+
     const paymentEntry: MemberLedgerEntry = {
       id: `mle-${Date.now()}`,
       fromMember: payFromMember,
       toMember: payToMember,
       amount: Number(payAmount),
-      type: 'payment_received',
+      type: isAdvance ? 'advance_payment' : 'payment_received',
+      category: isAdvance ? 'advance' : 'repayment',
       paymentMode: payMode,
-      title: payNotes || 'भुगतान मिला (Payment Received)',
+      title: payNotes ? payNotes : defaultTitle,
       date: payDate || new Date().toISOString().split('T')[0],
       referenceNo: payRef.trim() || undefined,
-      notes: `भुगतान माध्यम: ${payMode === 'upi' ? 'UPI' : payMode === 'cash' ? 'कैश' : 'बैंक'}`,
+      notes: `${isAdvance ? 'काम से पहले अग्रिम (Advance)' : 'काम के बाद चुकता'} • माध्यम: ${payMode === 'upi' ? 'UPI' : payMode === 'cash' ? 'कैश' : 'बैंक'}`,
       isSettled: true
     };
 
@@ -209,12 +227,42 @@ export function FamilyHisabModule() {
     );
   }, [entries, mukhiya.name, activePartner]);
 
-  // Apply Time Filter
+  // Overall Running Balance Calculation across all pair entries
+  // Expenses/Items: fromMember spent for toMember
+  // Payments/Advances: money moved between members
+  const mukhiyaSpentForPartner = activePairEntries
+    .filter(e => e.fromMember === mukhiya.name && e.toMember === activePartner && e.category === 'expense')
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const partnerSpentForMukhiya = activePairEntries
+    .filter(e => e.fromMember === activePartner && e.toMember === mukhiya.name && e.category === 'expense')
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  // Money paid by Partner to Mukhiya (Advance + Repayments)
+  const partnerPaidToMukhiya = activePairEntries
+    .filter(e => e.fromMember === activePartner && e.toMember === mukhiya.name && (e.category === 'repayment' || e.category === 'advance' || e.type === 'payment_received' || e.type === 'advance_payment'))
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  // Money paid by Mukhiya to Partner (Advance + Repayments)
+  const mukhiyaPaidToPartner = activePairEntries
+    .filter(e => e.fromMember === mukhiya.name && e.toMember === activePartner && (e.category === 'repayment' || e.category === 'advance' || e.type === 'payment_received' || e.type === 'advance_payment'))
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  // Net Balance:
+  // Mukhiya should receive = (Mukhiya spent for partner - Partner paid to mukhiya) - (Partner spent for mukhiya - Mukhiya paid to partner)
+  const netBalance = (mukhiyaSpentForPartner - partnerPaidToMukhiya) - (partnerSpentForMukhiya - mukhiyaPaidToPartner);
+
+  // Apply Time and Category Filters
   const filteredEntries = useMemo(() => {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
 
     return activePairEntries.filter(entry => {
+      // 1. Category Filter (All vs Shopping vs Payments)
+      const isPaymentOrAdvance = entry.category === 'advance' || entry.category === 'repayment' || entry.type === 'payment_received' || entry.type === 'advance_payment';
+      if (viewCategory === 'expenses' && isPaymentOrAdvance) return false;
+      if (viewCategory === 'payments' && !isPaymentOrAdvance) return false;
+
+      // 2. Time Filter
       if (timeFilter === 'all') return true;
 
       const entryDate = new Date(entry.date);
@@ -246,40 +294,12 @@ export function FamilyHisabModule() {
 
       return true;
     });
-  }, [activePairEntries, timeFilter, customStartDate, customEndDate]);
+  }, [activePairEntries, viewCategory, timeFilter, customStartDate, customEndDate]);
 
-  // Overall Running Balance Calculation across all pair entries (not time bounded)
-  // When Mukhiya spends on partner (bought_item, online_bill, cash_transfer): Mukhiya should RECEIVE
-  // When Partner repays Mukhiya (payment_received, cash_transfer): Mukhiya RECEIVED
-  // When Partner spends on Mukhiya: Mukhiya owes Partner
-  const mukhiyaSpentForPartner = activePairEntries
-    .filter(e => e.fromMember === mukhiya.name && e.toMember === activePartner && e.type !== 'payment_received')
-    .reduce((sum, e) => sum + e.amount, 0);
-
-  const partnerSpentForMukhiya = activePairEntries
-    .filter(e => e.fromMember === activePartner && e.toMember === mukhiya.name && e.type !== 'payment_received')
-    .reduce((sum, e) => sum + e.amount, 0);
-
-  const partnerRepaidToMukhiya = activePairEntries
-    .filter(e => e.fromMember === activePartner && e.toMember === mukhiya.name && e.type === 'payment_received')
-    .reduce((sum, e) => sum + e.amount, 0);
-
-  const mukhiyaRepaidToPartner = activePairEntries
-    .filter(e => e.fromMember === mukhiya.name && e.toMember === activePartner && e.type === 'payment_received')
-    .reduce((sum, e) => sum + e.amount, 0);
-
-  // Net Balance:
-  // Mukhiya should receive = (Mukhiya spent for partner) - (Partner repaid to mukhiya) - (Partner spent for mukhiya) + (Mukhiya repaid to partner)
-  const netBalance = (mukhiyaSpentForPartner - partnerRepaidToMukhiya) - (partnerSpentForMukhiya - mukhiyaRepaidToPartner);
-
-  // Filtered period stats
-  const periodSpent = filteredEntries
-    .filter(e => e.type !== 'payment_received')
-    .reduce((sum, e) => sum + e.amount, 0);
-
-  const periodPaidBack = filteredEntries
-    .filter(e => e.type === 'payment_received')
-    .reduce((sum, e) => sum + e.amount, 0);
+  // Counts for tabs
+  const allCount = activePairEntries.length;
+  const expenseCount = activePairEntries.filter(e => e.category === 'expense' || (!e.category && e.type !== 'payment_received' && e.type !== 'advance_payment')).length;
+  const paymentCount = activePairEntries.filter(e => e.category === 'advance' || e.category === 'repayment' || e.type === 'payment_received' || e.type === 'advance_payment').length;
 
   const mukhiyaShort = mukhiya.name.split(' ')[0];
   const partnerShort = activePartner.split(' ')[0];
@@ -290,8 +310,8 @@ export function FamilyHisabModule() {
     msg += `👥 *${mukhiya.name} ⇄ ${activePartner}*\n`;
     msg += `📅 तारीख: ${new Date().toLocaleDateString('hi-IN')}\n\n`;
     msg += `─────────────────\n`;
-    msg += `🛒 *कुल सामान / खर्च:* ₹${mukhiyaSpentForPartner.toLocaleString('en-IN')}\n`;
-    msg += `💵 *कुल रीपेमेंट मिला:* ₹${partnerRepaidToMukhiya.toLocaleString('en-IN')}\n`;
+    msg += `🛒 *कुल सामान / काम का खर्च:* ₹${mukhiyaSpentForPartner.toLocaleString('en-IN')}\n`;
+    msg += `💵 *कुल मिला हुआ पैसा / एडवांस:* ₹${partnerPaidToMukhiya.toLocaleString('en-IN')}\n`;
     msg += `─────────────────\n`;
     if (netBalance > 0) {
       msg += `📌 *बकाया हिसाब:* ${mukhiyaShort} को ${partnerShort} से *₹${netBalance.toLocaleString('en-IN')} लेना है*।\n\n`;
@@ -304,8 +324,8 @@ export function FamilyHisabModule() {
     msg += `*हालिया लेन-देन सूची:*\n`;
     filteredEntries.slice(0, 8).forEach((e, idx) => {
       const modeIcon = e.paymentMode === 'upi' ? '📱 UPI' : e.paymentMode === 'cash' ? '💵 Cash' : '🏦 Bank';
-      const typeStr = e.type === 'payment_received' ? '✅ भुगतान मिला' : e.type === 'bought_item' ? '🛍️ सामान' : e.type === 'online_bill' ? '⚡ बिल' : '💸 कैश';
-      msg += `${idx + 1}. ${e.date} | ${e.title} : ₹${e.amount.toLocaleString('en-IN')} (${typeStr} - ${modeIcon})\n`;
+      const catIcon = e.category === 'advance' ? '⚡ एडवांस' : e.category === 'repayment' ? '✅ चुकता' : '🛍️ सामान';
+      msg += `${idx + 1}. ${e.date} | ${e.title} : ₹${e.amount.toLocaleString('en-IN')} (${catIcon} - ${modeIcon})\n`;
     });
 
     const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
@@ -325,25 +345,29 @@ export function FamilyHisabModule() {
               <div className="flex items-center gap-2">
                 <h2 className="text-base md:text-lg font-bold font-serif text-white">Member Aapsi Hisab</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gold/20 text-gold border border-gold/30">
-                  लाइव लेजर
+                  सामान व एडवांस लेजर
                 </span>
               </div>
-              <p className="text-xs text-paper-dim/80">परिवार के सदस्यों का खर्च, सामान लाना, तारीख अनुसार हिसाब व रनिंग बैलेंस</p>
+              <p className="text-xs text-paper-dim/80">सामान लाने की पर्ची अलग, और एडवांस या बाद में मिले पैसे का हिसाब अलग दर्ज करें</p>
             </div>
           </div>
 
+          {/* TWO DEDICATED SEPARATE BUTTONS */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={() => setIsPaymentOpen(true)}
+              onClick={() => {
+                setPayCategory('advance');
+                setIsPaymentOpen(true);
+              }}
               className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black rounded-xl flex items-center gap-1.5 active:scale-95 transition-all shadow-md"
             >
-              <Banknote size={15} /> + पेमेंट मिला दर्ज करें
+              <Banknote size={15} /> + पैसा मिला / एडवांस लिखें
             </button>
             <button
               onClick={() => setIsAddOpen(true)}
               className="px-3.5 py-2 bg-gold hover:bg-gold-light text-navy text-xs font-black rounded-xl flex items-center gap-1.5 active:scale-95 transition-all shadow-md"
             >
-              <Plus size={15} /> + सामान / खर्च जोड़ें
+              <ShoppingBag size={15} /> + सामान / काम का खर्च लिखें
             </button>
           </div>
         </div>
@@ -398,7 +422,7 @@ export function FamilyHisabModule() {
               )}
             </h3>
             <p className="text-[11px] text-paper-dim/70">
-              सामान व खर्चे में से मिला हुआ रीपेमेंट घटाकर यह शुद्ध बैलेंस है।
+              लाए गए सामान में से पहले मिला एडवांस या बाद का रीपेमेंट घटाकर यह शुद्ध हिसाब है।
             </p>
           </div>
 
@@ -424,34 +448,85 @@ export function FamilyHisabModule() {
           <div className="p-3 rounded-xl bg-navy-light/40 border border-white/5">
             <div className="flex items-center justify-between text-slate-400 text-[11px]">
               <span className="flex items-center gap-1"><ShoppingBag size={12} className="text-amber-400" /> कुल सामान व काम</span>
-              <span className="text-[10px] text-slate-500">लाइफटाइम</span>
+              <span className="text-[10px] text-slate-500">{expenseCount} पर्चियां</span>
             </div>
             <div className="text-base font-black text-amber-300 mt-1 font-mono">
               ₹{mukhiyaSpentForPartner.toLocaleString('en-IN')}
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">{mukhiyaShort} द्वारा खर्च</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{mukhiyaShort} द्वारा सामान/खर्च</p>
           </div>
 
           <div className="p-3 rounded-xl bg-navy-light/40 border border-white/5">
             <div className="flex items-center justify-between text-slate-400 text-[11px]">
-              <span className="flex items-center gap-1"><Banknote size={12} className="text-emerald-400" /> रीपेमेंट / पेमेंट मिला</span>
-              <span className="text-[10px] text-slate-500">कुल जमा</span>
+              <span className="flex items-center gap-1"><Banknote size={12} className="text-emerald-400" /> कुल पैसा मिला / एडवांस</span>
+              <span className="text-[10px] text-slate-500">{paymentCount} भुगतान</span>
             </div>
             <div className="text-base font-black text-emerald-400 mt-1 font-mono">
-              ₹{partnerRepaidToMukhiya.toLocaleString('en-IN')}
+              ₹{partnerPaidToMukhiya.toLocaleString('en-IN')}
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">{partnerShort} ने चुकता किया</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{partnerShort} ने एडवांस या बाद में दिया</p>
           </div>
 
           <div className="p-3 rounded-xl bg-navy-light/40 border border-white/5">
             <div className="flex items-center justify-between text-slate-400 text-[11px]">
-              <span className="flex items-center gap-1"><Calendar size={12} className="text-cyan-400" /> इस फिल्टर अवधि में</span>
-              <span className="text-[10px] text-slate-500">{filteredEntries.length} लेन-देन</span>
+              <span className="flex items-center gap-1"><Receipt size={12} className="text-cyan-400" /> इस फिल्टर अवधि में</span>
+              <span className="text-[10px] text-slate-500">{filteredEntries.length} प्रविष्टियां</span>
             </div>
             <div className="text-base font-black text-cyan-300 mt-1 font-mono">
-              ₹{periodSpent.toLocaleString('en-IN')}
+              {netBalance > 0 ? `+₹${netBalance.toLocaleString('en-IN')}` : `₹${Math.abs(netBalance).toLocaleString('en-IN')}`}
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">खर्च | ₹{periodPaidBack.toLocaleString('en-IN')} रीपेमेंट</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              {netBalance > 0 ? `${mukhiyaShort} को लेना है` : netBalance < 0 ? `${mukhiyaShort} को देना है` : 'हिसाब बराबर'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* DISTINCT CATEGORY VIEW TABS (Shopping vs Advance vs All) */}
+      <div className="bg-paper border border-paper-dim rounded-2xl p-2 shadow-sm">
+        <div className="flex items-center justify-between gap-1 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setViewCategory('all')}
+              className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                viewCategory === 'all' 
+                  ? 'bg-navy text-paper shadow-md' 
+                  : 'bg-paper-dim text-ink-muted hover:text-ink'
+              }`}
+            >
+              <Layers size={14} />
+              <span>📋 पूरा पासबुक ({allCount})</span>
+            </button>
+
+            <button
+              onClick={() => setViewCategory('expenses')}
+              className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                viewCategory === 'expenses' 
+                  ? 'bg-amber-500 text-slate-950 shadow-md' 
+                  : 'bg-paper-dim text-ink-muted hover:text-ink'
+              }`}
+            >
+              <ShoppingBag size={14} />
+              <span>🛍️ सिर्फ सामान व खर्च ({expenseCount})</span>
+            </button>
+
+            <button
+              onClick={() => setViewCategory('payments')}
+              className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                viewCategory === 'payments' 
+                  ? 'bg-emerald-600 text-white shadow-md' 
+                  : 'bg-paper-dim text-ink-muted hover:text-ink'
+              }`}
+            >
+              <Banknote size={14} />
+              <span>💵 सिर्फ पैसा मिला / एडवांस ({paymentCount})</span>
+            </button>
+          </div>
+
+          <div className="text-[11px] text-ink-muted px-2 py-1 bg-paper-dim rounded-lg font-bold">
+            {viewCategory === 'expenses' && '🛒 केवल लाए गए सामान व काम की पर्चियां'}
+            {viewCategory === 'payments' && '💵 केवल मिला हुआ एडवांस व चुकता पैसा'}
+            {viewCategory === 'all' && '📑 दोनों का संयुक्त रनिंग लेजर'}
           </div>
         </div>
       </div>
@@ -538,9 +613,11 @@ export function FamilyHisabModule() {
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
             <FileText size={14} className="text-gold" />
-            <span>लेन-देन पासबुक खाता: {mukhiyaShort} ⇄ {partnerShort} ({filteredEntries.length} प्रविष्टियां)</span>
+            <span>
+              {viewCategory === 'expenses' ? '🛍️ सामान व खर्च पर्चियां' : viewCategory === 'payments' ? '💵 पैसा मिला व एडवांस कार्ड' : '📑 संयुक्त पासबुक'}: {mukhiyaShort} ⇄ {partnerShort} ({filteredEntries.length} प्रविष्टियां)
+            </span>
           </h3>
-          <span className="text-[11px] text-ink-muted">
+          <span className="text-[11px] text-ink-muted font-mono">
             {timeFilter === 'all' ? 'सभी समय' : timeFilter === 'this_month' ? 'चालू माह' : timeFilter === 'this_week' ? 'चालू सप्ताह' : 'फ़िल्टर लागू'}
           </span>
         </div>
@@ -551,27 +628,32 @@ export function FamilyHisabModule() {
               <ShoppingBag size={24} />
             </div>
             <div>
-              <p className="text-xs font-bold text-ink">इस अवधि में {mukhiyaShort} और {partnerShort} के बीच कोई लेन-देन दर्ज नहीं है</p>
-              <p className="text-[11px] text-ink-muted mt-0.5">नया सामान, खर्च या मिला हुआ रीपेमेंट दर्ज करने के लिए ऊपर दिए गए बटनों का उपयोग करें।</p>
+              <p className="text-xs font-bold text-ink">इस फिल्टर में कोई प्रविष्टि नहीं मिली</p>
+              <p className="text-[11px] text-ink-muted mt-0.5">नया सामान लिखने या मिला हुआ एडवांस/पैसा दर्ज करने के लिए ऊपर दिए गए बटनों का उपयोग करें।</p>
             </div>
             <div className="flex justify-center gap-2 pt-1">
               <button
                 onClick={() => setIsAddOpen(true)}
-                className="px-3 py-1.5 bg-gold text-navy text-xs font-bold rounded-xl shadow-sm hover:bg-gold-light"
+                className="px-3.5 py-2 bg-gold text-navy text-xs font-bold rounded-xl shadow-sm hover:bg-gold-light"
               >
-                + सामान / खर्च दर्ज करें
+                + सामान / काम का खर्च लिखें
               </button>
               <button
-                onClick={() => setIsPaymentOpen(true)}
-                className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-emerald-500"
+                onClick={() => {
+                  setPayCategory('advance');
+                  setIsPaymentOpen(true);
+                }}
+                className="px-3.5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-emerald-500"
               >
-                + पेमेंट मिला दर्ज करें
+                + पैसा मिला / एडवांस लिखें
               </button>
             </div>
           </div>
         ) : (
           filteredEntries.map(e => {
-            const isPayment = e.type === 'payment_received';
+            const isAdvance = e.category === 'advance' || e.type === 'advance_payment' || (e.title && e.title.includes('एडवांस'));
+            const isPayment = !isAdvance && (e.category === 'repayment' || e.type === 'payment_received');
+            const isExpense = !isAdvance && !isPayment;
             const isFromMukhiya = e.fromMember === mukhiya.name;
             const formattedDate = new Date(e.date).toLocaleDateString('hi-IN', {
               day: '2-digit',
@@ -583,20 +665,37 @@ export function FamilyHisabModule() {
               <div 
                 key={e.id} 
                 className={`bg-paper border rounded-2xl p-4 shadow-sm space-y-2.5 transition-all hover:border-gold/50 ${
-                  isPayment ? 'border-emerald-500/30 bg-emerald-50/10' : 'border-paper-dim'
+                  isAdvance 
+                    ? 'border-purple-500/40 bg-purple-50/15 dark:bg-purple-950/10'
+                    : isPayment 
+                    ? 'border-emerald-500/40 bg-emerald-50/15 dark:bg-emerald-950/10' 
+                    : 'border-paper-dim'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider ${
-                        isPayment 
-                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                          : isFromMukhiya 
-                          ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/20' 
-                          : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20'
-                      }`}>
-                        {isPayment ? '💰 रीपेमेंट / पेमेंट मिला' : `${e.fromMember.split(' ')[0]} ने दिया → ${e.toMember.split(' ')[0]} को`}
+                      {/* CARD TYPE BADGE */}
+                      {isAdvance ? (
+                        <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                          <Zap size={11} className="text-purple-600" />
+                          <span>⚡ काम के लिए एडवांस पैसा</span>
+                        </span>
+                      ) : isPayment ? (
+                        <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                          <CheckCircle2 size={11} className="text-emerald-600" />
+                          <span>✅ बाद में हिसाब चुकता</span>
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                          <ShoppingBag size={11} className="text-amber-600" />
+                          <span>🛍️ सामान / काम का खर्च</span>
+                        </span>
+                      )}
+
+                      {/* Direction: Who paid to Whom */}
+                      <span className="text-[10px] font-bold text-ink-muted">
+                        ({e.fromMember.split(' ')[0]} → {e.toMember.split(' ')[0]})
                       </span>
 
                       {/* Payment Mode Badge */}
@@ -604,7 +703,7 @@ export function FamilyHisabModule() {
                         {e.paymentMode === 'upi' ? (
                           <>
                             <Smartphone size={11} className="text-purple-600" />
-                            <span>UPI / GPay</span>
+                            <span>UPI (GPay/PhonePe)</span>
                           </>
                         ) : e.paymentMode === 'bank_transfer' ? (
                           <>
@@ -618,23 +717,15 @@ export function FamilyHisabModule() {
                           </>
                         )}
                       </span>
-
-                      {/* Type Badge */}
-                      {!isPayment && (
-                        <span className="text-[10px] text-ink-muted">
-                          {e.type === 'bought_item' ? '🛍️ सामान खरीद' : e.type === 'online_bill' ? '⚡ ऑनलाइन बिल' : '💵 नकद दिया'}
-                        </span>
-                      )}
                     </div>
 
                     <h4 className="text-sm font-bold text-ink flex items-center gap-1.5 mt-0.5">
-                      {isPayment && <CheckCircle2 size={15} className="text-emerald-500" />}
                       <span>{e.title}</span>
                     </h4>
 
                     {(e.referenceNo || e.notes) && (
                       <p className="text-[11px] text-ink-muted">
-                        {e.referenceNo && <span className="font-mono font-semibold text-ink-muted">Ref/Txn: {e.referenceNo} </span>}
+                        {e.referenceNo && <span className="font-mono font-semibold text-ink-muted">Txn Ref: {e.referenceNo} </span>}
                         {e.notes && <span>• {e.notes}</span>}
                       </p>
                     )}
@@ -642,9 +733,9 @@ export function FamilyHisabModule() {
 
                   <div className="text-right shrink-0">
                     <Mono className={`text-base md:text-lg font-black ${
-                      isPayment ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink'
+                      isAdvance ? 'text-purple-600 dark:text-purple-400' : isPayment ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink'
                     }`}>
-                      {isPayment ? '+' : ''}₹{e.amount.toLocaleString('en-IN')}
+                      {isAdvance || isPayment ? '+' : ''}₹{e.amount.toLocaleString('en-IN')}
                     </Mono>
                     <div className="flex items-center justify-end gap-1 text-[10px] text-ink-muted mt-0.5">
                       <Calendar size={11} />
@@ -664,21 +755,22 @@ export function FamilyHisabModule() {
                       }`}
                     >
                       <CheckCircle2 size={13} className={e.isSettled ? 'text-emerald-600' : 'text-ink-muted'} />
-                      <span>{e.isSettled ? '✓ चुकता / पूर्ण (Settled)' : 'बकाया (पेंडिंग)'}</span>
+                      <span>{e.isSettled ? '✓ हिसाब दर्ज / चुकता' : 'बकाया (पेंडिंग)'}</span>
                     </button>
 
-                    {!isPayment && !e.isSettled && (
+                    {isExpense && !e.isSettled && (
                       <button
                         onClick={() => {
+                          setPayCategory('repayment');
                           setPayFromMember(e.toMember);
                           setPayToMember(e.fromMember);
                           setPayAmount(e.amount);
                           setPayNotes(`${e.title} का चुकता भुगतान`);
                           setIsPaymentOpen(true);
                         }}
-                        className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-emerald-600 hover:bg-emerald-500/10 flex items-center gap-1 border border-emerald-500/30"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-emerald-600 hover:bg-emerald-500/10 flex items-center gap-1 border border-emerald-500/30"
                       >
-                        <Banknote size={11} /> पेमेंट मिला?
+                        <Banknote size={12} /> बाद में पैसा मिला?
                       </button>
                     )}
                   </div>
@@ -697,16 +789,16 @@ export function FamilyHisabModule() {
         )}
       </div>
 
-      {/* Modal 1: नया सामान / खर्च जोड़ें */}
+      {/* Modal 1: 🛍️ सामान / काम का खर्च लिखें (Shopping Slip Modal) */}
       {isAddOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-paper rounded-3xl shadow-2xl p-5 md:p-6 border border-paper-dim space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-ink flex items-center gap-2">
-                  <ShoppingBag size={18} className="text-gold" /> नया पारिवारिक खर्च या सामान जोड़ें
+                  <ShoppingBag size={18} className="text-amber-500" /> सामान / काम का खर्च लिखें
                 </h3>
-                <p className="text-xs text-ink-muted">सामान का विवरण, तारीख, माध्यम और रकम दर्ज करें</p>
+                <p className="text-xs text-ink-muted">घर या दुकान के लिए क्या सामान आया, कितने का था व तारीख</p>
               </div>
               <button 
                 onClick={() => setIsAddOpen(false)}
@@ -719,7 +811,7 @@ export function FamilyHisabModule() {
             <form onSubmit={handleAddEntry} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-ink-muted font-bold mb-1">किसने दिया/ख़र्च किया?</label>
+                  <label className="block text-ink-muted font-bold mb-1">किसने सामान खरीदा/खर्च किया?</label>
                   <select
                     value={fromMember}
                     onChange={e => setFromMember(e.target.value)}
@@ -733,7 +825,7 @@ export function FamilyHisabModule() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-ink-muted font-bold mb-1">किसके लिए खर्च किया?</label>
+                  <label className="block text-ink-muted font-bold mb-1">किसके लिए सामान आया?</label>
                   <select
                     value={toMember}
                     onChange={e => setToMember(e.target.value)}
@@ -748,11 +840,11 @@ export function FamilyHisabModule() {
                 </div>
               </div>
 
-              {/* Date & Time Picker */}
+              {/* Date & Amount */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-ink-muted font-bold mb-1 flex items-center gap-1">
-                    <Calendar size={13} className="text-gold" /> तारीख (Date) *
+                    <Calendar size={13} className="text-gold" /> सामान कब आया? (तारीख) *
                   </label>
                   <input
                     type="date"
@@ -764,11 +856,11 @@ export function FamilyHisabModule() {
                 </div>
                 <div>
                   <label className="block text-ink-muted font-bold mb-1 flex items-center gap-1">
-                    <DollarSign size={13} className="text-emerald-500" /> रकम / Amount (₹) *
+                    <DollarSign size={13} className="text-emerald-500" /> कुल खर्च / रकम (₹) *
                   </label>
                   <input
                     type="number"
-                    placeholder="e.g. 2500"
+                    placeholder="उदा. 2500"
                     value={amount}
                     onChange={e => setAmount(e.target.value === '' ? '' : Number(e.target.value))}
                     required
@@ -777,7 +869,20 @@ export function FamilyHisabModule() {
                 </div>
               </div>
 
-              {/* Type and Payment Mode */}
+              {/* Title: What item/work */}
+              <div>
+                <label className="block text-ink-muted font-bold mb-1">सामान क्या आया / काम क्या हुआ? *</label>
+                <input
+                  type="text"
+                  placeholder="उदा. राशन, दवाई, बिजली का तार, पेंट, दुकान मरम्मत"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-bold text-ink"
+                />
+              </div>
+
+              {/* Payment Mode */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-ink-muted font-bold mb-1">खर्च का प्रकार</label>
@@ -788,43 +893,30 @@ export function FamilyHisabModule() {
                   >
                     <option value="bought_item">🛍️ सामान खरीद कर लाया</option>
                     <option value="online_bill">⚡ ऑनलाइन बिल / रिचार्ज भरा</option>
-                    <option value="cash_transfer">💸 कैश दिया (Cash given)</option>
+                    <option value="cash_transfer">💸 कैश दिया</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-ink-muted font-bold mb-1">भुगतान माध्यम (Mode)</label>
+                  <label className="block text-ink-muted font-bold mb-1">दुकान पर कैसे चुकाया?</label>
                   <select
                     value={paymentMode}
                     onChange={e => setPaymentMode(e.target.value as any)}
                     className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-medium text-ink"
                   >
                     <option value="cash">💵 नकद (Cash)</option>
-                    <option value="upi">📱 UPI (GPay / PhonePe / Paytm)</option>
-                    <option value="bank_transfer">🏦 बैंक ट्रांसफर / NEFT</option>
+                    <option value="upi">📱 UPI (GPay/PhonePe)</option>
+                    <option value="bank_transfer">🏦 बैंक ट्रांसफर</option>
                   </select>
                 </div>
               </div>
 
-              {/* Title & Notes */}
-              <div>
-                <label className="block text-ink-muted font-bold mb-1">विवरण / सामान क्या आया? *</label>
-                <input
-                  type="text"
-                  placeholder="उदा. घर का राशन, दवाई, बिजली बिल, सब्ज़ी"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-bold text-ink"
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-ink-muted mb-1">UPI Ref / रसीद नं. (ऐच्छिक)</label>
+                  <label className="block text-ink-muted mb-1">बिल / रसीद नं. (ऐच्छिक)</label>
                   <input
                     type="text"
-                    placeholder="उदा. 439201948291"
+                    placeholder="उदा. बिल #104"
                     value={referenceNo}
                     onChange={e => setReferenceNo(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim text-ink font-mono text-[11px]"
@@ -834,7 +926,7 @@ export function FamilyHisabModule() {
                   <label className="block text-ink-muted mb-1">अतिरिक्त नोट (ऐच्छिक)</label>
                   <input
                     type="text"
-                    placeholder="उदा. आधा पैसा बाकी"
+                    placeholder="उदा. 5kg आटा, 2L तेल"
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim text-ink text-[11px]"
@@ -854,7 +946,7 @@ export function FamilyHisabModule() {
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-gold text-navy font-black hover:bg-gold-light shadow-md"
                 >
-                  ✓ हिसाब सेव करें
+                  ✓ सामान पर्ची सेव करें
                 </button>
               </div>
             </form>
@@ -862,16 +954,16 @@ export function FamilyHisabModule() {
         </div>
       )}
 
-      {/* Modal 2: पेमेंट मिला / रीपेमेंट दर्ज करें */}
+      {/* Modal 2: 💵 पैसा मिला / एडवांस लिखें (Money Received & Advance Modal) */}
       {isPaymentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-dark/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-paper rounded-3xl shadow-2xl p-5 md:p-6 border border-emerald-500/30 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-md bg-paper rounded-3xl shadow-2xl p-5 md:p-6 border border-emerald-500/40 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-ink flex items-center gap-2">
-                  <Banknote size={20} className="text-emerald-500" /> पेमेंट मिला दर्ज करें (Record Repayment)
+                  <Banknote size={20} className="text-emerald-500" /> पैसा मिला / एडवांस लिखें
                 </h3>
-                <p className="text-xs text-ink-muted">किसने किसको पैसे दिए, कब मिले और माध्यम क्या था</p>
+                <p className="text-xs text-ink-muted">काम के लिए पहले एडवांस लिया या बाद में हिसाब चुकता हुआ</p>
               </div>
               <button 
                 onClick={() => setIsPaymentOpen(false)}
@@ -882,6 +974,51 @@ export function FamilyHisabModule() {
             </div>
 
             <form onSubmit={handleRecordPayment} className="space-y-3.5 text-xs">
+              {/* ADVANCE VS REPAYMENT RADIO SELECTOR */}
+              <div>
+                <label className="block text-ink-muted font-bold mb-1">यह पैसा किस प्रकार का है?</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPayCategory('advance');
+                      setPayNotes('काम के लिए पहले एडवांस मिला');
+                    }}
+                    className={`p-3 rounded-2xl border text-left transition-all ${
+                      payCategory === 'advance' 
+                        ? 'bg-purple-500/20 border-purple-500 text-purple-800 dark:text-purple-300 shadow-sm ring-1 ring-purple-500' 
+                        : 'bg-paper border-paper-dim text-ink-muted hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-black text-xs">
+                      <Zap size={15} className="text-purple-600" />
+                      <span>⚡ पहले एडवांस मिला</span>
+                    </div>
+                    <p className="text-[10px] text-ink-muted mt-0.5">सामान लाने या काम से पहले</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPayCategory('repayment');
+                      setPayNotes('सामान के बाद हिसाब चुकता मिला');
+                    }}
+                    className={`p-3 rounded-2xl border text-left transition-all ${
+                      payCategory === 'repayment' 
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-800 dark:text-emerald-300 shadow-sm ring-1 ring-emerald-500' 
+                        : 'bg-paper border-paper-dim text-ink-muted hover:border-emerald-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-black text-xs">
+                      <CheckCircle2 size={15} className="text-emerald-600" />
+                      <span>✅ बाद में चुकता मिला</span>
+                    </div>
+                    <p className="text-[10px] text-ink-muted mt-0.5">सामान लाने के बाद हिसाब</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Members */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-ink-muted font-bold mb-1">किसने पैसे दिए? (Payer)</label>
@@ -917,11 +1054,11 @@ export function FamilyHisabModule() {
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-emerald-600 font-bold mb-1 flex items-center gap-1">
-                    <DollarSign size={13} className="text-emerald-500" /> कितना मिला? (₹) *
+                    <DollarSign size={13} className="text-emerald-500" /> कितना पैसा मिला? (₹) *
                   </label>
                   <input
                     type="number"
-                    placeholder="e.g. 1500"
+                    placeholder="उदा. 5000"
                     value={payAmount}
                     onChange={e => setPayAmount(e.target.value === '' ? '' : Number(e.target.value))}
                     required
@@ -942,21 +1079,21 @@ export function FamilyHisabModule() {
                 </div>
               </div>
 
-              {/* Payment Mode */}
+              {/* Payment Mode Selection */}
               <div>
-                <label className="block text-ink-muted font-bold mb-1">भुगतान माध्यम (Payment Mode) *</label>
+                <label className="block text-ink-muted font-bold mb-1">भुगतान माध्यम (Cash / UPI / Bank) *</label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setPayMode('cash')}
                     className={`py-2 px-2.5 rounded-xl border text-center font-bold text-xs flex flex-col items-center gap-1 transition-all ${
                       payMode === 'cash' 
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300 shadow-sm' 
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-800 dark:text-emerald-300 shadow-sm' 
                         : 'bg-paper border-paper-dim text-ink-muted'
                     }`}
                   >
                     <Banknote size={16} />
-                    <span>💵 नकद (Cash)</span>
+                    <span>💵 नकद Cash</span>
                   </button>
 
                   <button
@@ -964,12 +1101,12 @@ export function FamilyHisabModule() {
                     onClick={() => setPayMode('upi')}
                     className={`py-2 px-2.5 rounded-xl border text-center font-bold text-xs flex flex-col items-center gap-1 transition-all ${
                       payMode === 'upi' 
-                        ? 'bg-purple-500/20 border-purple-500 text-purple-700 dark:text-purple-300 shadow-sm' 
+                        ? 'bg-purple-500/20 border-purple-500 text-purple-800 dark:text-purple-300 shadow-sm' 
                         : 'bg-paper border-paper-dim text-ink-muted'
                     }`}
                   >
                     <Smartphone size={16} />
-                    <span>📱 UPI (GPay)</span>
+                    <span>📱 UPI GPay</span>
                   </button>
 
                   <button
@@ -977,7 +1114,7 @@ export function FamilyHisabModule() {
                     onClick={() => setPayMode('bank_transfer')}
                     className={`py-2 px-2.5 rounded-xl border text-center font-bold text-xs flex flex-col items-center gap-1 transition-all ${
                       payMode === 'bank_transfer' 
-                        ? 'bg-blue-500/20 border-blue-500 text-blue-700 dark:text-blue-300 shadow-sm' 
+                        ? 'bg-blue-500/20 border-blue-500 text-blue-800 dark:text-blue-300 shadow-sm' 
                         : 'bg-paper border-paper-dim text-ink-muted'
                     }`}
                   >
@@ -987,12 +1124,12 @@ export function FamilyHisabModule() {
                 </div>
               </div>
 
-              {/* Reference & Notes */}
+              {/* Purpose / Notes */}
               <div>
-                <label className="block text-ink-muted font-bold mb-1">विवरण / नोट</label>
+                <label className="block text-ink-muted font-bold mb-1">किस काम या मकसद के लिए? (विवरण)</label>
                 <input
                   type="text"
-                  placeholder="उदा. राशन का पैसा वापस दिया / हिसाब चुकता"
+                  placeholder={payCategory === 'advance' ? "उदा. घर की पुताई / राशन लाने के लिए एडवांस" : "उदा. पिछले सामान का पूरा हिसाब चुकता"}
                   value={payNotes}
                   onChange={e => setPayNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-paper border border-paper-dim font-medium text-ink"
@@ -1000,7 +1137,7 @@ export function FamilyHisabModule() {
               </div>
 
               <div>
-                <label className="block text-ink-muted mb-1">UPI Txn ID / रसीद नंबर (ऐच्छिक)</label>
+                <label className="block text-ink-muted mb-1">UPI Ref / रसीद नं. (ऐच्छिक)</label>
                 <input
                   type="text"
                   placeholder="उदा. UPI-492049102"
@@ -1022,7 +1159,7 @@ export function FamilyHisabModule() {
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-black hover:bg-emerald-500 shadow-md"
                 >
-                  ✓ रीपेमेंट सेव करें
+                  ✓ {payCategory === 'advance' ? 'एडवांस दर्ज करें' : 'चुकता दर्ज करें'}
                 </button>
               </div>
             </form>
