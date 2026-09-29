@@ -6,7 +6,7 @@ import {
   CheckCircle2, Clock, X, AlertCircle, FileText, Printer, 
   Share2, ChevronRight, Briefcase, Award, ShieldCheck, MapPin, 
   Trash2, Edit3, Star, CheckSquare, Sparkles, Building, ArrowRight,
-  ExternalLink, UserPlus
+  ExternalLink, UserPlus, Send, Copy, Check, Layers, Sliders, ChevronDown
 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
 
@@ -36,7 +36,7 @@ export interface CandidateKYC {
 }
 
 export interface CandidateWorkTerms {
-  targetRole: string; // जैसे: सेल्समैन, हेल्पर, कुक, ड्राइवर, बिलिंग काउंटर, अकाउंटेंट, गार्ड, मशीन ऑपरेटर
+  targetRole: string; // जैसे: सेल्समैन, हेल्पर, कुक, ड्राइवर, बिलिंग काउंटर, अकाउंटेंट, गार्ड
   department?: string;
   workResponsibilities: string; // दैनिक काम और मुख्य जिम्मेदारियां
   wageModel: 'monthly_fixed' | 'daily_wage' | 'piece_rate' | 'commission';
@@ -45,14 +45,34 @@ export interface CandidateWorkTerms {
   salaryPaymentDate?: string; // जैसे 1 से 7 तारीख
   workShiftTimings: string; // जैसे सुबह 9:00 से रात 8:00
   weeklyOffDay: string; // जैसे रविवार, मंगलवार आदि
-  allowedPaidLeaves: number; // महीने में कितनी सवेतन छुट्टी (e.g. 2 दिन)
+  allowedPaidLeaves: number; // महीने में कितनी सवेतन छुट्टी
   maxConsecutiveLeaves: number; // बिना सूचना लगातार कितने दिन छुट्टी ले सकते हैं
   deductLeaveSalary: boolean; // अतिरिक्त छुट्टी पर पैसे कटेंगे
   noticePeriodDays: number; // नौकरी छोड़ने पर कितने दिन पहले नोटिस
   advancePolicy?: string; // एडवांस लेने के नियम
+  
+  // Joining & Reporting Details (Final Selection)
+  joiningDate?: string; // कब से काम शुरू करना है
+  reportingTime?: string; // कितने बजे पहुंचना है (जैसे सुबह 9:30 बजे)
+  reportingSupervisor?: string; // किसको रिपोर्ट करना है (जैसे: श्री महेश जी)
+  requiredDocsAtJoining?: string; // पहले दिन लाने वाले जरूरी दस्तावेज
 }
 
-export type CandidateStatus = 'applied' | 'interview_scheduled' | 'trial_period' | 'hired' | 'rejected';
+export interface RecruitmentStage {
+  id: string;
+  label: string;
+  color: string;
+  isSystem?: boolean;
+}
+
+export const DEFAULT_STAGES: RecruitmentStage[] = [
+  { id: 'applied', label: '📥 नए आवेदन (Applied)', color: 'bg-slate-100 text-slate-700 border-slate-300', isSystem: true },
+  { id: 'interview_1', label: '📞 राउंड 1: फोन इंटरव्यू', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { id: 'interview_2', label: '🤝 राउंड 2: मुख्य इंटरव्यू / टेस्ट', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  { id: 'trial_period', label: '⏳ ट्रायल काम (3-7 दिन)', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { id: 'hired', label: '✅ अंतिम चयन व नियुक्त (Hired)', color: 'bg-emerald-50 text-emerald-700 border-emerald-300', isSystem: true },
+  { id: 'rejected', label: '❌ अस्वीकृत (Rejected)', color: 'bg-rose-50 text-rose-700 border-rose-200', isSystem: true },
+];
 
 export interface StaffCandidate {
   id: string;
@@ -76,8 +96,8 @@ export interface StaffCandidate {
   // Documents & KYC
   kyc: CandidateKYC;
   
-  // Recruitment Status
-  status: CandidateStatus;
+  // Recruitment Status / Custom Stage ID
+  status: string; // Stage ID: 'applied' | 'interview_1' | 'interview_2' | 'trial_period' | 'hired' | 'rejected' | custom stage id
   interviewDate?: string;
   interviewRating?: number; // 1-5
   interviewNotes?: string;
@@ -123,7 +143,11 @@ const DEFAULT_CANDIDATES: StaffCandidate[] = [
       maxConsecutiveLeaves: 2,
       deductLeaveSalary: true,
       noticePeriodDays: 15,
-      advancePolicy: '15 दिन काम पूरा होने के बाद अधिकतम 50% एडवांस स्वीकृत'
+      advancePolicy: '15 दिन काम पूरा होने के बाद अधिकतम 50% एडवांस स्वीकृत',
+      joiningDate: '2026-10-01',
+      reportingTime: 'सुबह 9:30 बजे',
+      reportingSupervisor: 'श्री गुप्ता जी (प्रबंधक)',
+      requiredDocsAtJoining: 'आधार कार्ड ओरिजिनल, 2 फोटो, बैंक पासबुक कॉपी'
     },
     kyc: {
       aadharNumber: '4589 1234 5678',
@@ -137,7 +161,7 @@ const DEFAULT_CANDIDATES: StaffCandidate[] = [
       bankIfsc: 'SBIN0001234',
       upiId: 'rajesh@oksbi'
     },
-    status: 'interview_scheduled',
+    status: 'interview_2',
     interviewDate: '2026-09-30T11:00',
     interviewRating: 4,
     interviewNotes: 'बातचीत में काफी शालीन, 3 साल का अनुभव है और बिलिंग सॉफ्टवेयर जानता है।',
@@ -180,7 +204,10 @@ const DEFAULT_CANDIDATES: StaffCandidate[] = [
       maxConsecutiveLeaves: 2,
       deductLeaveSalary: true,
       noticePeriodDays: 10,
-      advancePolicy: 'महीने में 1 बार अधिकतम ₹2,000'
+      advancePolicy: 'महीने में 1 बार अधिकतम ₹2,000',
+      joiningDate: '2026-10-02',
+      reportingTime: 'सुबह 8:30 बजे',
+      reportingSupervisor: 'गोदाम प्रभारी'
     },
     kyc: {
       aadharNumber: '8912 3456 7890',
@@ -201,13 +228,37 @@ const DEFAULT_CANDIDATES: StaffCandidate[] = [
 ];
 
 export function StaffRecruitmentModule() {
+  // Custom & Default Stages State
+  const [stages, setStages] = useState<RecruitmentStage[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_staff_recruitment_stages_v2');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (e) {}
+      }
+    }
+    return DEFAULT_STAGES;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('fwa_staff_recruitment_stages_v2', JSON.stringify(stages));
+  }, [stages]);
+
+  // Candidates State
   const [candidates, setCandidates] = useState<StaffCandidate[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fwa_staff_recruitment_v1');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((c: any) => ({
+              ...c,
+              status: c.status === 'interview_scheduled' ? 'interview_1' : c.status
+            }));
+          }
         } catch (e) {}
       }
     }
@@ -219,7 +270,7 @@ export function StaffRecruitmentModule() {
   }, [candidates]);
 
   // Tab & Filters
-  const [activeTab, setActiveTab] = useState<'all' | CandidateStatus>('all');
+  const [activeTab, setActiveTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals
@@ -227,6 +278,17 @@ export function StaffRecruitmentModule() {
   const [selectedCandidate, setSelectedCandidate] = useState<StaffCandidate | null>(null);
   const [isOfferLetterOpen, setIsOfferLetterOpen] = useState(false);
   const [candidateForOffer, setCandidateForOffer] = useState<StaffCandidate | null>(null);
+  const [isNewStageModalOpen, setIsNewStageModalOpen] = useState(false);
+  const [newStageName, setNewStageName] = useState('');
+
+  // Final Selection & WhatsApp Joining Modal
+  const [isHiringModalOpen, setIsHiringModalOpen] = useState(false);
+  const [candidateToHire, setCandidateToHire] = useState<StaffCandidate | null>(null);
+  const [hireJoiningDate, setHireJoiningDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [hireReportingTime, setHireReportingTime] = useState('सुबह 9:30 बजे');
+  const [hireSupervisor, setHireSupervisor] = useState('प्रबंधक / मालिक');
+  const [hireRequiredDocs, setHireRequiredDocs] = useState('आधार कार्ड ओरिजिनल व कॉपी, 2 पासपोर्ट फोटो, बैंक पासबुक');
+  const [copiedWhatsappText, setCopiedWhatsappText] = useState(false);
 
   // Form State
   const [formStep, setFormStep] = useState<1 | 2 | 3 | 4>(1);
@@ -394,22 +456,82 @@ export function StaffRecruitmentModule() {
     resetForm();
   };
 
-  // Change Candidate Status
-  const handleUpdateStatus = (candidateId: string, newStatus: CandidateStatus, extraData?: Partial<StaffCandidate>) => {
+  // Add Dynamic Stage
+  const handleAddNewStage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStageName.trim()) return;
+
+    const stageId = `stg_${Date.now()}`;
+    const newStage: RecruitmentStage = {
+      id: stageId,
+      label: newStageName.trim(),
+      color: 'bg-purple-50 text-purple-700 border-purple-200'
+    };
+
+    setStages(prev => {
+      // Insert before rejected
+      const rejectedIdx = prev.findIndex(s => s.id === 'rejected');
+      if (rejectedIdx !== -1) {
+        const copy = [...prev];
+        copy.splice(rejectedIdx, 0, newStage);
+        return copy;
+      }
+      return [...prev, newStage];
+    });
+
+    setNewStageName('');
+    setIsNewStageModalOpen(false);
+  };
+
+  // Move candidate to any stage (Dropdown / Quick Action)
+  const handleMoveCandidateStage = (candidateId: string, stageId: string) => {
+    if (stageId === 'hired') {
+      const cand = candidates.find(c => c.id === candidateId);
+      if (cand) {
+        setCandidateToHire(cand);
+        setHireJoiningDate(cand.workTerms.joiningDate || new Date().toISOString().split('T')[0]);
+        setHireReportingTime(cand.workTerms.reportingTime || 'सुबह 9:30 बजे');
+        setHireSupervisor(cand.workTerms.reportingSupervisor || 'प्रबंधक / मालिक');
+        setIsHiringModalOpen(true);
+        return;
+      }
+    }
+
     setCandidates(prev => prev.map(c => {
       if (c.id !== candidateId) return c;
-      const updated = { ...c, status: newStatus, ...extraData };
-      if (newStatus === 'hired') {
-        updated.hiredDate = new Date().toISOString().split('T')[0];
-        // Auto-sync into Active Staff & Payroll (fwa_staff_v1)
-        syncToActivePayroll(updated);
-      }
-      return updated;
+      return { ...c, status: stageId };
     }));
 
     if (selectedCandidate && selectedCandidate.id === candidateId) {
-      setSelectedCandidate(prev => prev ? { ...prev, status: newStatus, ...extraData } : null);
+      setSelectedCandidate(prev => prev ? { ...prev, status: stageId } : null);
     }
+  };
+
+  // Complete Final Selection & Sync with Active Payroll
+  const handleConfirmFinalSelection = () => {
+    if (!candidateToHire) return;
+
+    const updatedCand: StaffCandidate = {
+      ...candidateToHire,
+      status: 'hired',
+      hiredDate: new Date().toISOString().split('T')[0],
+      workTerms: {
+        ...candidateToHire.workTerms,
+        joiningDate: hireJoiningDate,
+        reportingTime: hireReportingTime,
+        reportingSupervisor: hireSupervisor,
+        requiredDocsAtJoining: hireRequiredDocs
+      }
+    };
+
+    setCandidates(prev => prev.map(c => c.id === updatedCand.id ? updatedCand : c));
+    if (selectedCandidate && selectedCandidate.id === updatedCand.id) {
+      setSelectedCandidate(updatedCand);
+    }
+
+    // Auto-sync into Active Staff & Payroll (fwa_staff_v1)
+    syncToActivePayroll(updatedCand);
+    setIsHiringModalOpen(false);
   };
 
   // 1-Click Sync to Active Household/Business Staff (fwa_staff_v1)
@@ -421,7 +543,6 @@ export function StaffRecruitmentModule() {
         staffList = JSON.parse(existing);
       }
 
-      // Check if already synced
       const alreadyPresent = staffList.find(s => s.phone === cand.phone || s.id === cand.id);
       if (!alreadyPresent) {
         const newStaffMember = {
@@ -434,7 +555,7 @@ export function StaffRecruitmentModule() {
           monthlySalary: cand.workTerms.proposedSalary || 10000,
           advanceTaken: 0,
           phone: cand.phone,
-          joiningDate: cand.hiredDate || new Date().toISOString().split('T')[0],
+          joiningDate: cand.workTerms.joiningDate || new Date().toISOString().split('T')[0],
           aadharNumber: cand.kyc.aadharNumber || '',
           currentAddress: cand.currentAddress || '',
           permanentAddress: cand.permanentAddress || '',
@@ -450,11 +571,44 @@ export function StaffRecruitmentModule() {
         };
         const updatedList = [newStaffMember, ...staffList];
         localStorage.setItem('fwa_staff_v1', JSON.stringify(updatedList));
-        alert(`✓ बधाई! ${cand.fullName} को सफलतापूर्वक नियुक्त कर एक्टिव स्टाफ और पेरोल (Staff & Payroll) में जोड़ दिया गया है। अब इनकी दैनिक उपस्थिति और वेतन हिसाब सीधे पेरोल में दिखेगा।`);
       }
     } catch (err) {
       console.error('Error syncing staff to payroll:', err);
     }
+  };
+
+  // Generate WhatsApp Selection Message
+  const getWhatsappSelectionText = (cand: StaffCandidate) => {
+    return (
+      `🎉 *बधाई! आपका चयन हो गया है (Selection Confirmation)*\n\n` +
+      `प्रिय *${cand.fullName}* जी,\n` +
+      `हमें आपको सूचित करते हुए अत्यंत प्रसन्नता है कि हमारी फर्म में आपका चयन *${cand.workTerms.targetRole}* पद हेतु कर लिया गया है।\n\n` +
+      `📌 *जॉइनिंग एवं सेवा शर्तें:*\n` +
+      `• पद: ${cand.workTerms.targetRole}\n` +
+      `• तय वेतन: ₹${cand.workTerms.proposedSalary.toLocaleString('en-IN')}/${cand.workTerms.wageModel === 'daily_wage' ? 'दिन' : 'माह'}\n` +
+      `• काम शुरू करने की तारीख (Joining Date): *${hireJoiningDate || cand.workTerms.joiningDate || 'शीघ्र'}*\n` +
+      `• रिपोर्टिंग समय: ${hireReportingTime || 'सुबह 9:30 बजे'}\n` +
+      `• कार्य समय: ${cand.workTerms.workShiftTimings}\n` +
+      `• साप्ताहिक अवकाश: ${cand.workTerms.weeklyOffDay}\n` +
+      `• रिपोर्टिंग अधिकारी: ${hireSupervisor}\n\n` +
+      `📑 *जॉइनिंग के समय साथ लाने वाले दस्तावेज़:*\n` +
+      `1. आधार कार्ड (मूल व फोटोकॉपी)\n` +
+      `2. पासपोर्ट साइज फोटो (2)\n` +
+      `3. बैंक खाता / पासबुक कॉपी (वेतन भुगतान हेतु)\n\n` +
+      `कृपया नियत समय पर उपस्थित होकर अपनी सेवा प्रारंभ करें। किसी भी सहायता हेतु संपर्क करें: ${cand.phone}।\n\nशुभकामनाएं!`
+    );
+  };
+
+  const handleSendWhatsappSelection = (cand: StaffCandidate) => {
+    const text = encodeURIComponent(getWhatsappSelectionText(cand));
+    const targetPhone = cand.whatsapp || cand.phone;
+    window.open(`https://api.whatsapp.com/send?phone=91${targetPhone}&text=${text}`, '_blank');
+  };
+
+  const handleCopyWhatsappText = (cand: StaffCandidate) => {
+    navigator.clipboard.writeText(getWhatsappSelectionText(cand));
+    setCopiedWhatsappText(true);
+    setTimeout(() => setCopiedWhatsappText(false), 2500);
   };
 
   // Filtered List
@@ -471,17 +625,12 @@ export function StaffRecruitmentModule() {
     });
   }, [candidates, activeTab, searchQuery]);
 
-  // Counts
-  const counts = useMemo(() => {
-    return {
-      all: candidates.length,
-      applied: candidates.filter(c => c.status === 'applied').length,
-      interview_scheduled: candidates.filter(c => c.status === 'interview_scheduled').length,
-      trial_period: candidates.filter(c => c.status === 'trial_period').length,
-      hired: candidates.filter(c => c.status === 'hired').length,
-      rejected: candidates.filter(c => c.status === 'rejected').length,
-    };
-  }, [candidates]);
+  // Stage Map
+  const stageMap = useMemo(() => {
+    const map = new Map<string, RecruitmentStage>();
+    stages.forEach(s => map.set(s.id, s));
+    return map;
+  }, [stages]);
 
   return (
     <div className="space-y-4">
@@ -494,18 +643,26 @@ export function StaffRecruitmentModule() {
                 <UserCheck size={20} />
               </span>
               <h2 className="text-lg font-bold text-paper flex items-center gap-2">
-                स्टाफ भर्ती, चयन व जॉइनिंग ERP
+                स्टाफ भर्ती, मल्टी-स्टेज चयन व ऑनबोर्डिंग ERP
                 <span className="text-[10px] bg-gold text-navy font-bold px-2 py-0.5 rounded-full">
-                  Hire & Onboard
+                  Hire-to-Pay Pipeline
                 </span>
               </h2>
             </div>
             <p className="text-xs text-paper/80 leading-relaxed max-w-2xl">
-              योग्य स्टाफ की खोज से लेकर इंटरव्यू, पिछला कार्य इतिहास, सैलरी व छुट्टी के नियम, दस्तावेज सत्यापन और 1-क्लिक पेरोल ट्रांसफर का संपूर्ण समाधान।
+              योग्य स्टाफ की खोज, कस्टम इंटरव्यू राउंड्स (Round 1, 2, स्किल टेस्ट), कब से स्टार्ट करना है (Joining Date), व्हाट्सएप सिलेक्शन लेटर और 1-क्लिक पेरोल ट्रांसफर।
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setIsNewStageModalOpen(true)}
+              className="px-3.5 py-2.5 bg-paper/10 border border-paper/20 text-gold-soft hover:text-gold font-bold text-xs rounded-xl hover:bg-paper/20 transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Layers size={14} />
+              <span>+ नया स्टेज बनाएं</span>
+            </button>
+
             <button
               onClick={() => {
                 resetForm();
@@ -518,62 +675,52 @@ export function StaffRecruitmentModule() {
             </button>
           </div>
         </div>
-
-        {/* Quick KPI Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4 pt-3 border-t border-paper/10 text-center">
-          <div className="bg-paper/5 p-2 rounded-xl">
-            <div className="text-[10px] text-paper/70">कुल उम्मीदवार</div>
-            <div className="text-base font-bold text-gold"><Mono>{counts.all}</Mono></div>
-          </div>
-          <div className="bg-paper/5 p-2 rounded-xl">
-            <div className="text-[10px] text-paper/70">📥 नए आवेदन</div>
-            <div className="text-base font-bold text-paper"><Mono>{counts.applied}</Mono></div>
-          </div>
-          <div className="bg-paper/5 p-2 rounded-xl">
-            <div className="text-[10px] text-paper/70">📅 इंटरव्यू तय</div>
-            <div className="text-base font-bold text-blue-300"><Mono>{counts.interview_scheduled}</Mono></div>
-          </div>
-          <div className="bg-paper/5 p-2 rounded-xl">
-            <div className="text-[10px] text-paper/70">⏳ ट्रायल पर</div>
-            <div className="text-base font-bold text-amber-300"><Mono>{counts.trial_period}</Mono></div>
-          </div>
-          <div className="bg-paper/5 p-2 rounded-xl col-span-2 sm:col-span-1">
-            <div className="text-[10px] text-paper/70">✅ नियुक्त (Hired)</div>
-            <div className="text-base font-bold text-emerald-400"><Mono>{counts.hired}</Mono></div>
-          </div>
-        </div>
       </div>
 
-      {/* Filter Tabs & Search */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+      {/* Dynamic Stage Tabs Switcher */}
+      <div className="flex flex-col gap-2">
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-          {[
-            { id: 'all', label: `सभी (${counts.all})` },
-            { id: 'applied', label: `📥 आवेदन (${counts.applied})` },
-            { id: 'interview_scheduled', label: `📅 इंटरव्यू (${counts.interview_scheduled})` },
-            { id: 'trial_period', label: `⏳ ट्रायल (${counts.trial_period})` },
-            { id: 'hired', label: `✅ नियुक्त (${counts.hired})` },
-            { id: 'rejected', label: `❌ रिजेक्ट (${counts.rejected})` },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                activeTab === tab.id
-                  ? 'bg-navy text-gold-soft shadow-sm'
-                  : 'bg-paper text-ink-muted hover:bg-paper-dim border border-paper-dim'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+              activeTab === 'all'
+                ? 'bg-navy text-gold-soft shadow-sm'
+                : 'bg-paper text-ink-muted hover:bg-paper-dim border border-paper-dim'
+            }`}
+          >
+            सभी उम्मीदवार ({candidates.length})
+          </button>
+
+          {stages.map(stage => {
+            const count = candidates.filter(c => c.status === stage.id).length;
+            const isActive = activeTab === stage.id;
+            return (
+              <button
+                key={stage.id}
+                onClick={() => setActiveTab(stage.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${
+                  isActive
+                    ? 'bg-navy text-gold-soft shadow-sm'
+                    : 'bg-paper text-ink-muted hover:bg-paper-dim border border-paper-dim'
+                }`}
+              >
+                <span>{stage.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  isActive ? 'bg-gold text-navy font-bold' : 'bg-paper-dim text-ink'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="relative min-w-[200px]">
+        {/* Search Bar */}
+        <div className="relative">
           <Search size={14} className="absolute left-3 top-2.5 text-ink-muted" />
           <input
             type="text"
-            placeholder="नाम, फोन या पद खोजें..."
+            placeholder="उम्मीदवार का नाम, फोन या पद खोजें..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-navy"
@@ -585,21 +732,19 @@ export function StaffRecruitmentModule() {
       {filteredCandidates.length === 0 ? (
         <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center space-y-2">
           <UserCheck size={36} className="mx-auto text-ink-muted opacity-40" />
-          <p className="text-sm font-bold text-ink">कोई उम्मीदवार रिकॉर्ड नहीं मिला</p>
+          <p className="text-sm font-bold text-ink">इस स्टेज में कोई उम्मीदवार नहीं मिला</p>
           <p className="text-xs text-ink-muted max-w-sm mx-auto">
-            नया स्टाफ भर्ती करने के लिए ऊपर दिए गए "+ नया स्टाफ भर्ती फॉर्म" बटन पर क्लिक करें।
+            उम्मीदवारों को इस स्टेज में लाने के लिए उनके कार्ड पर दिए गए "स्टेज बदलें" ड्रॉपडाउन का उपयोग करें।
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filteredCandidates.map(candidate => {
-            const statusConfig = {
-              applied: { label: 'आवेदन प्राप्त', bg: 'bg-slate-100 text-slate-700 border-slate-300' },
-              interview_scheduled: { label: 'इंटरव्यू शेड्यूल', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
-              trial_period: { label: `${candidate.trialDays || 3} दिन ट्रायल`, bg: 'bg-amber-50 text-amber-700 border-amber-200' },
-              hired: { label: 'नियुक्त (Hired)', bg: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
-              rejected: { label: 'अस्वीकृत', bg: 'bg-rose-50 text-rose-700 border-rose-200' },
-            }[candidate.status];
+            const currentStage = stageMap.get(candidate.status) || {
+              id: candidate.status,
+              label: candidate.status,
+              color: 'bg-slate-100 text-slate-700 border-slate-300'
+            };
 
             return (
               <div 
@@ -611,8 +756,8 @@ export function StaffRecruitmentModule() {
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-bold text-ink">{candidate.fullName}</h3>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusConfig.bg}`}>
-                        {statusConfig.label}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${currentStage.color}`}>
+                        {currentStage.label}
                       </span>
                     </div>
                     <div className="text-xs font-semibold text-gold-dark flex items-center gap-1.5">
@@ -637,10 +782,10 @@ export function StaffRecruitmentModule() {
                   </div>
                 </div>
 
-                {/* Key Details Pill Grid */}
+                {/* Key Details Grid */}
                 <div className="grid grid-cols-2 gap-2 text-xs bg-paper-dim/40 p-2.5 rounded-xl border border-paper-dim/60">
                   <div>
-                    <span className="text-[10px] text-ink-muted block">योग्यता / शिक्षा</span>
+                    <span className="text-[10px] text-ink-muted block">शैक्षणिक योग्यता</span>
                     <span className="font-semibold text-ink">
                       {candidate.qualification.replace('_', ' ').toUpperCase()}
                     </span>
@@ -650,40 +795,59 @@ export function StaffRecruitmentModule() {
                     <span className="font-semibold text-ink">
                       {candidate.hasPastExperience 
                         ? `${candidate.pastExperience?.durationMonths || 12} माह (${candidate.pastExperience?.role || 'अनुभवी'})` 
-                        : 'फ्रेशर (नया)'}
+                        : 'फ्रेशर'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-ink-muted block">काम के घंटे व शिफ्ट</span>
+                    <span className="text-[10px] text-ink-muted block">कार्य समय व शिफ्ट</span>
                     <span className="font-medium text-ink truncate block">
                       {candidate.workTerms.workShiftTimings}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-ink-muted block">साप्ताहिक व सवेतन छुट्टी</span>
+                    <span className="text-[10px] text-ink-muted block">साप्ताहिक अवकाश</span>
                     <span className="font-medium text-ink">
                       {candidate.workTerms.weeklyOffDay} ({candidate.workTerms.allowedPaidLeaves} दिन Paid)
                     </span>
                   </div>
                 </div>
 
-                {/* Document Status */}
-                <div className="flex items-center gap-3 text-[11px] text-ink-muted pt-1">
-                  <span className="flex items-center gap-1">
-                    <span className={`w-2 h-2 rounded-full ${candidate.kyc.hasAadharCopy ? 'bg-emerald-500' : 'bg-amber-400'}`} />
-                    आधार: {candidate.kyc.hasAadharCopy ? 'सत्यापित' : 'लंबित'}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className={`w-2 h-2 rounded-full ${candidate.kyc.hasPoliceVerification ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                    पुलिस वेरिफिकेशन: {candidate.kyc.hasPoliceVerification ? 'हाँ' : 'नहीं'}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className={`w-2 h-2 rounded-full ${candidate.kyc.hasPhoto ? 'bg-emerald-500' : 'bg-amber-400'}`} />
-                    फोटो जमा
-                  </span>
+                {/* Joining Details if Hired */}
+                {candidate.status === 'hired' && candidate.workTerms.joiningDate && (
+                  <div className="bg-emerald-50 border border-emerald-200 p-2 rounded-xl text-xs text-emerald-900 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-emerald-700 block">काम शुरू करने की तारीख (Joining):</span>
+                      <span className="font-bold">{candidate.workTerms.joiningDate} ({candidate.workTerms.reportingTime || 'सुबह 9:30'})</span>
+                    </div>
+                    <button
+                      onClick={() => handleSendWhatsappSelection(candidate)}
+                      className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 hover:bg-emerald-700"
+                    >
+                      <Send size={11} />
+                      <span>WhatsApp स्लिप</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Stage Selector Dropdown */}
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-[11px] font-bold text-ink-muted">स्टेज बदलें:</span>
+                  <div className="relative flex-1 max-w-[240px]">
+                    <select
+                      value={candidate.status}
+                      onChange={e => handleMoveCandidateStage(candidate.id, e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs font-semibold text-ink focus:outline-none focus:border-navy cursor-pointer"
+                    >
+                      {stages.map(stg => (
+                        <option key={stg.id} value={stg.id}>
+                          {stg.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* Bottom Bar Actions */}
                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-paper-dim">
                   <div className="flex items-center gap-2">
                     <a
@@ -693,6 +857,7 @@ export function StaffRecruitmentModule() {
                       <Phone size={12} className="text-emerald-600" />
                       <span>कॉल</span>
                     </a>
+
                     <button
                       onClick={() => {
                         setCandidateForOffer(candidate);
@@ -709,7 +874,7 @@ export function StaffRecruitmentModule() {
                     onClick={() => setSelectedCandidate(candidate)}
                     className="px-3 py-1.5 bg-navy text-gold-soft rounded-lg text-xs font-bold hover:bg-navy-light flex items-center gap-1 cursor-pointer"
                   >
-                    <span>विस्तार व भर्ती</span>
+                    <span>विस्तार व फाइल</span>
                     <ChevronRight size={13} />
                   </button>
                 </div>
@@ -720,12 +885,185 @@ export function StaffRecruitmentModule() {
       )}
 
       {/* ========================================================
-          MODAL 1: ADD NEW STAFF APPLICATION (4-STEP FORM)
+          MODAL 1: ADD NEW STAGE (DYNAMIC STAGE CREATION)
+         ======================================================== */}
+      {isNewStageModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm">
+          <div className="bg-paper border border-paper-dim rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-paper-dim pb-3">
+              <div className="flex items-center gap-2">
+                <Layers size={18} className="text-gold" />
+                <h3 className="text-sm font-bold text-ink">नया इंटरव्यू / चयन स्टेज बनाएं</h3>
+              </div>
+              <button onClick={() => setIsNewStageModalOpen(false)} className="text-ink-muted hover:text-ink">
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-ink-muted leading-relaxed">
+              अपनी ज़रूरत के अनुसार नया राउंड जोड़ें (जैसे: "मशीन ऑपरेटर स्किल टेस्ट", "दुकानदार फाइनल राउंड", "ड्राइविंग टेस्ट" आदि)। यह तुरंत ऊपर फ़िल्टर टैब व ड्रॉपडाउन में उपलब्ध हो जाएगा।
+            </p>
+
+            <form onSubmit={handleAddNewStage} className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-ink block mb-1">
+                  स्टेज का नाम (Stage Name) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="जैसे: राउंड 3: व्यावहारिक काम टेस्ट"
+                  value={newStageName}
+                  onChange={e => setNewStageName(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsNewStageModalOpen(false)}
+                  className="px-4 py-2 bg-paper border border-paper-dim text-xs font-bold text-ink rounded-xl"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-navy text-gold-soft text-xs font-bold rounded-xl shadow"
+                >
+                  स्टेज सुरक्षित करें
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL 2: FINAL SELECTION, JOINING DATE & WHATSAPP SLIP
+         ======================================================== */}
+      {isHiringModalOpen && candidateToHire && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-paper border border-paper-dim rounded-2xl w-full max-w-lg my-6 shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-paper-dim pb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={18} className="text-emerald-600" />
+                <div>
+                  <h3 className="text-sm font-bold text-ink">अंतिम चयन व जॉइनिंग कन्फर्मेशन</h3>
+                  <p className="text-[11px] text-ink-muted">{candidateToHire.fullName} • {candidateToHire.workTerms.targetRole}</p>
+                </div>
+              </div>
+              <button onClick={() => setIsHiringModalOpen(false)} className="text-ink-muted hover:text-ink">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-ink block mb-1">
+                    कब से काम शुरू करना है (Joining Date) *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={hireJoiningDate}
+                    onChange={e => setHireJoiningDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-ink block mb-1">
+                    रिपोर्टिंग समय (Reporting Time)
+                  </label>
+                  <input
+                    type="text"
+                    value={hireReportingTime}
+                    onChange={e => setHireReportingTime(e.target.value)}
+                    className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-ink block mb-1">
+                  किसको रिपोर्ट करना है (Supervisor / Contact Person)
+                </label>
+                <input
+                  type="text"
+                  value={hireSupervisor}
+                  onChange={e => setHireSupervisor(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-ink block mb-1">
+                  पहले दिन साथ लाने वाले दस्तावेज़
+                </label>
+                <input
+                  type="text"
+                  value={hireRequiredDocs}
+                  onChange={e => setHireRequiredDocs(e.target.value)}
+                  className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                />
+              </div>
+
+              {/* WhatsApp Message Preview */}
+              <div className="bg-paper-dim/40 border border-paper-dim p-3 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-ink-muted uppercase">व्हाट्सएप सिलेक्शन लेटर प्रीव्यू</span>
+                  <button
+                    onClick={() => handleCopyWhatsappText(candidateToHire)}
+                    className="text-[11px] text-navy font-bold flex items-center gap-1 hover:underline"
+                  >
+                    {copiedWhatsappText ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                    <span>{copiedWhatsappText ? 'कॉपी हो गया' : 'टेक्स्ट कॉपी करें'}</span>
+                  </button>
+                </div>
+                <div className="bg-paper p-2.5 rounded-lg border border-paper-dim text-[11px] font-sans text-ink leading-relaxed whitespace-pre-wrap max-h-36 overflow-y-auto">
+                  {getWhatsappSelectionText(candidateToHire)}
+                </div>
+              </div>
+
+              {/* WhatsApp Send Action */}
+              <button
+                onClick={() => handleSendWhatsappSelection(candidateToHire)}
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow cursor-pointer"
+              >
+                <Send size={14} />
+                <span>उम्मीदवार को सीधे WhatsApp पर सिलेक्शन लेटर भेजें</span>
+              </button>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-paper-dim">
+              <button
+                type="button"
+                onClick={() => setIsHiringModalOpen(false)}
+                className="px-4 py-2 bg-paper border border-paper-dim text-xs font-bold text-ink rounded-xl"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmFinalSelection}
+                className="px-5 py-2 bg-navy text-gold-soft text-xs font-bold rounded-xl shadow flex items-center gap-1.5"
+              >
+                <CheckCircle2 size={14} />
+                <span>नियुक्त करें व एक्टिव पेरोल में जोड़ें</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL 3: ADD NEW STAFF CANDIDATE FORM (4-STEP)
          ======================================================== */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <div className="bg-paper border border-paper-dim rounded-2xl w-full max-w-2xl my-6 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-            {/* Modal Header */}
             <div className="px-5 py-3.5 bg-navy text-paper flex items-center justify-between border-b border-gold/20">
               <div className="flex items-center gap-2">
                 <UserPlus size={18} className="text-gold" />
@@ -739,7 +1077,6 @@ export function StaffRecruitmentModule() {
               </button>
             </div>
 
-            {/* Stepper Tabs */}
             <div className="grid grid-cols-4 bg-paper-dim/40 border-b border-paper-dim text-xs font-semibold text-center py-2">
               <button 
                 onClick={() => setFormStep(1)}
@@ -767,9 +1104,8 @@ export function StaffRecruitmentModule() {
               </button>
             </div>
 
-            {/* Form Content */}
             <form onSubmit={handleSaveCandidate} className="p-5 overflow-y-auto space-y-4 flex-1">
-              {/* STEP 1: Personal & Addresses */}
+              {/* STEP 1 */}
               {formStep === 1 && (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -804,38 +1140,32 @@ export function StaffRecruitmentModule() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="text-xs font-bold text-ink block mb-1">
-                        व्हाट्सएप नंबर
-                      </label>
+                      <label className="text-xs font-bold text-ink block mb-1">व्हाट्सएप नंबर</label>
                       <input
                         type="tel"
                         placeholder="WhatsApp नंबर"
                         value={whatsapp}
                         onChange={e => setWhatsapp(e.target.value)}
-                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-ink block mb-1">
-                        जन्म तिथि (Date of Birth)
-                      </label>
+                      <label className="text-xs font-bold text-ink block mb-1">जन्म तिथि (DOB)</label>
                       <input
                         type="date"
                         value={dob}
                         onChange={e => setDob(e.target.value)}
-                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-ink block mb-1">
-                        लिंग (Gender)
-                      </label>
+                      <label className="text-xs font-bold text-ink block mb-1">लिंग (Gender)</label>
                       <select
                         value={gender}
                         onChange={e => setGender(e.target.value as any)}
-                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                       >
                         <option value="male">पुरुष (Male)</option>
                         <option value="female">महिला (Female)</option>
@@ -864,7 +1194,7 @@ export function StaffRecruitmentModule() {
                       </label>
                       <textarea
                         rows={2}
-                        placeholder="यदि बाहर के हैं तो मूल गाँव, पोस्ट, तहसील, जिला (अन्यथा स्थानीय जैसा)"
+                        placeholder="यदि बाहर के हैं तो मूल गाँव, पोस्ट, तहसील, जिला"
                         value={permanentAddress}
                         onChange={e => setPermanentAddress(e.target.value)}
                         className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
@@ -885,7 +1215,7 @@ export function StaffRecruitmentModule() {
                 </div>
               )}
 
-              {/* STEP 2: Qualification & Past Experience */}
+              {/* STEP 2 */}
               {formStep === 2 && (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -918,12 +1248,11 @@ export function StaffRecruitmentModule() {
                         placeholder="जैसे: टैली, ड्राइविंग, इलेक्ट्रिक काम, खाना बनाना"
                         value={qualificationDetails}
                         onChange={e => setQualificationDetails(e.target.value)}
-                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                       />
                     </div>
                   </div>
 
-                  {/* Past Experience Toggle */}
                   <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -969,22 +1298,17 @@ export function StaffRecruitmentModule() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <div>
-                            <label className="text-[11px] font-bold text-ink block mb-1">
-                              पिछला पद / कार्य
-                            </label>
+                            <label className="text-[11px] font-bold text-ink block mb-1">पिछला पद</label>
                             <input
                               type="text"
-                              placeholder="जैसे: सेल्समैन / हेल्पर"
+                              placeholder="सेल्समैन / हेल्पर"
                               value={prevRole}
                               onChange={e => setPrevRole(e.target.value)}
                               className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                             />
                           </div>
-
                           <div>
-                            <label className="text-[11px] font-bold text-ink block mb-1">
-                              काम का समय (महीने)
-                            </label>
+                            <label className="text-[11px] font-bold text-ink block mb-1">समय (महीने)</label>
                             <input
                               type="number"
                               placeholder="जैसे: 24"
@@ -993,11 +1317,8 @@ export function StaffRecruitmentModule() {
                               className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                             />
                           </div>
-
                           <div>
-                            <label className="text-[11px] font-bold text-ink block mb-1">
-                              अंतिम सैलरी (₹)
-                            </label>
+                            <label className="text-[11px] font-bold text-ink block mb-1">अंतिम सैलरी (₹)</label>
                             <input
                               type="number"
                               placeholder="जैसे: 12000"
@@ -1010,11 +1331,11 @@ export function StaffRecruitmentModule() {
 
                         <div>
                           <label className="text-[11px] font-bold text-ink block mb-1">
-                            पिछली नौकरी छोड़ने का कारण (Reason for Leaving)
+                            नौकरी छोड़ने का कारण
                           </label>
                           <input
                             type="text"
-                            placeholder="जैसे: वेतन वृद्धि, दूरी, या दुकान बंद होना"
+                            placeholder="कारण लिखें"
                             value={reasonForLeaving}
                             onChange={e => setReasonForLeaving(e.target.value)}
                             className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
@@ -1023,25 +1344,18 @@ export function StaffRecruitmentModule() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="text-[11px] font-bold text-ink block mb-1">
-                              गारंटर / पूर्व मालिक संदर्भ नाम
-                            </label>
+                            <label className="text-[11px] font-bold text-ink block mb-1">रेफरेंस व्यक्ति नाम</label>
                             <input
                               type="text"
-                              placeholder="रेफरेंस व्यक्ति का नाम"
                               value={referenceContactName}
                               onChange={e => setReferenceContactName(e.target.value)}
                               className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                             />
                           </div>
-
                           <div>
-                            <label className="text-[11px] font-bold text-ink block mb-1">
-                              गारंटर / संदर्भ फोन नंबर
-                            </label>
+                            <label className="text-[11px] font-bold text-ink block mb-1">रेफरेंस फोन नंबर</label>
                             <input
                               type="tel"
-                              placeholder="सत्यापन हेतु फोन नंबर"
                               value={referenceContactPhone}
                               onChange={e => setReferenceContactPhone(e.target.value)}
                               className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
@@ -1072,7 +1386,7 @@ export function StaffRecruitmentModule() {
                 </div>
               )}
 
-              {/* STEP 3: Work Terms, Salary, Leaves, Shift */}
+              {/* STEP 3 */}
               {formStep === 3 && (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1083,7 +1397,7 @@ export function StaffRecruitmentModule() {
                       <input
                         type="text"
                         required
-                        placeholder="जैसे: सेल्समैन, ड्राइवर, कुक, हेल्पर, मुंशी"
+                        placeholder="जैसे: सेल्समैन, ड्राइवर, कुक, हेल्पर"
                         value={targetRole}
                         onChange={e => setTargetRole(e.target.value)}
                         className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
@@ -1091,15 +1405,13 @@ export function StaffRecruitmentModule() {
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-ink block mb-1">
-                        विभाग / दुकान शाखा
-                      </label>
+                      <label className="text-xs font-bold text-ink block mb-1">विभाग / शाखा</label>
                       <input
                         type="text"
-                        placeholder="जैसे: मुख्य दुकान, गोदाम, घरेलू"
+                        placeholder="जैसे: मुख्य दुकान, गोदाम"
                         value={department}
                         onChange={e => setDepartment(e.target.value)}
-                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                       />
                     </div>
                   </div>
@@ -1110,22 +1422,20 @@ export function StaffRecruitmentModule() {
                     </label>
                     <textarea
                       rows={2}
-                      placeholder="दैनिक क्या काम करना रहेगा, जैसे ग्राहकों को संभालना, सफाई, बिलिंग, लोडिंग..."
+                      placeholder="दैनिक काम विवरण"
                       value={workResponsibilities}
                       onChange={e => setWorkResponsibilities(e.target.value)}
-                      className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="text-xs font-bold text-ink block mb-1">
-                        वेतन मॉडल (Salary Model)
-                      </label>
+                      <label className="text-xs font-bold text-ink block mb-1">वेतन मॉडल</label>
                       <select
                         value={wageModel}
                         onChange={e => setWageModel(e.target.value as any)}
-                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                       >
                         <option value="monthly_fixed">मासिक तय वेतन (Monthly Fixed)</option>
                         <option value="daily_wage">दैनिक मजदूरी (Daily Wage)</option>
@@ -1135,134 +1445,72 @@ export function StaffRecruitmentModule() {
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-ink block mb-1">
-                        प्रस्तावित वेतन (₹ Amount) *
-                      </label>
+                      <label className="text-xs font-bold text-ink block mb-1">प्रस्तावित वेतन (₹) *</label>
                       <input
                         type="number"
                         required
                         placeholder="जैसे: 14000"
                         value={proposedSalary}
                         onChange={e => setProposedSalary(e.target.value ? Number(e.target.value) : '')}
-                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink font-bold text-emerald-700"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-ink block mb-1">
-                        सैलरी भुगतान तारीख
-                      </label>
+                      <label className="text-xs font-bold text-ink block mb-1">सैलरी भुगतान तारीख</label>
                       <input
                         type="text"
-                        placeholder="जैसे: हर माह 7 तारीख को"
                         value={salaryPaymentDate}
                         onChange={e => setSalaryPaymentDate(e.target.value)}
-                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                       />
                     </div>
                   </div>
 
-                  {/* Shift & Leaves Policy */}
-                  <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim space-y-3">
+                  <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim space-y-2">
                     <h4 className="text-xs font-bold text-ink flex items-center gap-1.5">
                       <Clock size={14} className="text-gold-dark" />
-                      <span>कार्य समय व छुट्टी के स्पष्ट नियम (Work Timings & Leave Rules)</span>
+                      <span>कार्य समय व छुट्टी के नियम</span>
                     </h4>
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[11px] font-bold text-ink block mb-1">
-                          दुकान / काम का समय (Shift Hours)
-                        </label>
+                        <label className="text-[11px] font-bold text-ink block mb-1">दुकान / कार्य समय (Shift)</label>
                         <input
                           type="text"
-                          placeholder="जैसे: सुबह 9:00 से शाम 8:30 बजे तक"
                           value={workShiftTimings}
                           onChange={e => setWorkShiftTimings(e.target.value)}
                           className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                         />
                       </div>
-
                       <div>
-                        <label className="text-[11px] font-bold text-ink block mb-1">
-                          साप्ताहिक छुट्टी कब रहेगी? (Weekly Off)
-                        </label>
+                        <label className="text-[11px] font-bold text-ink block mb-1">साप्ताहिक अवकाश</label>
                         <input
                           type="text"
-                          placeholder="जैसे: रविवार या मंगलवार"
                           value={weeklyOffDay}
                           onChange={e => setWeeklyOffDay(e.target.value)}
                           className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                         />
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3 pt-1">
                       <div>
-                        <label className="text-[11px] font-bold text-ink block mb-1">
-                          स्वीकृत पेड छुट्टी (प्रति माह)
-                        </label>
+                        <label className="text-[11px] font-bold text-ink block mb-1">स्वीकृत सवेतन छुट्टी (Paid Leaves)</label>
                         <input
                           type="number"
-                          placeholder="जैसे: 2 दिन"
                           value={allowedPaidLeaves}
                           onChange={e => setAllowedPaidLeaves(Number(e.target.value))}
                           className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                         />
                       </div>
-
                       <div>
-                        <label className="text-[11px] font-bold text-ink block mb-1">
-                          अधिकतम लगातार छुट्टी
-                        </label>
+                        <label className="text-[11px] font-bold text-ink block mb-1">नोटिस पीरियड (दिन)</label>
                         <input
                           type="number"
-                          placeholder="जैसे: 2 दिन"
-                          value={maxConsecutiveLeaves}
-                          onChange={e => setMaxConsecutiveLeaves(Number(e.target.value))}
-                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-bold text-ink block mb-1">
-                          नोटिस पीरियड (दिन)
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="जैसे: 15 दिन"
                           value={noticePeriodDays}
                           onChange={e => setNoticePeriodDays(Number(e.target.value))}
                           className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                         />
                       </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3 pt-1">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={deductLeaveSalary}
-                          onChange={e => setDeductLeaveSalary(e.target.checked)}
-                          className="w-4 h-4 accent-navy rounded"
-                        />
-                        <span className="text-xs font-semibold text-ink">
-                          स्वीकृत छुट्टी से अधिक छुट्टी पर वेतन कटेगा (Leave Salary Deduction)
-                        </span>
-                      </label>
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-bold text-ink block mb-1">
-                        एडवांस वेतन लेने के नियम
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="जैसे: 15 दिन काम होने के बाद ही अधिकतम 50% एडवांस देय"
-                        value={advancePolicy}
-                        onChange={e => setAdvancePolicy(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
-                      />
                     </div>
                   </div>
 
@@ -1286,7 +1534,7 @@ export function StaffRecruitmentModule() {
                 </div>
               )}
 
-              {/* STEP 4: KYC & Document Checklist */}
+              {/* STEP 4 */}
               {formStep === 4 && (
                 <div className="space-y-3">
                   <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim space-y-3">
@@ -1297,9 +1545,7 @@ export function StaffRecruitmentModule() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[11px] font-bold text-ink block mb-1">
-                          आधार कार्ड नंबर
-                        </label>
+                        <label className="text-[11px] font-bold text-ink block mb-1">आधार कार्ड नंबर</label>
                         <input
                           type="text"
                           placeholder="12 अंकों का आधार"
@@ -1308,11 +1554,8 @@ export function StaffRecruitmentModule() {
                           className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
                         />
                       </div>
-
                       <div>
-                        <label className="text-[11px] font-bold text-ink block mb-1">
-                          पैन कार्ड नंबर (यदि उपलब्ध हो)
-                        </label>
+                        <label className="text-[11px] font-bold text-ink block mb-1">पैन कार्ड नंबर</label>
                         <input
                           type="text"
                           placeholder="10 अंकों का पैन"
@@ -1337,21 +1580,11 @@ export function StaffRecruitmentModule() {
                       <label className="flex items-center gap-2 cursor-pointer bg-paper p-2 rounded-lg border border-paper-dim">
                         <input
                           type="checkbox"
-                          checked={hasPanCopy}
-                          onChange={e => setHasPanCopy(e.target.checked)}
-                          className="w-4 h-4 accent-navy rounded"
-                        />
-                        <span className="font-semibold text-ink">पैन कॉपी जमा</span>
-                      </label>
-
-                      <label className="flex items-center gap-2 cursor-pointer bg-paper p-2 rounded-lg border border-paper-dim">
-                        <input
-                          type="checkbox"
                           checked={hasPhoto}
                           onChange={e => setHasPhoto(e.target.checked)}
                           className="w-4 h-4 accent-navy rounded"
                         />
-                        <span className="font-semibold text-ink">पासपोर्ट फोटो (2)</span>
+                        <span className="font-semibold text-ink">2 पासपोर्ट फोटो</span>
                       </label>
 
                       <label className="flex items-center gap-2 cursor-pointer bg-paper p-2 rounded-lg border border-paper-dim">
@@ -1361,28 +1594,15 @@ export function StaffRecruitmentModule() {
                           onChange={e => setHasPoliceVerification(e.target.checked)}
                           className="w-4 h-4 accent-navy rounded"
                         />
-                        <span className="font-semibold text-ink">पुलिस सत्यापन</span>
-                      </label>
-
-                      <label className="flex items-center gap-2 cursor-pointer bg-paper p-2 rounded-lg border border-paper-dim">
-                        <input
-                          type="checkbox"
-                          checked={hasAddressProof}
-                          onChange={e => setHasAddressProof(e.target.checked)}
-                          className="w-4 h-4 accent-navy rounded"
-                        />
-                        <span className="font-semibold text-ink">राशन / वोटर आईडी</span>
+                        <span className="font-semibold text-ink">पुलिस वेरिफिकेशन</span>
                       </label>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       <div>
-                        <label className="text-[11px] font-bold text-ink block mb-1">
-                          ड्राइविंग लाइसेंस (ड्राइवर/डिलीवरी हेतु)
-                        </label>
+                        <label className="text-[11px] font-bold text-ink block mb-1">ड्राइविंग लाइसेंस</label>
                         <input
                           type="text"
-                          placeholder="लाइसेंस नंबर"
                           value={drivingLicense}
                           onChange={e => setDrivingLicense(e.target.value)}
                           className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
@@ -1390,12 +1610,9 @@ export function StaffRecruitmentModule() {
                       </div>
 
                       <div>
-                        <label className="text-[11px] font-bold text-ink block mb-1">
-                          सैलरी हेतु बैंक खाता / UPI ID
-                        </label>
+                        <label className="text-[11px] font-bold text-ink block mb-1">सैलरी खाता / UPI ID</label>
                         <input
                           type="text"
-                          placeholder="UPI ID या बैंक खाता"
                           value={upiId}
                           onChange={e => setUpiId(e.target.value)}
                           className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
@@ -1428,7 +1645,7 @@ export function StaffRecruitmentModule() {
       )}
 
       {/* ========================================================
-          MODAL 2: CANDIDATE DOSSIER & RECRUITMENT ACTIONS
+          MODAL 4: CANDIDATE DOSSIER
          ======================================================== */}
       {selectedCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm overflow-y-auto">
@@ -1443,72 +1660,36 @@ export function StaffRecruitmentModule() {
                   </p>
                 </div>
               </div>
-              <button 
-                onClick={() => setSelectedCandidate(null)}
-                className="text-paper/70 hover:text-paper p-1 rounded-lg"
-              >
+              <button onClick={() => setSelectedCandidate(null)} className="text-paper/70 hover:text-paper p-1 rounded-lg">
                 <X size={18} />
               </button>
             </div>
 
             <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
-              {/* Status Update Quick Bar */}
-              <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim space-y-2">
-                <span className="text-[11px] font-bold text-ink block">
-                  भर्ती स्थिति बदलें (Update Recruitment Stage):
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => handleUpdateStatus(selectedCandidate.id, 'interview_scheduled')}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
-                      selectedCandidate.status === 'interview_scheduled'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-paper border border-paper-dim text-blue-700 hover:bg-blue-50'
-                    }`}
-                  >
-                    <Calendar size={13} />
-                    <span>इंटरव्यू शेड्यूल</span>
-                  </button>
+              {/* Stage Selector in Modal */}
+              <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-[10px] text-ink-muted uppercase font-bold block">वर्तमान स्टेज:</span>
+                  <span className="font-bold text-navy text-sm">
+                    {stageMap.get(selectedCandidate.status)?.label || selectedCandidate.status}
+                  </span>
+                </div>
 
-                  <button
-                    onClick={() => handleUpdateStatus(selectedCandidate.id, 'trial_period', { trialDays: 3 })}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
-                      selectedCandidate.status === 'trial_period'
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-paper border border-paper-dim text-amber-700 hover:bg-amber-50'
-                    }`}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-ink">स्टेज बदलें:</span>
+                  <select
+                    value={selectedCandidate.status}
+                    onChange={e => handleMoveCandidateStage(selectedCandidate.id, e.target.value)}
+                    className="px-3 py-1.5 bg-paper border border-paper-dim rounded-xl font-bold text-navy focus:outline-none"
                   >
-                    <Clock size={13} />
-                    <span>3 दिन ट्रायल काम</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleUpdateStatus(selectedCandidate.id, 'hired')}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
-                      selectedCandidate.status === 'hired'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-paper border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                    }`}
-                  >
-                    <CheckCircle2 size={13} />
-                    <span>✅ नियुक्त करें (Hire & Sync Payroll)</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleUpdateStatus(selectedCandidate.id, 'rejected')}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
-                      selectedCandidate.status === 'rejected'
-                        ? 'bg-rose-600 text-white'
-                        : 'bg-paper border border-rose-300 text-rose-700 hover:bg-rose-50'
-                    }`}
-                  >
-                    <X size={13} />
-                    <span>अस्वीकृत</span>
-                  </button>
+                    {stages.map(stg => (
+                      <option key={stg.id} value={stg.id}>{stg.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* Dossier Sections */}
+              {/* Dossier Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-paper border border-paper-dim p-3 rounded-xl space-y-1.5">
                   <span className="text-[10px] font-bold text-ink-muted uppercase block">स्थानीय व मूल पता</span>
@@ -1533,10 +1714,6 @@ export function StaffRecruitmentModule() {
                   <div className="text-ink flex justify-between">
                     <span>साप्ताहिक छुट्टी:</span>
                     <span className="font-semibold text-emerald-700">{selectedCandidate.workTerms.weeklyOffDay}</span>
-                  </div>
-                  <div className="text-ink flex justify-between">
-                    <span>सवेतन छुट्टी:</span>
-                    <span>{selectedCandidate.workTerms.allowedPaidLeaves} दिन / माह</span>
                   </div>
                 </div>
               </div>
@@ -1566,38 +1743,10 @@ export function StaffRecruitmentModule() {
                     <span className="text-[10px] text-ink-muted block">नौकरी छोड़ने का कारण:</span>
                     <span className="text-ink">{selectedCandidate.pastExperience.reasonForLeaving || 'एन/ए'}</span>
                   </div>
-                  {selectedCandidate.pastExperience.referenceContactPhone && (
-                    <div className="text-[11px] text-ink-muted pt-1">
-                      रेफरेंस संपर्क: <span className="font-semibold text-ink">{selectedCandidate.pastExperience.referenceContactName} ({selectedCandidate.pastExperience.referenceContactPhone})</span>
-                    </div>
-                  )}
                 </div>
               )}
-
-              {/* Document Status */}
-              <div className="bg-paper border border-paper-dim p-3.5 rounded-xl space-y-2">
-                <span className="text-[11px] font-bold text-ink flex items-center gap-1.5">
-                  <ShieldCheck size={14} className="text-emerald-600" />
-                  <span>दस्तावेज़ व पहचान सत्यापन (KYC Status)</span>
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <div className="bg-paper-dim/40 p-2 rounded-lg">
-                    <span className="text-[10px] text-ink-muted block">आधार संख्या:</span>
-                    <span className="font-semibold text-ink">{selectedCandidate.kyc.aadharNumber || 'अप्राप्त'}</span>
-                  </div>
-                  <div className="bg-paper-dim/40 p-2 rounded-lg">
-                    <span className="text-[10px] text-ink-muted block">पैन कार्ड:</span>
-                    <span className="font-semibold text-ink">{selectedCandidate.kyc.panNumber || 'एन/ए'}</span>
-                  </div>
-                  <div className="bg-paper-dim/40 p-2 rounded-lg">
-                    <span className="text-[10px] text-ink-muted block">सैलरी खाता / UPI:</span>
-                    <span className="font-semibold text-ink">{selectedCandidate.kyc.upiId || selectedCandidate.kyc.bankAccountNumber || 'कैश'}</span>
-                  </div>
-                </div>
-              </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="px-5 py-3 bg-paper-dim/40 border-t border-paper-dim flex items-center justify-between">
               <button
                 onClick={() => {
@@ -1607,7 +1756,7 @@ export function StaffRecruitmentModule() {
                 className="px-3 py-2 bg-navy text-gold-soft font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
               >
                 <FileText size={14} />
-                <span>जॉइनिंग सहमति पत्र प्रिंट / शेयर करें</span>
+                <span>जॉइनिंग पत्र प्रिंट करें</span>
               </button>
 
               <button
@@ -1622,7 +1771,7 @@ export function StaffRecruitmentModule() {
       )}
 
       {/* ========================================================
-          MODAL 3: PRINTABLE JOINING AGREEMENT / OFFER LETTER
+          MODAL 5: PRINTABLE JOINING AGREEMENT / OFFER LETTER
          ======================================================== */}
       {isOfferLetterOpen && candidateForOffer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm overflow-y-auto">
@@ -1632,33 +1781,24 @@ export function StaffRecruitmentModule() {
                 <FileText size={18} className="text-gold" />
                 <h3 className="text-sm font-bold">स्टाफ नियुक्ति व सहमति पत्र (Joining Letter)</h3>
               </div>
-              <button 
-                onClick={() => setIsOfferLetterOpen(false)}
-                className="text-paper/70 hover:text-paper"
-              >
+              <button onClick={() => setIsOfferLetterOpen(false)} className="text-paper/70 hover:text-paper">
                 <X size={18} />
               </button>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4 flex-1 text-ink text-xs font-sans bg-white">
-              {/* Letter Header */}
               <div className="text-center border-b pb-3 border-gray-200 space-y-1">
                 <h2 className="text-base font-bold text-gray-900 uppercase tracking-wide">
                   व्यापारिक प्रतिष्ठान / स्टाफ सेवा अनुबंध
                 </h2>
-                <p className="text-[11px] text-gray-600">
-                  (कर्मचारी नियुक्ति पत्र एवं सेवा नियम सहमति पत्र)
-                </p>
+                <p className="text-[11px] text-gray-600">(कर्मचारी नियुक्ति पत्र एवं सेवा नियम सहमति पत्र)</p>
                 <p className="text-[10px] text-gray-500">तारीख: {new Date().toLocaleDateString('hi-IN')}</p>
               </div>
 
-              <div className="space-y-2">
-                <p>
-                  यह सहमति पत्र <strong>प्रतिष्ठान प्रबंधक</strong> एवं श्री/सुश्री <strong>{candidateForOffer.fullName}</strong> (आत्मज/आत्मजा: {candidateForOffer.gender === 'male' ? 'श्री' : 'श्रीमती'}, फोन: {candidateForOffer.phone}) के मध्य निष्पादित किया जाता है।
-                </p>
-              </div>
+              <p>
+                यह सहमति पत्र <strong>प्रतिष्ठान प्रबंधक</strong> एवं श्री/सुश्री <strong>{candidateForOffer.fullName}</strong> (फोन: {candidateForOffer.phone}) के मध्य निष्पादित किया जाता है।
+              </p>
 
-              {/* Terms Table */}
               <table className="w-full border-collapse border border-gray-300 text-[11px]">
                 <tbody>
                   <tr className="border-b border-gray-300">
@@ -1672,8 +1812,8 @@ export function StaffRecruitmentModule() {
                     </td>
                   </tr>
                   <tr className="border-b border-gray-300">
-                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">वेतन भुगतान तारीख</td>
-                    <td className="p-2">{candidateForOffer.workTerms.salaryPaymentDate || 'प्रत्येक माह की 7 तारीख'}</td>
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">काम शुरू करने की तारीख</td>
+                    <td className="p-2 font-semibold text-emerald-800">{candidateForOffer.workTerms.joiningDate || 'तत्काल'}</td>
                   </tr>
                   <tr className="border-b border-gray-300">
                     <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">दैनिक कार्य समय (Shift)</td>
@@ -1689,14 +1829,6 @@ export function StaffRecruitmentModule() {
                       माह में अधिकतम {candidateForOffer.workTerms.allowedPaidLeaves} दिन सवेतन छुट्टी स्वीकृत। अतिरिक्त अनुपस्थिति पर वेतन कटौती लागू होगी।
                     </td>
                   </tr>
-                  <tr className="border-b border-gray-300">
-                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">एडवांस पॉलिसी</td>
-                    <td className="p-2">{candidateForOffer.workTerms.advancePolicy || '15 दिन कार्य उपरांत ही स्वीकृत'}</td>
-                  </tr>
-                  <tr className="border-b border-gray-300">
-                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">नोटिस पीरियड</td>
-                    <td className="p-2">{candidateForOffer.workTerms.noticePeriodDays} दिन पूर्व सूचना देना अनिवार्य है।</td>
-                  </tr>
                   <tr>
                     <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">आधार सत्यापन</td>
                     <td className="p-2">{candidateForOffer.kyc.aadharNumber || 'सत्यापित आधार संलग्न'}</td>
@@ -1704,25 +1836,13 @@ export function StaffRecruitmentModule() {
                 </tbody>
               </table>
 
-              <div className="space-y-1 text-[11px] text-gray-700 bg-gray-50 p-2.5 rounded border border-gray-200">
-                <p className="font-bold">घोषणा:</p>
-                <p>
-                  मैंने उपरोक्त सभी सेवा नियमों, कार्य समय, अवकाश व वेतन शर्तों को अच्छी तरह पढ़ व समझ लिया है और मैं ईमानदारी पूर्वक अपने दायित्वों का निर्वहन करने की सहमति देता/देती हूँ।
-                </p>
-              </div>
-
-              {/* Signature Blocks */}
               <div className="grid grid-cols-2 gap-8 pt-8 text-center text-xs">
                 <div>
-                  <div className="border-t border-gray-400 pt-1 font-bold">
-                    हस्ताक्षर: कर्मचारी / स्टाफ
-                  </div>
+                  <div className="border-t border-gray-400 pt-1 font-bold">हस्ताक्षर: कर्मचारी / स्टाफ</div>
                   <div className="text-[10px] text-gray-500">({candidateForOffer.fullName})</div>
                 </div>
                 <div>
-                  <div className="border-t border-gray-400 pt-1 font-bold">
-                    हस्ताक्षर व सील: फर्म / मालिक
-                  </div>
+                  <div className="border-t border-gray-400 pt-1 font-bold">हस्ताक्षर व सील: फर्म / मालिक</div>
                   <div className="text-[10px] text-gray-500">(अधिकृत हस्ताक्षरकर्ता)</div>
                 </div>
               </div>
