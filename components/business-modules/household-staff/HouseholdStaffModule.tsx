@@ -5,10 +5,11 @@ import {
   Users, Plus, Calendar, Check, X, Clock, Trash2, DollarSign, 
   Banknote, Smartphone, CheckCircle2, History, AlertCircle, Phone,
   CreditCard, MapPin, ShieldCheck, ChevronLeft, ChevronRight, FileText,
-  HelpCircle, Settings2, ArrowDownRight, Edit3
+  HelpCircle, Settings2, ArrowDownRight, Edit3, UserCheck
 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
 import { useFamilyStore } from '@/lib/store/familyStore';
+import Link from 'next/link';
 
 export interface StaffSalaryPayment {
   id: string;
@@ -405,13 +406,23 @@ export function HouseholdStaffModule() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsAddOpen(true)}
-            className="px-3.5 py-2 bg-gold hover:bg-gold-light text-navy text-xs font-black rounded-xl flex items-center gap-1.5 shadow-md active:scale-95 transition-all shrink-0"
-          >
-            <Plus size={15} /> नया कर्मचारी जोड़ें
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href="/business?tab=staff-recruitment"
+              className="px-3 py-2 bg-navy-light/60 hover:bg-navy-light border border-gold/30 text-gold-soft text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shrink-0"
+            >
+              <UserCheck size={14} className="text-gold" />
+              <span>स्टाफ भर्ती व हायरिंग</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsAddOpen(true)}
+              className="px-3.5 py-2 bg-gold hover:bg-gold-light text-navy text-xs font-black rounded-xl flex items-center gap-1.5 shadow-md active:scale-95 transition-all shrink-0 cursor-pointer"
+            >
+              <Plus size={15} /> नया कर्मचारी जोड़ें
+            </button>
+          </div>
         </div>
 
         {/* Month Selector Bar */}

@@ -1,0 +1,1752 @@
+'use client';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  UserCheck, Users, Plus, Search, Filter, Phone, Calendar, 
+  CheckCircle2, Clock, X, AlertCircle, FileText, Printer, 
+  Share2, ChevronRight, Briefcase, Award, ShieldCheck, MapPin, 
+  Trash2, Edit3, Star, CheckSquare, Sparkles, Building, ArrowRight,
+  ExternalLink, UserPlus
+} from 'lucide-react';
+import { Mono } from '@/components/ui/Mono';
+
+export interface CandidateExperience {
+  firstJobStartedYear?: string; // पहले काम कहाँ से और कब शुरू किया
+  previousEmployer: string; // पिछली दुकान / कंपनी का नाम
+  role: string; // पिछला पद / काम
+  durationMonths: number; // कितने महीने / साल काम किया
+  lastDrawnSalary: number; // पिछली सैलरी
+  reasonForLeaving: string; // नौकरी छोड़ने का कारण
+  referenceContactName?: string; // संदर्भ / गारंटर का नाम
+  referenceContactPhone?: string; // संदर्भ का फोन
+}
+
+export interface CandidateKYC {
+  aadharNumber?: string;
+  hasAadharCopy: boolean;
+  panNumber?: string;
+  hasPanCopy: boolean;
+  hasPhoto: boolean;
+  hasPoliceVerification: boolean;
+  hasAddressProof: boolean;
+  drivingLicense?: string;
+  bankAccountNumber?: string;
+  bankIfsc?: string;
+  upiId?: string;
+}
+
+export interface CandidateWorkTerms {
+  targetRole: string; // जैसे: सेल्समैन, हेल्पर, कुक, ड्राइवर, बिलिंग काउंटर, अकाउंटेंट, गार्ड, मशीन ऑपरेटर
+  department?: string;
+  workResponsibilities: string; // दैनिक काम और मुख्य जिम्मेदारियां
+  wageModel: 'monthly_fixed' | 'daily_wage' | 'piece_rate' | 'commission';
+  proposedSalary: number; // मासिक वेतन या दैनिक दर
+  paymentSchedule: 'monthly' | 'weekly' | 'daily';
+  salaryPaymentDate?: string; // जैसे 1 से 7 तारीख
+  workShiftTimings: string; // जैसे सुबह 9:00 से रात 8:00
+  weeklyOffDay: string; // जैसे रविवार, मंगलवार आदि
+  allowedPaidLeaves: number; // महीने में कितनी सवेतन छुट्टी (e.g. 2 दिन)
+  maxConsecutiveLeaves: number; // बिना सूचना लगातार कितने दिन छुट्टी ले सकते हैं
+  deductLeaveSalary: boolean; // अतिरिक्त छुट्टी पर पैसे कटेंगे
+  noticePeriodDays: number; // नौकरी छोड़ने पर कितने दिन पहले नोटिस
+  advancePolicy?: string; // एडवांस लेने के नियम
+}
+
+export type CandidateStatus = 'applied' | 'interview_scheduled' | 'trial_period' | 'hired' | 'rejected';
+
+export interface StaffCandidate {
+  id: string;
+  fullName: string;
+  phone: string;
+  whatsapp?: string;
+  dob?: string;
+  gender: 'male' | 'female' | 'other';
+  currentAddress: string; // स्थानीय / शहर का पता
+  permanentAddress: string; // मूल गांव या स्थायी पता
+  qualification: 'illiterate' | '8th_pass' | '10th_pass' | '12th_pass' | 'iti_diploma' | 'graduate' | 'post_graduate' | 'skilled_artisan';
+  qualificationDetails?: string;
+  
+  // Work History
+  hasPastExperience: boolean;
+  pastExperience?: CandidateExperience;
+  
+  // Work Terms & Leaves
+  workTerms: CandidateWorkTerms;
+  
+  // Documents & KYC
+  kyc: CandidateKYC;
+  
+  // Recruitment Status
+  status: CandidateStatus;
+  interviewDate?: string;
+  interviewRating?: number; // 1-5
+  interviewNotes?: string;
+  trialDays?: number; // 3-7 दिन ट्रायल
+  appliedDate: string;
+  hiredDate?: string;
+}
+
+const DEFAULT_CANDIDATES: StaffCandidate[] = [
+  {
+    id: 'cand-001',
+    fullName: 'राजेश कुमार वर्मा',
+    phone: '9827101234',
+    whatsapp: '9827101234',
+    dob: '1996-05-14',
+    gender: 'male',
+    currentAddress: 'वार्ड नंबर 4, मेन मार्केट के पीछे, स्थानीय शहर',
+    permanentAddress: 'ग्राम रामपुर, पोस्ट बेलतरा, जिला बिलासपुर (छ.ग.)',
+    qualification: '12th_pass',
+    qualificationDetails: 'कॉमर्स 12वीं उत्तीर्ण + कंप्यूटर बेसिक (MS Word, Tally Basic)',
+    hasPastExperience: true,
+    pastExperience: {
+      firstJobStartedYear: '2019 (कपड़ा दुकान में सेल्समैन)',
+      previousEmployer: 'श्री राम वस्त्र भंडार, गोल बाजार',
+      role: 'वरिष्ठ सेल्समैन व स्टॉक इनवर्ड',
+      durationMonths: 36,
+      lastDrawnSalary: 12000,
+      reasonForLeaving: 'दुकान बंद होने के कारण नया काम तलाश रहे हैं',
+      referenceContactName: 'श्री रामस्वरूप जी (मालिक)',
+      referenceContactPhone: '9827000000'
+    },
+    workTerms: {
+      targetRole: 'सीनियर सेल्समैन व बिलिंग सहायक',
+      department: 'रिटेल काउंटर',
+      workResponsibilities: 'ग्राहकों को सामान दिखाना, बिलिंग काउंटर संभालना, दैनिक स्टॉक मिलान व दुकान की साफ-सफाई की निगरानी।',
+      wageModel: 'monthly_fixed',
+      proposedSalary: 14000,
+      paymentSchedule: 'monthly',
+      salaryPaymentDate: 'प्रत्येक माह की 5 तारीख',
+      workShiftTimings: 'सुबह 9:30 से रात 8:30',
+      weeklyOffDay: 'मंगलवार (साप्ताहिक अवकाश)',
+      allowedPaidLeaves: 2,
+      maxConsecutiveLeaves: 2,
+      deductLeaveSalary: true,
+      noticePeriodDays: 15,
+      advancePolicy: '15 दिन काम पूरा होने के बाद अधिकतम 50% एडवांस स्वीकृत'
+    },
+    kyc: {
+      aadharNumber: '4589 1234 5678',
+      hasAadharCopy: true,
+      panNumber: 'ABCDE1234F',
+      hasPanCopy: true,
+      hasPhoto: true,
+      hasPoliceVerification: true,
+      hasAddressProof: true,
+      bankAccountNumber: '30291048572',
+      bankIfsc: 'SBIN0001234',
+      upiId: 'rajesh@oksbi'
+    },
+    status: 'interview_scheduled',
+    interviewDate: '2026-09-30T11:00',
+    interviewRating: 4,
+    interviewNotes: 'बातचीत में काफी शालीन, 3 साल का अनुभव है और बिलिंग सॉफ्टवेयर जानता है।',
+    trialDays: 3,
+    appliedDate: '2026-09-28'
+  },
+  {
+    id: 'cand-002',
+    fullName: 'दिनेश कुमार साहू',
+    phone: '9893214567',
+    whatsapp: '9893214567',
+    dob: '2001-08-20',
+    gender: 'male',
+    currentAddress: 'शांति नगर, गली नंबर 2, स्थानीय शहर',
+    permanentAddress: 'ग्राम तखतपुर, मुंगेली रोड',
+    qualification: '10th_pass',
+    qualificationDetails: '10वीं पास',
+    hasPastExperience: true,
+    pastExperience: {
+      firstJobStartedYear: '2022 (ट्रांसपोर्ट गोदाम)',
+      previousEmployer: 'माँ शारदा लॉजिस्टिक्स',
+      role: 'लोडिंग-अनलोडिंग व लोकल डिलीवरी',
+      durationMonths: 18,
+      lastDrawnSalary: 9500,
+      reasonForLeaving: 'देर रात की शिफ्ट के कारण दिन का काम चाहिए था',
+      referenceContactName: 'विशाल भइया',
+      referenceContactPhone: '9425000000'
+    },
+    workTerms: {
+      targetRole: 'गोदाम हेल्पर व डिलीवरी बॉय',
+      department: 'वेयरहाउस व डिलीवरी',
+      workResponsibilities: 'मंडी से माल लाना, दुकान में बोरियां जमाना, लोकल ग्राहकों को आर्डर पहुंचाना।',
+      wageModel: 'monthly_fixed',
+      proposedSalary: 11000,
+      paymentSchedule: 'monthly',
+      salaryPaymentDate: 'प्रत्येक माह की 7 तारीख',
+      workShiftTimings: 'सुबह 8:30 से शाम 7:30',
+      weeklyOffDay: 'रविवार',
+      allowedPaidLeaves: 2,
+      maxConsecutiveLeaves: 2,
+      deductLeaveSalary: true,
+      noticePeriodDays: 10,
+      advancePolicy: 'महीने में 1 बार अधिकतम ₹2,000'
+    },
+    kyc: {
+      aadharNumber: '8912 3456 7890',
+      hasAadharCopy: true,
+      hasPanCopy: false,
+      hasPhoto: true,
+      hasPoliceVerification: false,
+      hasAddressProof: true,
+      drivingLicense: 'CG-10-2021004567',
+      upiId: 'dinesh@paytm'
+    },
+    status: 'trial_period',
+    trialDays: 5,
+    interviewRating: 4,
+    interviewNotes: 'मेहनती लड़का है, ड्राइविंग लाइसेंस भी है। 5 दिन का ट्रायल चालू है।',
+    appliedDate: '2026-09-25'
+  }
+];
+
+export function StaffRecruitmentModule() {
+  const [candidates, setCandidates] = useState<StaffCandidate[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_staff_recruitment_v1');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (e) {}
+      }
+    }
+    return DEFAULT_CANDIDATES;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('fwa_staff_recruitment_v1', JSON.stringify(candidates));
+  }, [candidates]);
+
+  // Tab & Filters
+  const [activeTab, setActiveTab] = useState<'all' | CandidateStatus>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Modals
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<StaffCandidate | null>(null);
+  const [isOfferLetterOpen, setIsOfferLetterOpen] = useState(false);
+  const [candidateForOffer, setCandidateForOffer] = useState<StaffCandidate | null>(null);
+
+  // Form State
+  const [formStep, setFormStep] = useState<1 | 2 | 3 | 4>(1);
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | 'other'>('male');
+  const [currentAddress, setCurrentAddress] = useState('');
+  const [permanentAddress, setPermanentAddress] = useState('');
+  const [qualification, setQualification] = useState<StaffCandidate['qualification']>('10th_pass');
+  const [qualificationDetails, setQualificationDetails] = useState('');
+  
+  // Past Experience
+  const [hasPastExperience, setHasPastExperience] = useState(false);
+  const [firstJobStartedYear, setFirstJobStartedYear] = useState('');
+  const [previousEmployer, setPreviousEmployer] = useState('');
+  const [prevRole, setPrevRole] = useState('');
+  const [durationMonths, setDurationMonths] = useState<number | ''>('');
+  const [lastDrawnSalary, setLastDrawnSalary] = useState<number | ''>('');
+  const [reasonForLeaving, setReasonForLeaving] = useState('');
+  const [referenceContactName, setReferenceContactName] = useState('');
+  const [referenceContactPhone, setReferenceContactPhone] = useState('');
+
+  // Work Terms & Leaves
+  const [targetRole, setTargetRole] = useState('');
+  const [department, setDepartment] = useState('');
+  const [workResponsibilities, setWorkResponsibilities] = useState('');
+  const [wageModel, setWageModel] = useState<CandidateWorkTerms['wageModel']>('monthly_fixed');
+  const [proposedSalary, setProposedSalary] = useState<number | ''>('');
+  const [paymentSchedule, setPaymentSchedule] = useState<CandidateWorkTerms['paymentSchedule']>('monthly');
+  const [salaryPaymentDate, setSalaryPaymentDate] = useState('प्रत्येक माह की 7 तारीख');
+  const [workShiftTimings, setWorkShiftTimings] = useState('सुबह 9:00 से शाम 8:00');
+  const [weeklyOffDay, setWeeklyOffDay] = useState('रविवार');
+  const [allowedPaidLeaves, setAllowedPaidLeaves] = useState<number>(2);
+  const [maxConsecutiveLeaves, setMaxConsecutiveLeaves] = useState<number>(2);
+  const [deductLeaveSalary, setDeductLeaveSalary] = useState(true);
+  const [noticePeriodDays, setNoticePeriodDays] = useState<number>(15);
+  const [advancePolicy, setAdvancePolicy] = useState('15 दिन कार्य उपरांत ही अधिकतम 50% एडवांस देय होगा');
+
+  // KYC Checklist
+  const [aadharNumber, setAadharNumber] = useState('');
+  const [hasAadharCopy, setHasAadharCopy] = useState(false);
+  const [panNumber, setPanNumber] = useState('');
+  const [hasPanCopy, setHasPanCopy] = useState(false);
+  const [hasPhoto, setHasPhoto] = useState(false);
+  const [hasPoliceVerification, setHasPoliceVerification] = useState(false);
+  const [hasAddressProof, setHasAddressProof] = useState(false);
+  const [drivingLicense, setDrivingLicense] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIfsc, setBankIfsc] = useState('');
+  const [upiId, setUpiId] = useState('');
+
+  const resetForm = () => {
+    setFormStep(1);
+    setFullName('');
+    setPhone('');
+    setWhatsapp('');
+    setDob('');
+    setGender('male');
+    setCurrentAddress('');
+    setPermanentAddress('');
+    setQualification('10th_pass');
+    setQualificationDetails('');
+    setHasPastExperience(false);
+    setFirstJobStartedYear('');
+    setPreviousEmployer('');
+    setPrevRole('');
+    setDurationMonths('');
+    setLastDrawnSalary('');
+    setReasonForLeaving('');
+    setReferenceContactName('');
+    setReferenceContactPhone('');
+    setTargetRole('');
+    setDepartment('');
+    setWorkResponsibilities('');
+    setWageModel('monthly_fixed');
+    setProposedSalary('');
+    setPaymentSchedule('monthly');
+    setSalaryPaymentDate('प्रत्येक माह की 7 तारीख');
+    setWorkShiftTimings('सुबह 9:00 से शाम 8:00');
+    setWeeklyOffDay('रविवार');
+    setAllowedPaidLeaves(2);
+    setMaxConsecutiveLeaves(2);
+    setDeductLeaveSalary(true);
+    setNoticePeriodDays(15);
+    setAdvancePolicy('15 दिन कार्य उपरांत ही अधिकतम 50% एडवांस देय होगा');
+    setAadharNumber('');
+    setHasAadharCopy(false);
+    setPanNumber('');
+    setHasPanCopy(false);
+    setHasPhoto(false);
+    setHasPoliceVerification(false);
+    setHasAddressProof(false);
+    setDrivingLicense('');
+    setBankAccountNumber('');
+    setBankIfsc('');
+    setUpiId('');
+  };
+
+  const handleSaveCandidate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName || !phone || !targetRole) {
+      alert('कृपया उम्मीदवार का नाम, फोन और पद अनिवार्य रूप से भरें।');
+      return;
+    }
+
+    const newCandidate: StaffCandidate = {
+      id: `cand-${Date.now()}`,
+      fullName,
+      phone,
+      whatsapp: whatsapp || phone,
+      dob,
+      gender,
+      currentAddress,
+      permanentAddress: permanentAddress || currentAddress,
+      qualification,
+      qualificationDetails,
+      hasPastExperience,
+      pastExperience: hasPastExperience ? {
+        firstJobStartedYear,
+        previousEmployer,
+        role: prevRole,
+        durationMonths: Number(durationMonths) || 0,
+        lastDrawnSalary: Number(lastDrawnSalary) || 0,
+        reasonForLeaving,
+        referenceContactName,
+        referenceContactPhone
+      } : undefined,
+      workTerms: {
+        targetRole,
+        department,
+        workResponsibilities: workResponsibilities || 'दुकान/प्रतिष्ठान के निर्देशानुसार दैनिक कार्य।',
+        wageModel,
+        proposedSalary: Number(proposedSalary) || 0,
+        paymentSchedule,
+        salaryPaymentDate,
+        workShiftTimings,
+        weeklyOffDay,
+        allowedPaidLeaves: Number(allowedPaidLeaves) || 0,
+        maxConsecutiveLeaves: Number(maxConsecutiveLeaves) || 1,
+        deductLeaveSalary,
+        noticePeriodDays: Number(noticePeriodDays) || 15,
+        advancePolicy
+      },
+      kyc: {
+        aadharNumber,
+        hasAadharCopy,
+        panNumber,
+        hasPanCopy,
+        hasPhoto,
+        hasPoliceVerification,
+        hasAddressProof,
+        drivingLicense,
+        bankAccountNumber,
+        bankIfsc,
+        upiId
+      },
+      status: 'applied',
+      appliedDate: new Date().toISOString().split('T')[0]
+    };
+
+    setCandidates(prev => [newCandidate, ...prev]);
+    setIsAddModalOpen(false);
+    resetForm();
+  };
+
+  // Change Candidate Status
+  const handleUpdateStatus = (candidateId: string, newStatus: CandidateStatus, extraData?: Partial<StaffCandidate>) => {
+    setCandidates(prev => prev.map(c => {
+      if (c.id !== candidateId) return c;
+      const updated = { ...c, status: newStatus, ...extraData };
+      if (newStatus === 'hired') {
+        updated.hiredDate = new Date().toISOString().split('T')[0];
+        // Auto-sync into Active Staff & Payroll (fwa_staff_v1)
+        syncToActivePayroll(updated);
+      }
+      return updated;
+    }));
+
+    if (selectedCandidate && selectedCandidate.id === candidateId) {
+      setSelectedCandidate(prev => prev ? { ...prev, status: newStatus, ...extraData } : null);
+    }
+  };
+
+  // 1-Click Sync to Active Household/Business Staff (fwa_staff_v1)
+  const syncToActivePayroll = (cand: StaffCandidate) => {
+    try {
+      const existing = localStorage.getItem('fwa_staff_v1');
+      let staffList: any[] = [];
+      if (existing) {
+        staffList = JSON.parse(existing);
+      }
+
+      // Check if already synced
+      const alreadyPresent = staffList.find(s => s.phone === cand.phone || s.id === cand.id);
+      if (!alreadyPresent) {
+        const newStaffMember = {
+          id: cand.id,
+          name: cand.fullName,
+          role: cand.workTerms.targetRole.toLowerCase().includes('cook') ? 'cook'
+                : cand.workTerms.targetRole.toLowerCase().includes('driver') ? 'driver'
+                : cand.workTerms.targetRole.toLowerCase().includes('guard') ? 'guard'
+                : 'shop_helper',
+          monthlySalary: cand.workTerms.proposedSalary || 10000,
+          advanceTaken: 0,
+          phone: cand.phone,
+          joiningDate: cand.hiredDate || new Date().toISOString().split('T')[0],
+          aadharNumber: cand.kyc.aadharNumber || '',
+          currentAddress: cand.currentAddress || '',
+          permanentAddress: cand.permanentAddress || '',
+          wageModel: cand.workTerms.wageModel === 'daily_wage' ? 'daily_wage' : 'monthly_with_allowed_leaves',
+          dailyRate: cand.workTerms.wageModel === 'daily_wage' ? cand.workTerms.proposedSalary : Math.round((cand.workTerms.proposedSalary || 10000) / 30),
+          allowedPaidLeaves: cand.workTerms.allowedPaidLeaves ?? 2,
+          deductLeaveSalary: cand.workTerms.deductLeaveSalary ?? true,
+          attendance: {},
+          monthlyAttendance: {
+            [new Date().toISOString().substring(0, 7)]: {}
+          },
+          salaryHistory: []
+        };
+        const updatedList = [newStaffMember, ...staffList];
+        localStorage.setItem('fwa_staff_v1', JSON.stringify(updatedList));
+        alert(`✓ बधाई! ${cand.fullName} को सफलतापूर्वक नियुक्त कर एक्टिव स्टाफ और पेरोल (Staff & Payroll) में जोड़ दिया गया है। अब इनकी दैनिक उपस्थिति और वेतन हिसाब सीधे पेरोल में दिखेगा।`);
+      }
+    } catch (err) {
+      console.error('Error syncing staff to payroll:', err);
+    }
+  };
+
+  // Filtered List
+  const filteredCandidates = useMemo(() => {
+    return candidates.filter(c => {
+      const matchesTab = activeTab === 'all' ? true : c.status === activeTab;
+      const q = searchQuery.toLowerCase().trim();
+      const matchesQuery = !q || 
+        c.fullName.toLowerCase().includes(q) ||
+        c.phone.includes(q) ||
+        c.workTerms.targetRole.toLowerCase().includes(q) ||
+        c.currentAddress.toLowerCase().includes(q);
+      return matchesTab && matchesQuery;
+    });
+  }, [candidates, activeTab, searchQuery]);
+
+  // Counts
+  const counts = useMemo(() => {
+    return {
+      all: candidates.length,
+      applied: candidates.filter(c => c.status === 'applied').length,
+      interview_scheduled: candidates.filter(c => c.status === 'interview_scheduled').length,
+      trial_period: candidates.filter(c => c.status === 'trial_period').length,
+      hired: candidates.filter(c => c.status === 'hired').length,
+      rejected: candidates.filter(c => c.status === 'rejected').length,
+    };
+  }, [candidates]);
+
+  return (
+    <div className="space-y-4">
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-navy via-navy-light to-navy border border-gold/30 rounded-2xl p-4 sm:p-5 text-paper">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="p-2 bg-gold/20 text-gold rounded-xl">
+                <UserCheck size={20} />
+              </span>
+              <h2 className="text-lg font-bold text-paper flex items-center gap-2">
+                स्टाफ भर्ती, चयन व जॉइनिंग ERP
+                <span className="text-[10px] bg-gold text-navy font-bold px-2 py-0.5 rounded-full">
+                  Hire & Onboard
+                </span>
+              </h2>
+            </div>
+            <p className="text-xs text-paper/80 leading-relaxed max-w-2xl">
+              योग्य स्टाफ की खोज से लेकर इंटरव्यू, पिछला कार्य इतिहास, सैलरी व छुट्टी के नियम, दस्तावेज सत्यापन और 1-क्लिक पेरोल ट्रांसफर का संपूर्ण समाधान।
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                resetForm();
+                setIsAddModalOpen(true);
+              }}
+              className="px-4 py-2.5 bg-gold text-navy font-bold text-xs rounded-xl shadow hover:bg-gold-light transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <UserPlus size={15} />
+              <span>+ नया स्टाफ भर्ती फॉर्म</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Quick KPI Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4 pt-3 border-t border-paper/10 text-center">
+          <div className="bg-paper/5 p-2 rounded-xl">
+            <div className="text-[10px] text-paper/70">कुल उम्मीदवार</div>
+            <div className="text-base font-bold text-gold"><Mono>{counts.all}</Mono></div>
+          </div>
+          <div className="bg-paper/5 p-2 rounded-xl">
+            <div className="text-[10px] text-paper/70">📥 नए आवेदन</div>
+            <div className="text-base font-bold text-paper"><Mono>{counts.applied}</Mono></div>
+          </div>
+          <div className="bg-paper/5 p-2 rounded-xl">
+            <div className="text-[10px] text-paper/70">📅 इंटरव्यू तय</div>
+            <div className="text-base font-bold text-blue-300"><Mono>{counts.interview_scheduled}</Mono></div>
+          </div>
+          <div className="bg-paper/5 p-2 rounded-xl">
+            <div className="text-[10px] text-paper/70">⏳ ट्रायल पर</div>
+            <div className="text-base font-bold text-amber-300"><Mono>{counts.trial_period}</Mono></div>
+          </div>
+          <div className="bg-paper/5 p-2 rounded-xl col-span-2 sm:col-span-1">
+            <div className="text-[10px] text-paper/70">✅ नियुक्त (Hired)</div>
+            <div className="text-base font-bold text-emerald-400"><Mono>{counts.hired}</Mono></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs & Search */}
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+          {[
+            { id: 'all', label: `सभी (${counts.all})` },
+            { id: 'applied', label: `📥 आवेदन (${counts.applied})` },
+            { id: 'interview_scheduled', label: `📅 इंटरव्यू (${counts.interview_scheduled})` },
+            { id: 'trial_period', label: `⏳ ट्रायल (${counts.trial_period})` },
+            { id: 'hired', label: `✅ नियुक्त (${counts.hired})` },
+            { id: 'rejected', label: `❌ रिजेक्ट (${counts.rejected})` },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                activeTab === tab.id
+                  ? 'bg-navy text-gold-soft shadow-sm'
+                  : 'bg-paper text-ink-muted hover:bg-paper-dim border border-paper-dim'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative min-w-[200px]">
+          <Search size={14} className="absolute left-3 top-2.5 text-ink-muted" />
+          <input
+            type="text"
+            placeholder="नाम, फोन या पद खोजें..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-navy"
+          />
+        </div>
+      </div>
+
+      {/* Candidate List Cards */}
+      {filteredCandidates.length === 0 ? (
+        <div className="bg-paper border border-paper-dim rounded-2xl p-8 text-center space-y-2">
+          <UserCheck size={36} className="mx-auto text-ink-muted opacity-40" />
+          <p className="text-sm font-bold text-ink">कोई उम्मीदवार रिकॉर्ड नहीं मिला</p>
+          <p className="text-xs text-ink-muted max-w-sm mx-auto">
+            नया स्टाफ भर्ती करने के लिए ऊपर दिए गए "+ नया स्टाफ भर्ती फॉर्म" बटन पर क्लिक करें।
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {filteredCandidates.map(candidate => {
+            const statusConfig = {
+              applied: { label: 'आवेदन प्राप्त', bg: 'bg-slate-100 text-slate-700 border-slate-300' },
+              interview_scheduled: { label: 'इंटरव्यू शेड्यूल', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+              trial_period: { label: `${candidate.trialDays || 3} दिन ट्रायल`, bg: 'bg-amber-50 text-amber-700 border-amber-200' },
+              hired: { label: 'नियुक्त (Hired)', bg: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
+              rejected: { label: 'अस्वीकृत', bg: 'bg-rose-50 text-rose-700 border-rose-200' },
+            }[candidate.status];
+
+            return (
+              <div 
+                key={candidate.id}
+                className="bg-paper border border-paper-dim rounded-2xl p-4 shadow-sm hover:border-gold/50 transition space-y-3"
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-ink">{candidate.fullName}</h3>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusConfig.bg}`}>
+                        {statusConfig.label}
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-gold-dark flex items-center gap-1.5">
+                      <Briefcase size={12} />
+                      <span>{candidate.workTerms.targetRole}</span>
+                      {candidate.workTerms.department && (
+                        <span className="text-ink-muted font-normal">• {candidate.workTerms.department}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-ink">
+                      <Mono>₹{candidate.workTerms.proposedSalary.toLocaleString('en-IN')}</Mono>
+                      <span className="text-[10px] font-normal text-ink-muted">
+                        /{candidate.workTerms.wageModel === 'daily_wage' ? 'दिन' : 'माह'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-ink-muted block">
+                      {candidate.workTerms.wageModel === 'daily_wage' ? 'दैनिक मजदूरी' : 'मासिक वेतन'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Key Details Pill Grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs bg-paper-dim/40 p-2.5 rounded-xl border border-paper-dim/60">
+                  <div>
+                    <span className="text-[10px] text-ink-muted block">योग्यता / शिक्षा</span>
+                    <span className="font-semibold text-ink">
+                      {candidate.qualification.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-ink-muted block">पिछला अनुभव</span>
+                    <span className="font-semibold text-ink">
+                      {candidate.hasPastExperience 
+                        ? `${candidate.pastExperience?.durationMonths || 12} माह (${candidate.pastExperience?.role || 'अनुभवी'})` 
+                        : 'फ्रेशर (नया)'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-ink-muted block">काम के घंटे व शिफ्ट</span>
+                    <span className="font-medium text-ink truncate block">
+                      {candidate.workTerms.workShiftTimings}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-ink-muted block">साप्ताहिक व सवेतन छुट्टी</span>
+                    <span className="font-medium text-ink">
+                      {candidate.workTerms.weeklyOffDay} ({candidate.workTerms.allowedPaidLeaves} दिन Paid)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Document Status */}
+                <div className="flex items-center gap-3 text-[11px] text-ink-muted pt-1">
+                  <span className="flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full ${candidate.kyc.hasAadharCopy ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                    आधार: {candidate.kyc.hasAadharCopy ? 'सत्यापित' : 'लंबित'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full ${candidate.kyc.hasPoliceVerification ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    पुलिस वेरिफिकेशन: {candidate.kyc.hasPoliceVerification ? 'हाँ' : 'नहीं'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full ${candidate.kyc.hasPhoto ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                    फोटो जमा
+                  </span>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-paper-dim">
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`tel:${candidate.phone}`}
+                      className="px-2.5 py-1.5 bg-paper border border-paper-dim rounded-lg text-xs font-semibold text-ink hover:bg-paper-dim flex items-center gap-1"
+                    >
+                      <Phone size={12} className="text-emerald-600" />
+                      <span>कॉल</span>
+                    </a>
+                    <button
+                      onClick={() => {
+                        setCandidateForOffer(candidate);
+                        setIsOfferLetterOpen(true);
+                      }}
+                      className="px-2.5 py-1.5 bg-paper border border-paper-dim rounded-lg text-xs font-semibold text-navy hover:bg-paper-dim flex items-center gap-1 cursor-pointer"
+                    >
+                      <FileText size={12} className="text-gold-dark" />
+                      <span>जॉइनिंग पत्र</span>
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedCandidate(candidate)}
+                    className="px-3 py-1.5 bg-navy text-gold-soft rounded-lg text-xs font-bold hover:bg-navy-light flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>विस्तार व भर्ती</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL 1: ADD NEW STAFF APPLICATION (4-STEP FORM)
+         ======================================================== */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-paper border border-paper-dim rounded-2xl w-full max-w-2xl my-6 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="px-5 py-3.5 bg-navy text-paper flex items-center justify-between border-b border-gold/20">
+              <div className="flex items-center gap-2">
+                <UserPlus size={18} className="text-gold" />
+                <h3 className="text-sm font-bold">नया स्टाफ भर्ती व जॉइनिंग फॉर्म</h3>
+              </div>
+              <button 
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-paper/70 hover:text-paper p-1 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Stepper Tabs */}
+            <div className="grid grid-cols-4 bg-paper-dim/40 border-b border-paper-dim text-xs font-semibold text-center py-2">
+              <button 
+                onClick={() => setFormStep(1)}
+                className={`py-1 ${formStep === 1 ? 'text-navy font-bold border-b-2 border-navy' : 'text-ink-muted'}`}
+              >
+                1. व्यक्तिगत पहचान
+              </button>
+              <button 
+                onClick={() => setFormStep(2)}
+                className={`py-1 ${formStep === 2 ? 'text-navy font-bold border-b-2 border-navy' : 'text-ink-muted'}`}
+              >
+                2. शिक्षा व अनुभव
+              </button>
+              <button 
+                onClick={() => setFormStep(3)}
+                className={`py-1 ${formStep === 3 ? 'text-navy font-bold border-b-2 border-navy' : 'text-ink-muted'}`}
+              >
+                3. काम, सैलरी व छुट्टी
+              </button>
+              <button 
+                onClick={() => setFormStep(4)}
+                className={`py-1 ${formStep === 4 ? 'text-navy font-bold border-b-2 border-navy' : 'text-ink-muted'}`}
+              >
+                4. दस्तावेज व KYC
+              </button>
+            </div>
+
+            {/* Form Content */}
+            <form onSubmit={handleSaveCandidate} className="p-5 overflow-y-auto space-y-4 flex-1">
+              {/* STEP 1: Personal & Addresses */}
+              {formStep === 1 && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        पूरा नाम (Candidate Full Name) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="जैसे: रमेश कुमार साहू"
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        मोबाइल नंबर (Phone Number) *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="10 अंकों का मोबाइल नंबर"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        व्हाट्सएप नंबर
+                      </label>
+                      <input
+                        type="tel"
+                        placeholder="WhatsApp नंबर"
+                        value={whatsapp}
+                        onChange={e => setWhatsapp(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        जन्म तिथि (Date of Birth)
+                      </label>
+                      <input
+                        type="date"
+                        value={dob}
+                        onChange={e => setDob(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        लिंग (Gender)
+                      </label>
+                      <select
+                        value={gender}
+                        onChange={e => setGender(e.target.value as any)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      >
+                        <option value="male">पुरुष (Male)</option>
+                        <option value="female">महिला (Female)</option>
+                        <option value="other">अन्य</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        स्थानीय / वर्तमान पता (Current Local Address) *
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="वर्तमान में शहर में कहाँ रहते हैं (मकान नं, मोहल्ला, लैंडमार्क)"
+                        value={currentAddress}
+                        onChange={e => setCurrentAddress(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        स्थायी / मूल गाँव का पता (Permanent / Native Address)
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="यदि बाहर के हैं तो मूल गाँव, पोस्ट, तहसील, जिला (अन्यथा स्थानीय जैसा)"
+                        value={permanentAddress}
+                        onChange={e => setPermanentAddress(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(2)}
+                      className="px-4 py-2 bg-navy text-gold-soft font-bold text-xs rounded-xl flex items-center gap-1.5"
+                    >
+                      <span>अगला: शिक्षा व अनुभव</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: Qualification & Past Experience */}
+              {formStep === 2 && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        शैक्षणिक योग्यता (Education Level)
+                      </label>
+                      <select
+                        value={qualification}
+                        onChange={e => setQualification(e.target.value as any)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      >
+                        <option value="illiterate">अनपढ़ / सामान्य साक्षर</option>
+                        <option value="8th_pass">8वीं पास</option>
+                        <option value="10th_pass">10वीं पास</option>
+                        <option value="12th_pass">12वीं पास</option>
+                        <option value="iti_diploma">आईटीआई / डिप्लोमा</option>
+                        <option value="graduate">ग्रेजुएट (स्नातक)</option>
+                        <option value="post_graduate">पोस्ट ग्रेजुएट</option>
+                        <option value="skilled_artisan">कुशल कारीगर / हुनरमंद</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        अतिरिक्त हुनर / कम्प्यूटर ज्ञान
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="जैसे: टैली, ड्राइविंग, इलेक्ट्रिक काम, खाना बनाना"
+                        value={qualificationDetails}
+                        onChange={e => setQualificationDetails(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Past Experience Toggle */}
+                  <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hasPastExperience}
+                        onChange={e => setHasPastExperience(e.target.checked)}
+                        className="w-4 h-4 accent-navy rounded"
+                      />
+                      <span className="text-xs font-bold text-ink">
+                        क्या उम्मीदवार के पास पहले का काम का अनुभव है? (Past Experience)
+                      </span>
+                    </label>
+
+                    {hasPastExperience && (
+                      <div className="space-y-3 pt-2 border-t border-paper-dim">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-ink block mb-1">
+                              पहला काम कब और कहाँ से शुरू किया था?
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="जैसे: 2020 में कपड़ा दुकान से"
+                              value={firstJobStartedYear}
+                              onChange={e => setFirstJobStartedYear(e.target.value)}
+                              className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] font-bold text-ink block mb-1">
+                              पिछली फर्म / दुकान / मालिक का नाम
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="जैसे: माँ जगदंबा ट्रेडर्स"
+                              value={previousEmployer}
+                              onChange={e => setPreviousEmployer(e.target.value)}
+                              className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-ink block mb-1">
+                              पिछला पद / कार्य
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="जैसे: सेल्समैन / हेल्पर"
+                              value={prevRole}
+                              onChange={e => setPrevRole(e.target.value)}
+                              className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] font-bold text-ink block mb-1">
+                              काम का समय (महीने)
+                            </label>
+                            <input
+                              type="number"
+                              placeholder="जैसे: 24"
+                              value={durationMonths}
+                              onChange={e => setDurationMonths(e.target.value ? Number(e.target.value) : '')}
+                              className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] font-bold text-ink block mb-1">
+                              अंतिम सैलरी (₹)
+                            </label>
+                            <input
+                              type="number"
+                              placeholder="जैसे: 12000"
+                              value={lastDrawnSalary}
+                              onChange={e => setLastDrawnSalary(e.target.value ? Number(e.target.value) : '')}
+                              className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-ink block mb-1">
+                            पिछली नौकरी छोड़ने का कारण (Reason for Leaving)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="जैसे: वेतन वृद्धि, दूरी, या दुकान बंद होना"
+                            value={reasonForLeaving}
+                            onChange={e => setReasonForLeaving(e.target.value)}
+                            className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-ink block mb-1">
+                              गारंटर / पूर्व मालिक संदर्भ नाम
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="रेफरेंस व्यक्ति का नाम"
+                              value={referenceContactName}
+                              onChange={e => setReferenceContactName(e.target.value)}
+                              className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] font-bold text-ink block mb-1">
+                              गारंटर / संदर्भ फोन नंबर
+                            </label>
+                            <input
+                              type="tel"
+                              placeholder="सत्यापन हेतु फोन नंबर"
+                              value={referenceContactPhone}
+                              onChange={e => setReferenceContactPhone(e.target.value)}
+                              className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(1)}
+                      className="px-4 py-2 bg-paper border border-paper-dim text-ink text-xs font-bold rounded-xl"
+                    >
+                      पीछे
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(3)}
+                      className="px-4 py-2 bg-navy text-gold-soft font-bold text-xs rounded-xl flex items-center gap-1.5"
+                    >
+                      <span>अगला: काम, सैलरी व छुट्टी</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Work Terms, Salary, Leaves, Shift */}
+              {formStep === 3 && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        किस पद / काम के लिए रख रहे हैं? *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="जैसे: सेल्समैन, ड्राइवर, कुक, हेल्पर, मुंशी"
+                        value={targetRole}
+                        onChange={e => setTargetRole(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        विभाग / दुकान शाखा
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="जैसे: मुख्य दुकान, गोदाम, घरेलू"
+                        value={department}
+                        onChange={e => setDepartment(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-ink block mb-1">
+                      दैनिक कार्य व जिम्मेदारियां (Job Description)
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="दैनिक क्या काम करना रहेगा, जैसे ग्राहकों को संभालना, सफाई, बिलिंग, लोडिंग..."
+                      value={workResponsibilities}
+                      onChange={e => setWorkResponsibilities(e.target.value)}
+                      className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        वेतन मॉडल (Salary Model)
+                      </label>
+                      <select
+                        value={wageModel}
+                        onChange={e => setWageModel(e.target.value as any)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      >
+                        <option value="monthly_fixed">मासिक तय वेतन (Monthly Fixed)</option>
+                        <option value="daily_wage">दैनिक मजदूरी (Daily Wage)</option>
+                        <option value="piece_rate">काम के हिसाब से (Piece-rate)</option>
+                        <option value="commission">कमीशन / इन्सेंटिव बेस</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        प्रस्तावित वेतन (₹ Amount) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="जैसे: 14000"
+                        value={proposedSalary}
+                        onChange={e => setProposedSalary(e.target.value ? Number(e.target.value) : '')}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-ink block mb-1">
+                        सैलरी भुगतान तारीख
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="जैसे: हर माह 7 तारीख को"
+                        value={salaryPaymentDate}
+                        onChange={e => setSalaryPaymentDate(e.target.value)}
+                        className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl text-xs text-ink focus:outline-none focus:border-navy"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Shift & Leaves Policy */}
+                  <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim space-y-3">
+                    <h4 className="text-xs font-bold text-ink flex items-center gap-1.5">
+                      <Clock size={14} className="text-gold-dark" />
+                      <span>कार्य समय व छुट्टी के स्पष्ट नियम (Work Timings & Leave Rules)</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-ink block mb-1">
+                          दुकान / काम का समय (Shift Hours)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="जैसे: सुबह 9:00 से शाम 8:30 बजे तक"
+                          value={workShiftTimings}
+                          onChange={e => setWorkShiftTimings(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-ink block mb-1">
+                          साप्ताहिक छुट्टी कब रहेगी? (Weekly Off)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="जैसे: रविवार या मंगलवार"
+                          value={weeklyOffDay}
+                          onChange={e => setWeeklyOffDay(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-ink block mb-1">
+                          स्वीकृत पेड छुट्टी (प्रति माह)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="जैसे: 2 दिन"
+                          value={allowedPaidLeaves}
+                          onChange={e => setAllowedPaidLeaves(Number(e.target.value))}
+                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-ink block mb-1">
+                          अधिकतम लगातार छुट्टी
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="जैसे: 2 दिन"
+                          value={maxConsecutiveLeaves}
+                          onChange={e => setMaxConsecutiveLeaves(Number(e.target.value))}
+                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-ink block mb-1">
+                          नोटिस पीरियड (दिन)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="जैसे: 15 दिन"
+                          value={noticePeriodDays}
+                          onChange={e => setNoticePeriodDays(Number(e.target.value))}
+                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={deductLeaveSalary}
+                          onChange={e => setDeductLeaveSalary(e.target.checked)}
+                          className="w-4 h-4 accent-navy rounded"
+                        />
+                        <span className="text-xs font-semibold text-ink">
+                          स्वीकृत छुट्टी से अधिक छुट्टी पर वेतन कटेगा (Leave Salary Deduction)
+                        </span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-ink block mb-1">
+                        एडवांस वेतन लेने के नियम
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="जैसे: 15 दिन काम होने के बाद ही अधिकतम 50% एडवांस देय"
+                        value={advancePolicy}
+                        onChange={e => setAdvancePolicy(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(2)}
+                      className="px-4 py-2 bg-paper border border-paper-dim text-ink text-xs font-bold rounded-xl"
+                    >
+                      पीछे
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(4)}
+                      className="px-4 py-2 bg-navy text-gold-soft font-bold text-xs rounded-xl flex items-center gap-1.5"
+                    >
+                      <span>अगला: दस्तावेज व KYC</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: KYC & Document Checklist */}
+              {formStep === 4 && (
+                <div className="space-y-3">
+                  <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim space-y-3">
+                    <h4 className="text-xs font-bold text-ink flex items-center gap-1.5">
+                      <ShieldCheck size={14} className="text-emerald-600" />
+                      <span>दस्तावेज़ संकलन चेकलिस्ट (Document Verification Checklist)</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-ink block mb-1">
+                          आधार कार्ड नंबर
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="12 अंकों का आधार"
+                          value={aadharNumber}
+                          onChange={e => setAadharNumber(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-ink block mb-1">
+                          पैन कार्ड नंबर (यदि उपलब्ध हो)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="10 अंकों का पैन"
+                          value={panNumber}
+                          onChange={e => setPanNumber(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer bg-paper p-2 rounded-lg border border-paper-dim">
+                        <input
+                          type="checkbox"
+                          checked={hasAadharCopy}
+                          onChange={e => setHasAadharCopy(e.target.checked)}
+                          className="w-4 h-4 accent-navy rounded"
+                        />
+                        <span className="font-semibold text-ink">आधार कॉपी जमा</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer bg-paper p-2 rounded-lg border border-paper-dim">
+                        <input
+                          type="checkbox"
+                          checked={hasPanCopy}
+                          onChange={e => setHasPanCopy(e.target.checked)}
+                          className="w-4 h-4 accent-navy rounded"
+                        />
+                        <span className="font-semibold text-ink">पैन कॉपी जमा</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer bg-paper p-2 rounded-lg border border-paper-dim">
+                        <input
+                          type="checkbox"
+                          checked={hasPhoto}
+                          onChange={e => setHasPhoto(e.target.checked)}
+                          className="w-4 h-4 accent-navy rounded"
+                        />
+                        <span className="font-semibold text-ink">पासपोर्ट फोटो (2)</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer bg-paper p-2 rounded-lg border border-paper-dim">
+                        <input
+                          type="checkbox"
+                          checked={hasPoliceVerification}
+                          onChange={e => setHasPoliceVerification(e.target.checked)}
+                          className="w-4 h-4 accent-navy rounded"
+                        />
+                        <span className="font-semibold text-ink">पुलिस सत्यापन</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer bg-paper p-2 rounded-lg border border-paper-dim">
+                        <input
+                          type="checkbox"
+                          checked={hasAddressProof}
+                          onChange={e => setHasAddressProof(e.target.checked)}
+                          className="w-4 h-4 accent-navy rounded"
+                        />
+                        <span className="font-semibold text-ink">राशन / वोटर आईडी</span>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <div>
+                        <label className="text-[11px] font-bold text-ink block mb-1">
+                          ड्राइविंग लाइसेंस (ड्राइवर/डिलीवरी हेतु)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="लाइसेंस नंबर"
+                          value={drivingLicense}
+                          onChange={e => setDrivingLicense(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-ink block mb-1">
+                          सैलरी हेतु बैंक खाता / UPI ID
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="UPI ID या बैंक खाता"
+                          value={upiId}
+                          onChange={e => setUpiId(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-paper border border-paper-dim rounded-xl text-xs text-ink"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(3)}
+                      className="px-4 py-2 bg-paper border border-paper-dim text-ink text-xs font-bold rounded-xl"
+                    >
+                      पीछे
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 bg-gold text-navy font-bold text-xs rounded-xl shadow hover:bg-gold-light transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckCircle2 size={15} />
+                      <span>उम्मीदवार आवेदन सुरक्षित करें</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL 2: CANDIDATE DOSSIER & RECRUITMENT ACTIONS
+         ======================================================== */}
+      {selectedCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-paper border border-paper-dim rounded-2xl w-full max-w-2xl my-6 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div className="px-5 py-3.5 bg-navy text-paper flex items-center justify-between border-b border-gold/20">
+              <div className="flex items-center gap-2">
+                <Briefcase size={18} className="text-gold" />
+                <div>
+                  <h3 className="text-sm font-bold">{selectedCandidate.fullName}</h3>
+                  <p className="text-[11px] text-paper/70">
+                    {selectedCandidate.workTerms.targetRole} • {selectedCandidate.phone}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedCandidate(null)}
+                className="text-paper/70 hover:text-paper p-1 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
+              {/* Status Update Quick Bar */}
+              <div className="p-3 bg-paper-dim/40 rounded-xl border border-paper-dim space-y-2">
+                <span className="text-[11px] font-bold text-ink block">
+                  भर्ती स्थिति बदलें (Update Recruitment Stage):
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleUpdateStatus(selectedCandidate.id, 'interview_scheduled')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
+                      selectedCandidate.status === 'interview_scheduled'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-paper border border-paper-dim text-blue-700 hover:bg-blue-50'
+                    }`}
+                  >
+                    <Calendar size={13} />
+                    <span>इंटरव्यू शेड्यूल</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleUpdateStatus(selectedCandidate.id, 'trial_period', { trialDays: 3 })}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
+                      selectedCandidate.status === 'trial_period'
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-paper border border-paper-dim text-amber-700 hover:bg-amber-50'
+                    }`}
+                  >
+                    <Clock size={13} />
+                    <span>3 दिन ट्रायल काम</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleUpdateStatus(selectedCandidate.id, 'hired')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
+                      selectedCandidate.status === 'hired'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-paper border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <CheckCircle2 size={13} />
+                    <span>✅ नियुक्त करें (Hire & Sync Payroll)</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleUpdateStatus(selectedCandidate.id, 'rejected')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
+                      selectedCandidate.status === 'rejected'
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-paper border border-rose-300 text-rose-700 hover:bg-rose-50'
+                    }`}
+                  >
+                    <X size={13} />
+                    <span>अस्वीकृत</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Dossier Sections */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-paper border border-paper-dim p-3 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-ink-muted uppercase block">स्थानीय व मूल पता</span>
+                  <div className="text-ink">
+                    <span className="font-semibold block">वर्तमान:</span> {selectedCandidate.currentAddress || 'एन/ए'}
+                  </div>
+                  <div className="text-ink">
+                    <span className="font-semibold block">मूल गाँव:</span> {selectedCandidate.permanentAddress || 'एन/ए'}
+                  </div>
+                </div>
+
+                <div className="bg-paper border border-paper-dim p-3 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-ink-muted uppercase block">वेतन व कार्य समय</span>
+                  <div className="text-ink flex justify-between">
+                    <span>प्रस्तावित वेतन:</span>
+                    <span className="font-bold text-gold-dark"><Mono>₹{selectedCandidate.workTerms.proposedSalary.toLocaleString('en-IN')}</Mono></span>
+                  </div>
+                  <div className="text-ink flex justify-between">
+                    <span>कार्य शिफ्ट:</span>
+                    <span>{selectedCandidate.workTerms.workShiftTimings}</span>
+                  </div>
+                  <div className="text-ink flex justify-between">
+                    <span>साप्ताहिक छुट्टी:</span>
+                    <span className="font-semibold text-emerald-700">{selectedCandidate.workTerms.weeklyOffDay}</span>
+                  </div>
+                  <div className="text-ink flex justify-between">
+                    <span>सवेतन छुट्टी:</span>
+                    <span>{selectedCandidate.workTerms.allowedPaidLeaves} दिन / माह</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Past Experience Details */}
+              {selectedCandidate.hasPastExperience && selectedCandidate.pastExperience && (
+                <div className="bg-paper border border-paper-dim p-3.5 rounded-xl space-y-2">
+                  <span className="text-[11px] font-bold text-ink flex items-center gap-1.5">
+                    <Award size={14} className="text-gold" />
+                    <span>पिछला कार्य अनुभव (Past Employment Record)</span>
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div>
+                      <span className="text-[10px] text-ink-muted block">पहला काम कहाँ शुरू किया:</span>
+                      <span className="font-semibold text-ink">{selectedCandidate.pastExperience.firstJobStartedYear || 'एन/ए'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-ink-muted block">पिछली दुकान/फर्म:</span>
+                      <span className="font-semibold text-ink">{selectedCandidate.pastExperience.previousEmployer}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-ink-muted block">पिछली सैलरी:</span>
+                      <span className="font-semibold text-ink"><Mono>₹{selectedCandidate.pastExperience.lastDrawnSalary.toLocaleString('en-IN')}</Mono></span>
+                    </div>
+                  </div>
+                  <div className="pt-1">
+                    <span className="text-[10px] text-ink-muted block">नौकरी छोड़ने का कारण:</span>
+                    <span className="text-ink">{selectedCandidate.pastExperience.reasonForLeaving || 'एन/ए'}</span>
+                  </div>
+                  {selectedCandidate.pastExperience.referenceContactPhone && (
+                    <div className="text-[11px] text-ink-muted pt-1">
+                      रेफरेंस संपर्क: <span className="font-semibold text-ink">{selectedCandidate.pastExperience.referenceContactName} ({selectedCandidate.pastExperience.referenceContactPhone})</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Document Status */}
+              <div className="bg-paper border border-paper-dim p-3.5 rounded-xl space-y-2">
+                <span className="text-[11px] font-bold text-ink flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-emerald-600" />
+                  <span>दस्तावेज़ व पहचान सत्यापन (KYC Status)</span>
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="bg-paper-dim/40 p-2 rounded-lg">
+                    <span className="text-[10px] text-ink-muted block">आधार संख्या:</span>
+                    <span className="font-semibold text-ink">{selectedCandidate.kyc.aadharNumber || 'अप्राप्त'}</span>
+                  </div>
+                  <div className="bg-paper-dim/40 p-2 rounded-lg">
+                    <span className="text-[10px] text-ink-muted block">पैन कार्ड:</span>
+                    <span className="font-semibold text-ink">{selectedCandidate.kyc.panNumber || 'एन/ए'}</span>
+                  </div>
+                  <div className="bg-paper-dim/40 p-2 rounded-lg">
+                    <span className="text-[10px] text-ink-muted block">सैलरी खाता / UPI:</span>
+                    <span className="font-semibold text-ink">{selectedCandidate.kyc.upiId || selectedCandidate.kyc.bankAccountNumber || 'कैश'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3 bg-paper-dim/40 border-t border-paper-dim flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setCandidateForOffer(selectedCandidate);
+                  setIsOfferLetterOpen(true);
+                }}
+                className="px-3 py-2 bg-navy text-gold-soft font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileText size={14} />
+                <span>जॉइनिंग सहमति पत्र प्रिंट / शेयर करें</span>
+              </button>
+
+              <button
+                onClick={() => setSelectedCandidate(null)}
+                className="px-4 py-2 bg-paper border border-paper-dim text-ink font-bold rounded-xl cursor-pointer"
+              >
+                बंद करें
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL 3: PRINTABLE JOINING AGREEMENT / OFFER LETTER
+         ======================================================== */}
+      {isOfferLetterOpen && candidateForOffer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-paper border border-paper-dim rounded-2xl w-full max-w-xl my-6 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div className="px-5 py-3 bg-navy text-paper flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={18} className="text-gold" />
+                <h3 className="text-sm font-bold">स्टाफ नियुक्ति व सहमति पत्र (Joining Letter)</h3>
+              </div>
+              <button 
+                onClick={() => setIsOfferLetterOpen(false)}
+                className="text-paper/70 hover:text-paper"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4 flex-1 text-ink text-xs font-sans bg-white">
+              {/* Letter Header */}
+              <div className="text-center border-b pb-3 border-gray-200 space-y-1">
+                <h2 className="text-base font-bold text-gray-900 uppercase tracking-wide">
+                  व्यापारिक प्रतिष्ठान / स्टाफ सेवा अनुबंध
+                </h2>
+                <p className="text-[11px] text-gray-600">
+                  (कर्मचारी नियुक्ति पत्र एवं सेवा नियम सहमति पत्र)
+                </p>
+                <p className="text-[10px] text-gray-500">तारीख: {new Date().toLocaleDateString('hi-IN')}</p>
+              </div>
+
+              <div className="space-y-2">
+                <p>
+                  यह सहमति पत्र <strong>प्रतिष्ठान प्रबंधक</strong> एवं श्री/सुश्री <strong>{candidateForOffer.fullName}</strong> (आत्मज/आत्मजा: {candidateForOffer.gender === 'male' ? 'श्री' : 'श्रीमती'}, फोन: {candidateForOffer.phone}) के मध्य निष्पादित किया जाता है।
+                </p>
+              </div>
+
+              {/* Terms Table */}
+              <table className="w-full border-collapse border border-gray-300 text-[11px]">
+                <tbody>
+                  <tr className="border-b border-gray-300">
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300 w-1/3">नियुक्त पद</td>
+                    <td className="p-2 font-semibold text-gray-800">{candidateForOffer.workTerms.targetRole}</td>
+                  </tr>
+                  <tr className="border-b border-gray-300">
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">मासिक / दैनिक वेतन</td>
+                    <td className="p-2 font-bold text-gray-900">
+                      ₹{candidateForOffer.workTerms.proposedSalary.toLocaleString('en-IN')} ({candidateForOffer.workTerms.wageModel === 'daily_wage' ? 'प्रति दिन' : 'प्रति माह'})
+                    </td>
+                  </tr>
+                  <tr className="border-b border-gray-300">
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">वेतन भुगतान तारीख</td>
+                    <td className="p-2">{candidateForOffer.workTerms.salaryPaymentDate || 'प्रत्येक माह की 7 तारीख'}</td>
+                  </tr>
+                  <tr className="border-b border-gray-300">
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">दैनिक कार्य समय (Shift)</td>
+                    <td className="p-2">{candidateForOffer.workTerms.workShiftTimings}</td>
+                  </tr>
+                  <tr className="border-b border-gray-300">
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">साप्ताहिक अवकाश</td>
+                    <td className="p-2 font-semibold text-blue-700">{candidateForOffer.workTerms.weeklyOffDay}</td>
+                  </tr>
+                  <tr className="border-b border-gray-300">
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">सवेतन छुट्टी नियम</td>
+                    <td className="p-2">
+                      माह में अधिकतम {candidateForOffer.workTerms.allowedPaidLeaves} दिन सवेतन छुट्टी स्वीकृत। अतिरिक्त अनुपस्थिति पर वेतन कटौती लागू होगी।
+                    </td>
+                  </tr>
+                  <tr className="border-b border-gray-300">
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">एडवांस पॉलिसी</td>
+                    <td className="p-2">{candidateForOffer.workTerms.advancePolicy || '15 दिन कार्य उपरांत ही स्वीकृत'}</td>
+                  </tr>
+                  <tr className="border-b border-gray-300">
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">नोटिस पीरियड</td>
+                    <td className="p-2">{candidateForOffer.workTerms.noticePeriodDays} दिन पूर्व सूचना देना अनिवार्य है।</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 bg-gray-50 font-bold border-r border-gray-300">आधार सत्यापन</td>
+                    <td className="p-2">{candidateForOffer.kyc.aadharNumber || 'सत्यापित आधार संलग्न'}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="space-y-1 text-[11px] text-gray-700 bg-gray-50 p-2.5 rounded border border-gray-200">
+                <p className="font-bold">घोषणा:</p>
+                <p>
+                  मैंने उपरोक्त सभी सेवा नियमों, कार्य समय, अवकाश व वेतन शर्तों को अच्छी तरह पढ़ व समझ लिया है और मैं ईमानदारी पूर्वक अपने दायित्वों का निर्वहन करने की सहमति देता/देती हूँ।
+                </p>
+              </div>
+
+              {/* Signature Blocks */}
+              <div className="grid grid-cols-2 gap-8 pt-8 text-center text-xs">
+                <div>
+                  <div className="border-t border-gray-400 pt-1 font-bold">
+                    हस्ताक्षर: कर्मचारी / स्टाफ
+                  </div>
+                  <div className="text-[10px] text-gray-500">({candidateForOffer.fullName})</div>
+                </div>
+                <div>
+                  <div className="border-t border-gray-400 pt-1 font-bold">
+                    हस्ताक्षर व सील: फर्म / मालिक
+                  </div>
+                  <div className="text-[10px] text-gray-500">(अधिकृत हस्ताक्षरकर्ता)</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-paper-dim/40 border-t border-paper-dim flex items-center justify-between">
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-navy text-gold-soft font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer size={15} />
+                <span>प्रिंट / PDF सेव करें</span>
+              </button>
+
+              <button
+                onClick={() => setIsOfferLetterOpen(false)}
+                className="px-4 py-2 bg-paper border border-paper-dim text-ink font-bold rounded-xl cursor-pointer"
+              >
+                बंद करें
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

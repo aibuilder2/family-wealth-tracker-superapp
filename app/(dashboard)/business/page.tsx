@@ -34,9 +34,14 @@ import { HospitalEpisodesModule } from '@/components/business-modules/hospital-e
 import { FamilyHisabModule } from '@/components/business-modules/family-hisab/FamilyHisabModule';
 import { VehiclesGarageModule } from '@/components/business-modules/vehicles-garage/VehiclesGarageModule';
 import { BusinessFirmsModule } from '@/components/business-modules/business-firms/BusinessFirmsModule';
+import { StaffRecruitmentModule } from '@/components/business-modules/staff-recruitment/StaffRecruitmentModule';
+import { CustomerKycModule } from '@/components/business-modules/customer-kyc/CustomerKycModule';
+import { UserCheck, FileCheck } from 'lucide-react';
 
 const BUSINESS_TABS = [
   { id: 'bank-loans', label: 'बैंक लोन व EMI', icon: Landmark },
+  { id: 'staff-recruitment', label: '👔 स्टाफ भर्ती व ऑनबोर्डिंग', icon: UserCheck },
+  { id: 'customer-kyc', label: '🤝 ग्राहक व डीलर KYC', icon: Store },
   { id: 'udhar-ledger', label: 'उधार प्रॉमिसरी OTP', icon: HandCoins },
   { id: 'udhar-mandates', label: '💳 UPI रिकवरी मैंडेट', icon: CreditCard },
   { id: 'trips-splitter', label: 'Holiday & Trips', icon: Compass },
@@ -106,6 +111,8 @@ function BusinessHubContent() {
       {/* Active Module Container */}
       <div className="px-4">
         {activeTab === 'bank-loans' && <BankLoansModule />}
+        {activeTab === 'staff-recruitment' && <StaffRecruitmentModule />}
+        {activeTab === 'customer-kyc' && <CustomerKycModule />}
         {activeTab === 'udhar-ledger' && <UdharLedgerModule initialView="ledger" />}
         {activeTab === 'udhar-mandates' && <UdharLedgerModule initialView="mandates" />}
         {activeTab === 'trips-splitter' && <TripsSplitterModule />}
