@@ -6,8 +6,9 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Chip } from '@/components/ui/Chip';
 import { MemberFilter } from '@/components/money/MemberFilter';
 import { TransactionList } from '@/components/money/TransactionList';
-import { Plus, Calendar, Clock, Filter, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
+import { Plus, Calendar, Clock, Filter, ArrowUpRight, ArrowDownRight, RefreshCw, PieChart } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
+import Link from 'next/link';
 
 export default function MoneyPage() {
   const { transactions, members, activeMemberId, openQuickAdd } = useFamilyStore();
@@ -93,14 +94,24 @@ export default function MoneyPage() {
         title="Money"
         subtitle="सब खर्च, आमदनी, उधारी व समयवार रिकॉर्ड"
         action={
-          <button
-            type="button"
-            onClick={() => openQuickAdd('expense')}
-            className="px-3.5 py-1.5 bg-gold text-navy font-black text-xs rounded-xl flex items-center gap-1 shadow-sm hover:bg-gold-light active:scale-95 transition-all"
-            title="Add Transaction"
-          >
-            <Plus size={15} /> + लेन-देन जोड़ें
-          </button>
+          <div className="flex items-center gap-1.5">
+            <Link
+              href="/analytics"
+              className="px-2.5 py-1.5 bg-paper border border-paper-dim text-navy font-bold text-xs rounded-xl flex items-center gap-1 hover:bg-paper-dim transition"
+              title="खर्च विश्लेषण व पैसिव रेशियो"
+            >
+              <PieChart size={14} className="text-gold-dark" />
+              <span>एनालिटिक्स</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => openQuickAdd('expense')}
+              className="px-3.5 py-1.5 bg-gold text-navy font-black text-xs rounded-xl flex items-center gap-1 shadow-sm hover:bg-gold-light active:scale-95 transition-all cursor-pointer"
+              title="Add Transaction"
+            >
+              <Plus size={15} /> + लेन-देन
+            </button>
+          </div>
         }
       />
 

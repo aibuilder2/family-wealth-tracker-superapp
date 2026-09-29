@@ -8,7 +8,7 @@ import { ProgressRing } from '@/components/ui/ProgressRing';
 import { Mono } from '@/components/ui/Mono';
 import { TransactionList } from '@/components/money/TransactionList';
 import { BusinessShortcutsGrid } from '@/components/home/BusinessShortcutsGrid';
-import { ArrowUpRight, ArrowDownRight, ChevronRight, HandCoins } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ChevronRight, HandCoins, PieChart } from 'lucide-react';
 
 export default function HomePage() {
   const {
@@ -66,6 +66,29 @@ export default function HomePage() {
             {totalExpenseThisMonth > 0 ? 'कुल ख़र्च' : '0 ख़र्च दर्ज'}
           </p>
         </div>
+      </div>
+
+      {/* 2.5 Quick Analytics & Passive Ratio Teaser */}
+      <div className="px-4">
+        <Link 
+          href="/analytics" 
+          className="rounded-xl px-4 py-2.5 bg-paper border border-paper-dim flex items-center justify-between shadow-xs hover:border-gold/50 transition-all group"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="p-1.5 bg-gold/15 text-gold-dark rounded-lg">
+              <PieChart size={15} />
+            </span>
+            <div>
+              <p className="text-xs font-bold text-ink group-hover:text-gold-dark transition-colors">
+                खर्च हॉटस्पॉट्स व पैसिव इनकम रेशियो
+              </p>
+              <p className="text-[10px] text-ink-muted">
+                किस मद में ज्यादा खर्च हुआ & वित्तीय स्वतंत्रता स्कोर देखें
+              </p>
+            </div>
+          </div>
+          <ChevronRight size={14} className="text-ink-muted group-hover:translate-x-0.5 transition-transform" />
+        </Link>
       </div>
 
       {/* 3. Featured Goal Widget */}
