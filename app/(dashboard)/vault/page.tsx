@@ -347,6 +347,70 @@ export default function VaultPage() {
             </div>
 
             <form onSubmit={handleUploadSubmit} className="space-y-3 text-xs">
+              {/* Quick Document Presets (Car/Bike RC, Insurance, ID, Registry) */}
+              <div>
+                <span className="text-[10px] font-bold text-ink-muted uppercase block mb-1">
+                  क्विक प्रकार चुनें (Quick Presets):
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategory('vehicle');
+                      setSelectedFolder('गाड़ी के कागज़ (RC/PUC)');
+                      setTitle('कार / बाइक RC व इंश्योरेंस');
+                    }}
+                    className={`py-1.5 px-2 rounded-xl border text-left font-bold text-[11px] flex items-center gap-1.5 transition-all ${
+                      category === 'vehicle' ? 'bg-gold/15 border-gold text-gold-dark' : 'bg-paper border-paper-dim text-ink-muted'
+                    }`}
+                  >
+                    🚗 गाड़ी (Car / Bike RC)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategory('insurance');
+                      setSelectedFolder('बीमा व हेल्थ (Insurance)');
+                      setTitle('वाहन / हेल्थ इंश्योरेंस पॉलिसी');
+                    }}
+                    className={`py-1.5 px-2 rounded-xl border text-left font-bold text-[11px] flex items-center gap-1.5 transition-all ${
+                      category === 'insurance' ? 'bg-gold/15 border-gold text-gold-dark' : 'bg-paper border-paper-dim text-ink-muted'
+                    }`}
+                  >
+                    🛡️ इंश्योरेंस पॉलिसी
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategory('id_proof');
+                      setSelectedFolder('पहचान पत्र (Aadhar/PAN)');
+                      setTitle('आधार कार्ड / पैन कार्ड');
+                    }}
+                    className={`py-1.5 px-2 rounded-xl border text-left font-bold text-[11px] flex items-center gap-1.5 transition-all ${
+                      category === 'id_proof' ? 'bg-gold/15 border-gold text-gold-dark' : 'bg-paper border-paper-dim text-ink-muted'
+                    }`}
+                  >
+                    🪪 आधार / पैन कार्ड
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategory('property');
+                      setSelectedFolder('जमीन व प्रॉपर्टी (Registry)');
+                      setTitle('मकान / जमीन की रजिस्ट्री');
+                    }}
+                    className={`py-1.5 px-2 rounded-xl border text-left font-bold text-[11px] flex items-center gap-1.5 transition-all ${
+                      category === 'property' ? 'bg-gold/15 border-gold text-gold-dark' : 'bg-paper border-paper-dim text-ink-muted'
+                    }`}
+                  >
+                    📄 जमीन / रजिस्ट्री
+                  </button>
+                </div>
+              </div>
+
               {/* Document Title */}
               <div>
                 <label className="block text-[11px] font-bold text-ink uppercase tracking-wider mb-1">

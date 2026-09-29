@@ -71,20 +71,25 @@ export default function HomePage() {
       {/* 3. Featured Goal Widget */}
       <div className="px-4">
         {primaryGoal ? (
-          <div className="rounded-xl p-4 bg-paper border border-paper-dim flex items-center gap-4 shadow-sm">
-            <ProgressRing percent={goalPercent} size={80} />
-            <div className="flex-1 min-w-0">
-              <p className="font-serif font-semibold text-ink text-sm truncate">
-                {primaryGoal.title}
-              </p>
-              <p className="text-xs text-ink-muted mt-0.5">
-                Goal: <Mono>₹{primaryGoal.target_amount.toLocaleString('en-IN')}</Mono>
-              </p>
-              <p className="text-xs text-ink-muted">
-                Jama: <Mono className="text-gold font-semibold">₹{primaryGoal.saved_amount.toLocaleString('en-IN')}</Mono>
-              </p>
+          <Link href="/wealth" className="rounded-xl p-4 bg-paper border border-paper-dim flex items-center gap-4 shadow-sm hover:border-gold/50 transition-all block">
+            <div className="flex items-center gap-4 w-full">
+              <ProgressRing percent={goalPercent} size={80} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="font-serif font-bold text-ink text-sm truncate">
+                    {primaryGoal.title}
+                  </p>
+                  <span className="text-[10px] font-bold text-gold hover:underline">लक्ष्य विवरण / बदलें →</span>
+                </div>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  Goal: <Mono>₹{primaryGoal.target_amount.toLocaleString('en-IN')}</Mono>
+                </p>
+                <p className="text-xs text-ink-muted">
+                  Jama: <Mono className="text-gold font-semibold">₹{primaryGoal.saved_amount.toLocaleString('en-IN')}</Mono>
+                </p>
+              </div>
             </div>
-          </div>
+          </Link>
         ) : (
           <div className="rounded-xl p-3.5 bg-paper border border-dashed border-paper-dim flex items-center justify-between shadow-sm">
             <div>

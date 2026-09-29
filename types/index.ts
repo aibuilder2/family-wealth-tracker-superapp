@@ -76,16 +76,33 @@ export interface Asset {
   notes?: string;
   color?: string;
   updated_at?: string;
+
+  // Flexible Deposit / RD / Investment Fields
+  start_date?: string; // कब से शुरू हुआ
+  maturity_date?: string; // परिपक्वता तिथि
+  opened_by?: 'direct_bank' | 'agent' | string; // डायरेक्ट बैंक से या एजेंट के ज़रिए
+  agent_name?: string; // एजेंट का नाम
+  agent_phone?: string; // एजेंट का संपर्क नंबर
+  monthly_installment?: number; // मासिक आरडी/एसआईपी किश्त
+  account_number?: string; // खाता या फोलियो संख्या
+  linked_goal_id?: string; // किस लक्ष्य से जुड़ा है
 }
 
 export interface Goal {
   id: string;
   family_id: string;
+  member_id?: string; // किस सदस्य का लक्ष्य है
   title: string;
   target_amount: number;
   saved_amount: number;
   target_date?: string;
   category?: string;
+  
+  // Goal Funding & Asset Linking
+  funding_source?: 'income' | 'savings' | 'investment'; // किस स्रोत से पूरा होगा
+  linked_asset_ids?: string[]; // जुड़े हुए एफडी, आरडी, एसआईपी या गोल्ड
+  monthly_contribution?: number; // मासिक बचत लक्ष्य
+  notes?: string;
 }
 
 export type ReminderCategory = 'insurance' | 'service' | 'appointment' | 'emi' | 'other';

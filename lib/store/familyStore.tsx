@@ -593,8 +593,11 @@ interface FamilyContextType {
   // Actions
   updateFamilyName: (newName: string) => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'family_id' | 'created_at'>) => void;
+  updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => void;
   addGoal: (goal: Omit<Goal, 'id' | 'family_id'>) => void;
+  updateGoal: (id: string, updates: Partial<Goal>) => void;
+  deleteGoal: (id: string) => void;
   addReminder: (rem: Omit<Reminder, 'id' | 'family_id'>) => void;
   addAsset: (asset: Omit<Asset, 'id' | 'family_id'>) => void;
   addMember: (member: Omit<Member, 'id' | 'family_id'>) => void;
@@ -1280,6 +1283,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateTransaction = (id: string, updates: Partial<Transaction>) => {
+    const updated = transactions.map(t => t.id === id ? { ...t, ...updates } : t);
+    saveTransactions(updated);
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('transactions').update(updates).eq('id', id).then();
+    }
+  };
+
   const addGoal = (g: Omit<Goal, 'id' | 'family_id'>) => {
     const newG: Goal = { ...g, id: 'g-' + Date.now(), family_id: family.id };
     const updated = [...goals, newG];
@@ -1297,6 +1309,26 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         target_date: newG.target_date || null,
         category: newG.category || 'general',
       }).then();
+    }
+  };
+
+  const updateGoal = (id: string, updates: Partial<Goal>) => {
+    const updated = goals.map(g => g.id === id ? { ...g, ...updates } : g);
+    setGoals(updated);
+    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('goals').update(updates).eq('id', id).then();
+    }
+  };
+
+  const deleteGoal = (id: string) => {
+    const updated = goals.filter(g => g.id !== id);
+    setGoals(updated);
+    try { localStorage.setItem('fwa_goals', JSON.stringify(updated)); } catch (e) {}
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('goals').delete().eq('id', id).then();
     }
   };
 
@@ -1997,8 +2029,11 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         setActiveMemberId,
         updateFamilyName,
         addTransaction,
+        updateTransaction,
         deleteTransaction,
         addGoal,
+        updateGoal,
+        deleteGoal,
         addReminder,
         addAsset,
         addMember,
