@@ -9,7 +9,8 @@ import { GoalCard } from '@/components/wealth/GoalCard';
 import { Mono } from '@/components/ui/Mono';
 import { 
   Plus, PiggyBank, Landmark, X, Building2, Home, CheckCircle2, 
-  AlertCircle, Sparkles, User, Calendar, Link as LinkIcon, DollarSign 
+  AlertCircle, Sparkles, User, Calendar, Link as LinkIcon, DollarSign,
+  TrendingUp, Zap, ChevronRight
 } from 'lucide-react';
 import { AssetCategory, AssetType, Goal } from '@/types';
 
@@ -257,6 +258,34 @@ export default function WealthPage() {
             <span>🏢 पूरा किराया व संपत्ति खाता खोलें →</span>
           </Link>
         </div>
+      </div>
+
+      {/* 📈 AI Stock Scanner & Chanakya Investment Radar */}
+      <div className="px-4">
+        <Link
+          href="/advisor"
+          className="rounded-2xl p-3.5 bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-transparent border border-emerald-500/25 flex items-center justify-between shadow-xs hover:border-emerald-500/50 transition-all group block"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Zap size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-bold text-ink group-hover:text-emerald-600 transition-colors">
+                  चाणक्य AI: लाइव स्टॉक स्कैनर व वेल्थ रडार
+                </h4>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 font-bold">
+                  GPT-4o-Mini
+                </span>
+              </div>
+              <p className="text-[11px] text-ink-muted mt-0.5">
+                Nifty 50, ब्लूचिप्स, डिविडेंड स्टॉक्स व रेंटल री-इन्वेस्टमेंट सिग्नल्स देखें →
+              </p>
+            </div>
+          </div>
+          <ChevronRight size={15} className="text-ink-muted group-hover:translate-x-0.5 transition-transform" />
+        </Link>
       </div>
 
       {/* Assets Grid */}
