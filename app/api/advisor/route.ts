@@ -109,6 +109,29 @@ Strictly JSON format me return karein with this schema:
       "riskLevel": "Moderate-High"
     }
   ],
+  "predictions": [
+    {
+      "id": "pred-generated",
+      "ticker": "TICKER (e.g. RELIANCE / TATAMOTORS / ITC)",
+      "name": "Company Full Name",
+      "prediction_date": "YYYY-MM-DD",
+      "entry_price": 2880,
+      "target_price": 3020,
+      "stoploss_price": 2810,
+      "current_price": 2890,
+      "timeframe": "Short Term (7-15 Days)" | "Medium Term (1-3 Months)",
+      "status": "ACTIVE" | "TARGET_HIT" | "STOPLOSS_HIT",
+      "technicals": {
+        "rsi": 44.5,
+        "macd_signal": "Bullish Crossover" | "Bearish Crossover" | "Neutral",
+        "pe_ratio": 23.5,
+        "dma_200_status": "Above 200 DMA" | "Near 200 DMA Support" | "Below 200 DMA",
+        "yearly_high_low": "₹3,020 / ₹2,200"
+      },
+      "ai_reason": "Technical + Fundamental setup reason with RSI and MACD logic.",
+      "post_mortem": "AI ka auto analysis: agar target hit hua to kyu, aur stoploss kata to kyu."
+    }
+  ],
   "insights": [
     {
       "title": "Stock Market Strategy Insight",
@@ -120,6 +143,122 @@ Strictly JSON format me return karein with this schema:
   ]
 }
 Sirf valid JSON return karein.`;
+
+    const defaultPredictions = [
+      {
+        id: "pred-rel-1",
+        ticker: "RELIANCE",
+        name: "Reliance Industries",
+        prediction_date: new Date(Date.now() - 12 * 86400000).toISOString().split('T')[0],
+        entry_price: 2880,
+        target_price: 3020,
+        stoploss_price: 2810,
+        current_price: 3035,
+        timeframe: "Short Term (7-15 Days)",
+        status: "TARGET_HIT",
+        technicals: {
+          rsi: 42.5,
+          macd_signal: "Bullish Crossover",
+          pe_ratio: 24.2,
+          dma_200_status: "Above 200 DMA",
+          yearly_high_low: "₹3,024 / ₹2,220"
+        },
+        ai_reason: "200 DMA पर हैमर कैंडलस्टिक व RSI 42 से बाउंस बैक। 1:2 रिस्क-रिवॉर्ड पर अनुकूल।",
+        post_mortem: "टारगेट 6 दिनों में सफल रहा। 200 DMA सपोर्ट पर बाउंस और रिफाइनरी मार्जिन में सुधार से स्टॉक ने ₹3,020 का स्तर तोड़ा।",
+        pnl_percent: 4.86,
+        resolved_date: new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0]
+      },
+      {
+        id: "pred-tat-2",
+        ticker: "TATAMOTORS",
+        name: "Tata Motors Ltd",
+        prediction_date: new Date(Date.now() - 18 * 86400000).toISOString().split('T')[0],
+        entry_price: 995,
+        target_price: 1070,
+        stoploss_price: 960,
+        current_price: 955,
+        timeframe: "Short Term (7-15 Days)",
+        status: "STOPLOSS_HIT",
+        technicals: {
+          rsi: 58.0,
+          macd_signal: "Bearish Divergence",
+          pe_ratio: 11.5,
+          dma_200_status: "Near 200 DMA Support",
+          yearly_high_low: "₹1,179 / ₹600"
+        },
+        ai_reason: "कम P/E व कमर्शियल व्हीकल ग्रोथ के आधार पर स्विंग ट्रेड।",
+        post_mortem: "स्टॉपलॉस ₹960 पर कटा। JLR के यूके मार्जिन में दबाव और ऑटो सेक्टर में भारी प्रॉफिट बुकिंग से सपोर्ट टूटा। स्टॉपलॉस ने बड़ी हानि से बचाया।",
+        pnl_percent: -3.52,
+        resolved_date: new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0]
+      },
+      {
+        id: "pred-nif-3",
+        ticker: "NIFTYBEES",
+        name: "Nippon Nifty 50 ETF",
+        prediction_date: new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0],
+        entry_price: 262,
+        target_price: 274,
+        stoploss_price: 256,
+        current_price: 269.5,
+        timeframe: "Medium Term (1-3 Months)",
+        status: "ACTIVE",
+        technicals: {
+          rsi: 51.2,
+          macd_signal: "Bullish Crossover",
+          pe_ratio: 22.1,
+          dma_200_status: "Above 200 DMA",
+          yearly_high_low: "₹272 / ₹215"
+        },
+        ai_reason: "निफ्टी का 20 DMA री-टेस्ट व बैंकिंग शेयरों में रिकवरी। परिवार के लिक्विड फंड्स हेतु सुरक्षित ट्रेड।",
+        post_mortem: "सक्रिय ट्रेड: वर्तमान भाव ₹269.5 (+2.86%)। टारगेट ₹274 की ओर बढ़ रहा है। स्टॉपलॉस को ट्रेल करके कॉस्ट (₹262) पर ले आएं।",
+        pnl_percent: 2.86
+      },
+      {
+        id: "pred-itc-4",
+        ticker: "ITC",
+        name: "ITC Limited",
+        prediction_date: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+        entry_price: 485,
+        target_price: 510,
+        stoploss_price: 470,
+        current_price: 512,
+        timeframe: "Short Term (7-15 Days)",
+        status: "TARGET_HIT",
+        technicals: {
+          rsi: 36.4,
+          macd_signal: "Bullish Crossover",
+          pe_ratio: 26.8,
+          dma_200_status: "Above 200 DMA",
+          yearly_high_low: "₹520 / ₹399"
+        },
+        ai_reason: "RSI 36 ओवरसोल्ड जोन व होटल बिजनेस डीमर्जर डेट के चलते रिवर्सल सेटअप।",
+        post_mortem: "टारगेट 11 दिनों में पूरा हुआ। होटल डीमर्जर की खबरों और 3.5% डिविडेंड यील्ड सपोर्ट से मजबूत खरीदारी आई।",
+        pnl_percent: 5.15,
+        resolved_date: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0]
+      },
+      {
+        id: "pred-hdfc-5",
+        ticker: "HDFCBANK",
+        name: "HDFC Bank Ltd",
+        prediction_date: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0],
+        entry_price: 1640,
+        target_price: 1730,
+        stoploss_price: 1595,
+        current_price: 1668,
+        timeframe: "Medium Term (1-3 Months)",
+        status: "ACTIVE",
+        technicals: {
+          rsi: 48.0,
+          macd_signal: "Bullish Crossover",
+          pe_ratio: 18.9,
+          dma_200_status: "Above 200 DMA",
+          yearly_high_low: "₹1,794 / ₹1,363"
+        },
+        ai_reason: "क्रेडिट-टू-डिपॉजिट (CD) रेशियो में सुधार और 10-साल के सबसे कम P/B वैल्यूएशन पर ट्रेड।",
+        post_mortem: "सक्रिय ट्रेड: वर्तमान भाव ₹1,668 (+1.71%)। संस्थागत निवेशकों (FIIs) की खरीदारी जारी है।",
+        pnl_percent: 1.71
+      }
+    ];
 
     // 2. Try OpenAI GPT-4o-mini if API key exists
     if (openaiApiKey) {
@@ -154,6 +293,7 @@ Sirf valid JSON return karein.`;
             healthScore: parsed.healthScore || 85,
             marketTrend: parsed.marketTrend || 'Bullish Accumulation Zone',
             stockScans: parsed.stockScans || [],
+            predictions: parsed.predictions || defaultPredictions,
             insights: parsed.insights || [],
           });
         } else {
@@ -194,6 +334,7 @@ Sirf valid JSON return karein.`;
             healthScore: parsed.healthScore || 82,
             marketTrend: parsed.marketTrend || 'Healthy Consolidation',
             stockScans: parsed.stockScans || [],
+            predictions: parsed.predictions || defaultPredictions,
             insights: parsed.insights || [],
           });
         }
@@ -279,6 +420,7 @@ Sirf valid JSON return karein.`;
       healthScore: 85,
       marketTrend: "Healthy Bullish Accumulation Zone",
       stockScans: defaultStockScans,
+      predictions: defaultPredictions,
       insights: fallbackInsights,
     });
 

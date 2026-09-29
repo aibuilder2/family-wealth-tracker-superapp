@@ -601,6 +601,7 @@ interface FamilyContextType {
   addReminder: (rem: Omit<Reminder, 'id' | 'family_id'>) => void;
   addAsset: (asset: Omit<Asset, 'id' | 'family_id'>) => void;
   addMember: (member: Omit<Member, 'id' | 'family_id'>) => void;
+  updateMember: (id: string, updates: Partial<Member>) => void;
   addDocument: (doc: Omit<DocumentItem, 'id' | 'family_id'>) => void;
   deleteDocument: (id: string) => void;
   updateAsset: (id: string, updates: Partial<Asset>) => void;
@@ -1400,6 +1401,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateMember = (id: string, updates: Partial<Member>) => {
+    const updated = members.map(m => m.id === id ? { ...m, ...updates } : m);
+    setMembers(updated);
+    try { localStorage.setItem('fwa_members', JSON.stringify(updated)); } catch (e) {}
+
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('members').update(updates).eq('id', id).then();
+    }
+  };
+
   const addDocument = (d: Omit<DocumentItem, 'id' | 'family_id'>) => {
     const newD: DocumentItem = { ...d, id: 'doc-' + Date.now(), family_id: family.id };
     const updated = [newD, ...documents];
@@ -2037,6 +2049,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addReminder,
         addAsset,
         addMember,
+        updateMember,
         addDocument,
         deleteDocument,
         addRentalProperty,

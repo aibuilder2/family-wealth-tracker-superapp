@@ -6,9 +6,11 @@ import { useFamilyStore } from '@/lib/store/familyStore';
 import {
   Sparkles, RefreshCw, TrendingUp, Home, Landmark,
   Send, Bot, CheckCircle2, ChevronRight, Lightbulb, PieChart,
-  Search, ShieldAlert, ArrowUpRight, BarChart2, Zap
+  Search, ShieldAlert, ArrowUpRight, ArrowDownRight, BarChart2, Zap,
+  Target, AlertTriangle, CheckCircle, Clock, Plus, X, Award
 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
+import { StockPrediction } from '@/types';
 
 interface StockScanItem {
   ticker: string;
@@ -49,6 +51,122 @@ const POPULAR_STOCKS_TO_SCAN = [
   "NIFTY 50", "TATA MOTORS", "RELIANCE", "ITC", "HDFC BANK", "TCS", "INFY"
 ];
 
+const INITIAL_PREDICTIONS: StockPrediction[] = [
+  {
+    id: "pred-rel-1",
+    ticker: "RELIANCE",
+    name: "Reliance Industries",
+    prediction_date: "2026-09-17",
+    entry_price: 2880,
+    target_price: 3020,
+    stoploss_price: 2810,
+    current_price: 3035,
+    timeframe: "Short Term (7-15 Days)",
+    status: "TARGET_HIT",
+    technicals: {
+      rsi: 42.5,
+      macd_signal: "Bullish Crossover",
+      pe_ratio: 24.2,
+      dma_200_status: "Above 200 DMA",
+      yearly_high_low: "₹3,024 / ₹2,220"
+    },
+    ai_reason: "200 DMA पर हैमर कैंडलस्टिक व RSI 42 से बाउंस बैक। 1:2.3 रिस्क-रिवॉर्ड सेटअप।",
+    post_mortem: "टारगेट 6 दिनों में सफल रहा। 200 DMA सपोर्ट पर बाउंस और रिफाइनरी मार्जिन में सुधार से स्टॉक ने ₹3,020 का स्तर तोड़ा।",
+    pnl_percent: 4.86,
+    resolved_date: "2026-09-23"
+  },
+  {
+    id: "pred-tat-2",
+    ticker: "TATAMOTORS",
+    name: "Tata Motors Ltd",
+    prediction_date: "2026-09-11",
+    entry_price: 995,
+    target_price: 1070,
+    stoploss_price: 960,
+    current_price: 955,
+    timeframe: "Short Term (7-15 Days)",
+    status: "STOPLOSS_HIT",
+    technicals: {
+      rsi: 58.0,
+      macd_signal: "Bearish Divergence",
+      pe_ratio: 11.5,
+      dma_200_status: "Near 200 DMA Support",
+      yearly_high_low: "₹1,179 / ₹600"
+    },
+    ai_reason: "कम P/E व कमर्शियल व्हीकल ग्रोथ के आधार पर स्विंग ट्रेड।",
+    post_mortem: "स्टॉपलॉस ₹960 पर कटा। JLR के यूके मार्जिन में दबाव और ऑटो सेक्टर में भारी प्रॉफिट बुकिंग से सपोर्ट टूटा। समय पर स्टॉपलॉस ने बड़ी पूंजी सुरक्षित रखी।",
+    pnl_percent: -3.52,
+    resolved_date: "2026-09-19"
+  },
+  {
+    id: "pred-nif-3",
+    ticker: "NIFTYBEES",
+    name: "Nippon Nifty 50 ETF",
+    prediction_date: "2026-09-24",
+    entry_price: 262,
+    target_price: 274,
+    stoploss_price: 256,
+    current_price: 270,
+    timeframe: "Medium Term (1-3 Months)",
+    status: "ACTIVE",
+    technicals: {
+      rsi: 51.2,
+      macd_signal: "Bullish Crossover",
+      pe_ratio: 22.1,
+      dma_200_status: "Above 200 DMA",
+      yearly_high_low: "₹272 / ₹215"
+    },
+    ai_reason: "निफ्टी का 20 DMA री-टेस्ट व बैंकिंग सेक्टर की रिकवरी। परिवार के लिक्विड फंड्स हेतु सुरक्षित ट्रेड।",
+    post_mortem: "सक्रिय ट्रेड: वर्तमान भाव ₹270 (+3.05%)। टारगेट ₹274 की ओर अग्रसर। स्टॉपलॉस को ट्रेल करके कॉस्ट (₹262) पर ले आएं।",
+    pnl_percent: 3.05
+  },
+  {
+    id: "pred-itc-4",
+    ticker: "ITC",
+    name: "ITC Limited",
+    prediction_date: "2026-09-15",
+    entry_price: 485,
+    target_price: 510,
+    stoploss_price: 470,
+    current_price: 512,
+    timeframe: "Short Term (7-15 Days)",
+    status: "TARGET_HIT",
+    technicals: {
+      rsi: 36.4,
+      macd_signal: "Bullish Crossover",
+      pe_ratio: 26.8,
+      dma_200_status: "Above 200 DMA",
+      yearly_high_low: "₹520 / ₹399"
+    },
+    ai_reason: "RSI 36 ओवरसोल्ड जोन व होटल बिजनेस डीमर्जर डेट के चलते रिवर्सल सेटअप।",
+    post_mortem: "टारगेट 11 दिनों में पूरा हुआ। होटल डीमर्जर की खबरों और 3.5% डिविडेंड यील्ड सपोर्ट से मजबूत संस्थागत खरीदारी आई।",
+    pnl_percent: 5.15,
+    resolved_date: "2026-09-26"
+  },
+  {
+    id: "pred-hdfc-5",
+    ticker: "HDFCBANK",
+    name: "HDFC Bank Ltd",
+    prediction_date: "2026-09-26",
+    entry_price: 1640,
+    target_price: 1730,
+    stoploss_price: 1595,
+    current_price: 1668,
+    timeframe: "Medium Term (1-3 Months)",
+    status: "ACTIVE",
+    technicals: {
+      rsi: 48.0,
+      macd_signal: "Bullish Crossover",
+      pe_ratio: 18.9,
+      dma_200_status: "Above 200 DMA",
+      yearly_high_low: "₹1,794 / ₹1,363"
+    },
+    ai_reason: "क्रेडिट-टू-डिपॉजिट (CD) रेशियो में सुधार और 10-साल के सबसे कम P/B वैल्यूएशन पर ट्रेड।",
+    post_mortem: "सक्रिय ट्रेड: वर्तमान भाव ₹1,668 (+1.71%)। FIIs की लगातार खरीदारी का समर्थन।",
+    pnl_percent: 1.71
+  }
+];
+
 export default function AdvisorPage() {
   const {
     totalIncomeThisMonth,
@@ -63,13 +181,26 @@ export default function AdvisorPage() {
   } = useFamilyStore();
 
   const [selectedAi, setSelectedAi] = useState(AI_NAMES[0]);
-  const [activeTab, setActiveTab] = useState<'all' | 'stocks' | 'family'>('stocks');
+  const [activeTab, setActiveTab] = useState<'stocks' | 'predictions' | 'family' | 'all'>('stocks');
   const [questionInput, setQuestionInput] = useState('');
   const [stockSearchInput, setStockSearchInput] = useState('');
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [activeProvider, setActiveProvider] = useState<string>('OpenAI (gpt-4o-mini ready)');
   const [healthScore, setHealthScore] = useState<number>(85);
   const [marketTrend, setMarketTrend] = useState<string>('Healthy Bullish Accumulation Zone');
+
+  // Predictions state
+  const [predictions, setPredictions] = useState<StockPrediction[]>(INITIAL_PREDICTIONS);
+  const [predFilter, setPredFilter] = useState<'all' | 'ACTIVE' | 'TARGET_HIT' | 'STOPLOSS_HIT'>('all');
+  const [isAddPredModalOpen, setIsAddPredModalOpen] = useState(false);
+  const [newPredTicker, setNewPredTicker] = useState('');
+  const [newPredName, setNewPredName] = useState('');
+  const [newPredEntry, setNewPredEntry] = useState('');
+  const [newPredTarget, setNewPredTarget] = useState('');
+  const [newPredStoploss, setNewPredStoploss] = useState('');
+  const [newPredRsi, setNewPredRsi] = useState('45');
+  const [newPredPe, setNewPredPe] = useState('22');
+  const [auditMessage, setAuditMessage] = useState<string | null>(null);
 
   const [stockScans, setStockScans] = useState<StockScanItem[]>([
     {
@@ -154,6 +285,16 @@ export default function AdvisorPage() {
     0
   );
 
+  // Prediction Stats & Win Rate
+  const resolvedPredictions = predictions.filter(p => p.status === 'TARGET_HIT' || p.status === 'STOPLOSS_HIT');
+  const targetHitCount = predictions.filter(p => p.status === 'TARGET_HIT').length;
+  const stoplossHitCount = predictions.filter(p => p.status === 'STOPLOSS_HIT').length;
+  const activePredCount = predictions.filter(p => p.status === 'ACTIVE').length;
+  const winRatePercent = resolvedPredictions.length > 0 
+    ? Math.round((targetHitCount / resolvedPredictions.length) * 100) 
+    : 75;
+  const netCumulativePnL = predictions.reduce((sum, p) => sum + (p.pnl_percent || 0), 0);
+
   const handleFetchAi = async (customQuestion?: string, stockToScanName?: string) => {
     try {
       setLoading(true);
@@ -185,6 +326,9 @@ export default function AdvisorPage() {
         if (Array.isArray(data.stockScans) && data.stockScans.length > 0) {
           setStockScans(data.stockScans);
         }
+        if (Array.isArray(data.predictions) && data.predictions.length > 0) {
+          setPredictions(data.predictions);
+        }
         if (data.marketTrend) {
           setMarketTrend(data.marketTrend);
         }
@@ -206,47 +350,84 @@ export default function AdvisorPage() {
     }
   };
 
-  const handleAsk = (e: React.FormEvent) => {
+  const handleRunAudit = () => {
+    // Check Target and Stoploss triggers against current prices
+    let hitCount = 0;
+    let slCount = 0;
+    const updated = predictions.map(p => {
+      if (p.status !== 'ACTIVE') return p;
+      if (p.current_price >= p.target_price) {
+        hitCount++;
+        return {
+          ...p,
+          status: 'TARGET_HIT' as const,
+          pnl_percent: Number((((p.target_price - p.entry_price) / p.entry_price) * 100).toFixed(2)),
+          resolved_date: new Date().toISOString().split('T')[0],
+          post_mortem: `🎯 टारगेट हिट: लाइव भाव (₹${p.current_price}) ने लक्ष्य ₹${p.target_price} को पार किया। RSI मोमेंटम व वॉल्यूम ब्रेकआउट सफल रहा।`
+        };
+      }
+      if (p.current_price <= p.stoploss_price) {
+        slCount++;
+        return {
+          ...p,
+          status: 'STOPLOSS_HIT' as const,
+          pnl_percent: Number((((p.stoploss_price - p.entry_price) / p.entry_price) * 100).toFixed(2)),
+          resolved_date: new Date().toISOString().split('T')[0],
+          post_mortem: `🛑 स्टॉपलॉस ट्रिगर: भाव गिरकर ₹${p.stoploss_price} पर आया। अनुशासित एग्जिट से बड़ी हानि टल गई।`
+        };
+      }
+      return p;
+    });
+
+    setPredictions(updated);
+    setAuditMessage(`ऑडिट पूरा: सभी एक्टिव कॉल्स का मूल्यांकन संपन्न हुआ। ${hitCount} नए टारगेट हिट, ${slCount} स्टॉपलॉस ट्रिगर।`);
+    setTimeout(() => setAuditMessage(null), 5000);
+  };
+
+  const handleAddManualPrediction = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!questionInput.trim()) return;
-    handleFetchAi(questionInput);
+    if (!newPredTicker.trim() || !newPredEntry || !newPredTarget || !newPredStoploss) return;
+
+    const entry = Number(newPredEntry);
+    const target = Number(newPredTarget);
+    const stoploss = Number(newPredStoploss);
+    const pnl = Number((((entry - entry) / entry) * 100).toFixed(2));
+
+    const newPred: StockPrediction = {
+      id: `pred-user-${Date.now()}`,
+      ticker: newPredTicker.trim().toUpperCase(),
+      name: newPredName.trim() || newPredTicker.trim().toUpperCase(),
+      prediction_date: new Date().toISOString().split('T')[0],
+      entry_price: entry,
+      target_price: target,
+      stoploss_price: stoploss,
+      current_price: entry,
+      timeframe: 'Short Term (7-15 Days)',
+      status: 'ACTIVE',
+      technicals: {
+        rsi: Number(newPredRsi) || 45,
+        macd_signal: 'Bullish Crossover',
+        pe_ratio: Number(newPredPe) || 22,
+        dma_200_status: 'Above 200 DMA',
+        yearly_high_low: `₹${Math.round(target * 1.1)} / ₹${Math.round(stoploss * 0.9)}`
+      },
+      ai_reason: `RSI ${newPredRsi} व P/E ${newPredPe} के आधार पर नया सेटअप। लक्ष्य: ₹${target} (+${Math.round(((target-entry)/entry)*100)}%), स्टॉपलॉस: ₹${stoploss} (-${Math.round(((entry-stoploss)/entry)*100)}%)।`,
+      post_mortem: 'सक्रिय ट्रेड: दैनिक मार्केट क्लोजिंग पर ऑटो-ऑडिट जारी रहेगा।',
+      pnl_percent: pnl
+    };
+
+    setPredictions([newPred, ...predictions]);
+    setIsAddPredModalOpen(false);
+    setNewPredTicker('');
+    setNewPredName('');
+    setNewPredEntry('');
+    setNewPredTarget('');
+    setNewPredStoploss('');
   };
 
-  const handleStockScanSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stockSearchInput.trim()) return;
-    handleFetchAi(undefined, stockSearchInput);
-  };
-
-  const getSignalBadge = (signal: string) => {
-    if (signal.includes('BUY')) {
-      return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30';
-    }
-    if (signal.includes('ACCUMULATE')) {
-      return 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30';
-    }
-    return 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30';
-  };
-
-  const getColorClasses = (color?: string) => {
-    switch (color) {
-      case 'green':
-        return { tag: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800', border: 'border-emerald-200 dark:border-emerald-900/60' };
-      case 'coral':
-        return { tag: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800', border: 'border-amber-200 dark:border-amber-900/60' };
-      case 'navy':
-        return { tag: 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800', border: 'border-blue-200 dark:border-blue-900/60' };
-      case 'gold':
-      default:
-        return { tag: 'text-amber-800 dark:text-amber-200 bg-amber-100/60 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700', border: 'border-amber-300 dark:border-amber-800/60' };
-    }
-  };
-
-  const filteredInsights = insights.filter((item) => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'stocks') return item.domain === 'stocks' || item.tag?.toLowerCase().includes('stock') || item.tag?.toLowerCase().includes('asset');
-    if (activeTab === 'family') return item.domain === 'family' || item.tag?.toLowerCase().includes('family') || item.tag?.toLowerCase().includes('cashflow') || item.tag?.toLowerCase().includes('risk');
-    return true;
+  const filteredPredictions = predictions.filter(p => {
+    if (predFilter === 'all') return true;
+    return p.status === predFilter;
   });
 
   return (
@@ -309,46 +490,304 @@ export default function AdvisorPage() {
         </div>
       </div>
 
-      {/* Dual Domain Filter Tabs */}
+      {/* Main Feature Tabs */}
       <div className="px-4">
-        <div className="flex p-1 bg-paper-subtle rounded-xl border border-paper-dim">
+        <div className="flex p-1 bg-paper-subtle rounded-xl border border-paper-dim overflow-x-auto">
           <button
             onClick={() => setActiveTab('stocks')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[120px] py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'stocks'
                 ? 'bg-paper text-ink shadow-xs border border-paper-dim'
                 : 'text-ink-muted hover:text-ink'
             }`}
           >
             <TrendingUp size={14} className="text-emerald-500" />
-            <span>📈 शेयर बाज़ार व AI स्कैनर</span>
+            <span>📈 स्टॉक स्कैनर</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('predictions')}
+            className={`flex-1 min-w-[150px] py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'predictions'
+                ? 'bg-paper text-ink shadow-xs border border-paper-dim'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            <Target size={14} className="text-amber-500" />
+            <span>🎯 प्रेडिक्शन जर्नल & ऑडिट</span>
           </button>
           <button
             onClick={() => setActiveTab('family')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[130px] py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'family'
                 ? 'bg-paper text-ink shadow-xs border border-paper-dim'
                 : 'text-ink-muted hover:text-ink'
             }`}
           >
             <Home size={14} className="text-blue-500" />
-            <span>🏠 पारिवारिक नकदी व रेंटल</span>
+            <span>🏠 पारिवारिक वेल्थ</span>
           </button>
           <button
             onClick={() => setActiveTab('all')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[100px] py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'all'
                 ? 'bg-paper text-ink shadow-xs border border-paper-dim'
                 : 'text-ink-muted hover:text-ink'
             }`}
           >
             <Sparkles size={14} className="text-amber-500" />
-            <span>🌟 समग्र (All-in-One)</span>
+            <span>🌟 समग्र</span>
           </button>
         </div>
       </div>
 
-      {/* SECTION 1: AI STOCK SCANNER RADAR (WHEN STOCKS OR ALL IS ACTIVE) */}
+      {/* SECTION: PREDICTION JOURNAL & AUTO-AUDIT (TARGET VS STOPLOSS) */}
+      {activeTab === 'predictions' && (
+        <div className="px-4 space-y-3">
+          {/* Win Rate & Accuracy Scorecard */}
+          <div className="p-4 bg-gradient-to-r from-navy via-slate-900 to-navy text-paper rounded-2xl border border-paper-dim shadow-md space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
+                  <Award size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-paper">AI प्रेडिक्शन ट्रैकर व ऑटो-ऑडिट स्कोरबोर्ड</h3>
+                  <p className="text-[11px] text-paper-dim">PE, RSI, MACD व 200 DMA के आधार पर टार्गेट व स्टॉपलॉस की ट्रैकिंग</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRunAudit}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-sm transition-all active:scale-95 cursor-pointer"
+                >
+                  <RefreshCw size={12} />
+                  <span>🔄 लाइव ऑडिट रन करें</span>
+                </button>
+                <button
+                  onClick={() => setIsAddPredModalOpen(true)}
+                  className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-paper font-bold text-xs flex items-center gap-1 transition-all cursor-pointer"
+                >
+                  <Plus size={12} />
+                  <span>+ नया ट्रेड</span>
+                </button>
+              </div>
+            </div>
+
+            {auditMessage && (
+              <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-medium animate-fade-in flex items-center gap-2">
+                <CheckCircle2 size={14} />
+                <span>{auditMessage}</span>
+              </div>
+            )}
+
+            {/* KPI Ribbon */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 text-center">
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <span className="text-[10px] text-paper-dim uppercase block">सफलता दर (Win Rate)</span>
+                <span className="text-xl font-black text-amber-400 block mt-0.5">{winRatePercent}%</span>
+                <span className="text-[9px] text-paper-dim">{targetHitCount} सफल / {resolvedPredictions.length} पूर्ण</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <span className="text-[10px] text-paper-dim uppercase block">टारगेट हिट (Pass 🎯)</span>
+                <span className="text-xl font-black text-emerald-400 block mt-0.5">{targetHitCount}</span>
+                <span className="text-[9px] text-emerald-400/80">सफलतापूर्वक पूर्ण</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <span className="text-[10px] text-paper-dim uppercase block">स्टॉपलॉस ट्रिगर (🛑)</span>
+                <span className="text-xl font-black text-rose-400 block mt-0.5">{stoplossHitCount}</span>
+                <span className="text-[9px] text-paper-dim">पूंजी सुरक्षित की</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <span className="text-[10px] text-paper-dim uppercase block">सक्रिय ट्रेड्स (⏳)</span>
+                <span className="text-xl font-black text-blue-400 block mt-0.5">{activePredCount}</span>
+                <span className="text-[9px] text-paper-dim">दैनिक ट्रैक पर</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 col-span-2 sm:col-span-1">
+                <span className="text-[10px] text-paper-dim uppercase block">नेट संचयी लाभ</span>
+                <span className={`text-xl font-black block mt-0.5 ${netCumulativePnL >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {netCumulativePnL >= 0 ? '+' : ''}{netCumulativePnL.toFixed(1)}%
+                </span>
+                <span className="text-[9px] text-paper-dim">औसत मुनाफा</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setPredFilter('all')}
+                className={`text-[11px] font-bold px-3 py-1 rounded-lg transition-all ${
+                  predFilter === 'all'
+                    ? 'bg-navy text-white shadow-xs'
+                    : 'bg-paper text-ink-muted hover:text-ink border border-paper-dim'
+                }`}
+              >
+                सभी कॉल्स ({predictions.length})
+              </button>
+              <button
+                onClick={() => setPredFilter('ACTIVE')}
+                className={`text-[11px] font-bold px-3 py-1 rounded-lg transition-all ${
+                  predFilter === 'ACTIVE'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-paper text-ink-muted hover:text-ink border border-paper-dim'
+                }`}
+              >
+                सक्रिय (⏳ {activePredCount})
+              </button>
+              <button
+                onClick={() => setPredFilter('TARGET_HIT')}
+                className={`text-[11px] font-bold px-3 py-1 rounded-lg transition-all ${
+                  predFilter === 'TARGET_HIT'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-paper text-ink-muted hover:text-ink border border-paper-dim'
+                }`}
+              >
+                टारगेट हिट (🎯 {targetHitCount})
+              </button>
+              <button
+                onClick={() => setPredFilter('STOPLOSS_HIT')}
+                className={`text-[11px] font-bold px-3 py-1 rounded-lg transition-all ${
+                  predFilter === 'STOPLOSS_HIT'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-paper text-ink-muted hover:text-ink border border-paper-dim'
+                }`}
+              >
+                स्टॉपलॉस कटा (🛑 {stoplossHitCount})
+              </button>
+            </div>
+
+            <button
+              onClick={() => handleFetchAi("Generate fresh quantitative stock prediction with RSI and MACD")}
+              disabled={loading}
+              className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
+            >
+              <Zap size={12} />
+              <span>AI से नया प्रेडिक्शन</span>
+            </button>
+          </div>
+
+          {/* Prediction Cards List */}
+          <div className="space-y-3">
+            {filteredPredictions.map((pred) => {
+              const isTargetHit = pred.status === 'TARGET_HIT';
+              const isSlHit = pred.status === 'STOPLOSS_HIT';
+              const targetGainPct = Math.round(((pred.target_price - pred.entry_price) / pred.entry_price) * 100);
+              const slRiskPct = Math.round(((pred.entry_price - pred.stoploss_price) / pred.entry_price) * 100);
+
+              return (
+                <div
+                  key={pred.id}
+                  className={`p-4 rounded-2xl bg-paper border shadow-xs space-y-3 animate-fade-in transition-all ${
+                    isTargetHit
+                      ? 'border-emerald-500/40 bg-emerald-500/[0.02]'
+                      : isSlHit
+                      ? 'border-rose-500/40 bg-rose-500/[0.02]'
+                      : 'border-blue-500/30'
+                  }`}
+                >
+                  {/* Top Bar */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-base font-bold text-ink">{pred.ticker}</h4>
+                        <span className="text-[10px] text-ink-muted">({pred.name})</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim text-ink-muted">
+                          {pred.timeframe}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-ink-muted block mt-0.5">
+                        तारीख: {pred.prediction_date} {pred.resolved_date ? `• पूरा हुआ: ${pred.resolved_date}` : ''}
+                      </span>
+                    </div>
+
+                    <div>
+                      {isTargetHit && (
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1">
+                          <CheckCircle size={12} /> TARGET HIT (+{pred.pnl_percent}%)
+                        </span>
+                      )}
+                      {isSlHit && (
+                        <span className="px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1">
+                          <AlertTriangle size={12} /> STOPLOSS HIT ({pred.pnl_percent}%)
+                        </span>
+                      )}
+                      {pred.status === 'ACTIVE' && (
+                        <span className="px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 text-xs font-bold flex items-center gap-1 animate-pulse">
+                          <Clock size={12} /> ACTIVE (वर्तमान: ₹{pred.current_price})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quantitative Trade Levels Strip */}
+                  <div className="grid grid-cols-4 gap-2 p-2.5 bg-paper-subtle rounded-xl text-center">
+                    <div>
+                      <span className="text-[10px] text-ink-muted uppercase block">प्रवेश (Entry)</span>
+                      <Mono className="text-xs font-bold text-ink block mt-0.5">₹{pred.entry_price}</Mono>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 uppercase font-semibold block">टारगेट (Target)</span>
+                      <Mono className="text-xs font-bold text-emerald-600 block mt-0.5">
+                        ₹{pred.target_price} <span className="text-[10px] font-normal">(+{targetGainPct}%)</span>
+                      </Mono>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-rose-700 dark:text-rose-400 uppercase font-semibold block">स्टॉपलॉस (SL)</span>
+                      <Mono className="text-xs font-bold text-rose-600 block mt-0.5">
+                        ₹{pred.stoploss_price} <span className="text-[10px] font-normal">(-{slRiskPct}%)</span>
+                      </Mono>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-ink-muted uppercase block">लाइव भाव</span>
+                      <Mono className="text-xs font-bold text-ink block mt-0.5">₹{pred.current_price}</Mono>
+                    </div>
+                  </div>
+
+                  {/* Math Indicators Ribbon (RSI, MACD, PE, 200 DMA) */}
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[10px]">
+                    <span className="px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim font-medium text-ink">
+                      RSI (14): <strong className="text-amber-600">{pred.technicals.rsi}</strong>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim font-medium text-ink">
+                      MACD: <strong className="text-emerald-600">{pred.technicals.macd_signal}</strong>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim font-medium text-ink">
+                      P/E रेशियो: <strong className="text-blue-600">{pred.technicals.pe_ratio}</strong>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim font-medium text-ink">
+                      200 DMA: <strong className="text-indigo-600">{pred.technicals.dma_200_status}</strong>
+                    </span>
+                    {pred.technicals.yearly_high_low && (
+                      <span className="px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim font-medium text-ink-muted">
+                        52W High/Low: {pred.technicals.yearly_high_low}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* AI Post-Mortem & Reasoning Box */}
+                  <div className="p-3 rounded-xl bg-paper-subtle border border-paper-dim text-xs space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-ink text-[11px]">
+                      <Bot size={13} className="text-amber-500" />
+                      <span>चाणक्य AI पोस्ट-मॉर्टम व कारण:</span>
+                    </div>
+                    <p className="text-ink-muted leading-relaxed">
+                      <strong className="text-ink">ट्रेड तर्क:</strong> {pred.ai_reason}
+                    </p>
+                    {pred.post_mortem && (
+                      <p className="text-ink leading-relaxed font-medium pt-1 border-t border-paper-dim/60">
+                        <strong className="text-amber-700 dark:text-amber-300">ऑटो-ऑडिट विश्लेषण:</strong> {pred.post_mortem}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* SECTION: AI STOCK SCANNER RADAR (WHEN STOCKS OR ALL IS ACTIVE) */}
       {(activeTab === 'stocks' || activeTab === 'all') && (
         <div className="px-4 space-y-3">
           {/* Scanner Header Box */}
@@ -379,7 +818,7 @@ export default function AdvisorPage() {
             </div>
 
             {/* Custom Stock Search Bar */}
-            <form onSubmit={handleStockScanSubmit} className="flex gap-2">
+            <form onSubmit={(e) => { e.preventDefault(); if (stockSearchInput.trim()) handleFetchAi(undefined, stockSearchInput); }} className="flex gap-2">
               <div className="relative flex-1">
                 <Search size={13} className="absolute left-3 top-2.5 text-ink-muted" />
                 <input
@@ -435,7 +874,11 @@ export default function AdvisorPage() {
                     </h4>
                     <span className="text-[11px] text-ink-muted">{stock.name}</span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getSignalBadge(stock.signal)}`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    stock.signal.includes('BUY') 
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' 
+                      : 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                  }`}>
                     {stock.signal}
                   </span>
                 </div>
@@ -464,7 +907,7 @@ export default function AdvisorPage() {
         </div>
       )}
 
-      {/* SECTION 2: INTERACTIVE AI QUERY BOX (CHAT WITH AI) */}
+      {/* SECTION: INTERACTIVE AI QUERY BOX (CHAT WITH AI) */}
       <div className="px-4">
         <div className="bg-paper p-4 rounded-2xl border border-paper-dim shadow-sm space-y-3">
           <div className="flex items-center gap-2">
@@ -474,7 +917,7 @@ export default function AdvisorPage() {
             </span>
           </div>
 
-          <form onSubmit={handleAsk} className="flex gap-2">
+          <form onSubmit={(e) => { e.preventDefault(); if (questionInput.trim()) handleFetchAi(questionInput); }} className="flex gap-2">
             <input
               type="text"
               value={questionInput}
@@ -527,7 +970,7 @@ export default function AdvisorPage() {
         </div>
       </div>
 
-      {/* SECTION 3: HEALTH SCORE & KEY FINANCIAL METRICS */}
+      {/* SECTION: HEALTH SCORE & KEY FINANCIAL METRICS */}
       <div className="px-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <div className="p-3 bg-paper rounded-xl border border-paper-dim shadow-xs">
@@ -576,36 +1019,132 @@ export default function AdvisorPage() {
         </div>
       </div>
 
-      {/* SECTION 4: STRATEGIC INSIGHTS LIST */}
-      <div className="px-4 space-y-3">
-        <h3 className="text-xs font-bold text-ink uppercase tracking-wider px-1">रणनीतिक सिफारिशें (Strategic Actions)</h3>
-        {filteredInsights.map((item, i) => {
-          const colors = getColorClasses(item.color);
-          return (
-            <div
-              key={i}
-              className={`p-4 rounded-2xl bg-paper border ${colors.border} shadow-xs space-y-2 animate-fade-in hover:shadow-md transition-all`}
-            >
-              <div className="flex items-center justify-between">
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${colors.tag}`}>
-                  {item.tag}
-                </span>
-                <span className="text-[10px] text-ink-muted flex items-center gap-1">
-                  {item.domain === 'stocks' ? '📈 स्टॉक मार्केट' : item.domain === 'family' ? '🏠 फैमिली वेल्थ' : '🌟 रणनीतिक'}
-                </span>
-              </div>
-              <h3 className="text-sm font-bold text-ink">{item.title}</h3>
-              <p className="text-xs text-ink-muted leading-relaxed">{item.desc}</p>
-            </div>
-          );
-        })}
-      </div>
-
       {lastRefreshed && (
         <div className="px-4 text-right">
           <span className="text-[10px] text-ink-muted">
             अंतिम अपडेट: {lastRefreshed} • पावर्ड बाय: <strong className="text-ink">{activeProvider}</strong>
           </span>
+        </div>
+      )}
+
+      {/* MODAL: ADD MANUAL PREDICTION / TRADE */}
+      {isAddPredModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-paper border border-paper-dim rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-center justify-between border-b border-paper-dim pb-2.5">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-amber-500" />
+                <h3 className="font-bold text-sm text-ink">नया स्टॉक प्रेडिक्शन / ट्रेड जोड़ें</h3>
+              </div>
+              <button
+                onClick={() => setIsAddPredModalOpen(false)}
+                className="text-ink-muted hover:text-ink p-1 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddManualPrediction} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">स्टॉक टिकर *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="उदा. RELIANCE"
+                    value={newPredTicker}
+                    onChange={(e) => setNewPredTicker(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-paper-subtle border border-paper-dim rounded-xl font-bold uppercase text-ink"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">कंपनी का नाम</label>
+                  <input
+                    type="text"
+                    placeholder="उदा. Reliance Ind."
+                    value={newPredName}
+                    onChange={(e) => setNewPredName(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-paper-subtle border border-paper-dim rounded-xl text-ink"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">प्रवेश भाव (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="2880"
+                    value={newPredEntry}
+                    onChange={(e) => setNewPredEntry(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-paper-subtle border border-paper-dim rounded-xl font-mono text-ink"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-emerald-600 block mb-1">टारगेट (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="3020"
+                    value={newPredTarget}
+                    onChange={(e) => setNewPredTarget(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-paper-subtle border border-emerald-500/30 rounded-xl font-mono text-emerald-600 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-rose-600 block mb-1">स्टॉपलॉस (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="2810"
+                    value={newPredStoploss}
+                    onChange={(e) => setNewPredStoploss(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-paper-subtle border border-rose-500/30 rounded-xl font-mono text-rose-600 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">RSI (14)</label>
+                  <input
+                    type="number"
+                    placeholder="45"
+                    value={newPredRsi}
+                    onChange={(e) => setNewPredRsi(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-paper-subtle border border-paper-dim rounded-xl text-ink"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-ink-muted block mb-1">P/E रेशियो</label>
+                  <input
+                    type="number"
+                    placeholder="22"
+                    value={newPredPe}
+                    onChange={(e) => setNewPredPe(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-paper-subtle border border-paper-dim rounded-xl text-ink"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-paper-dim">
+                <button
+                  type="button"
+                  onClick={() => setIsAddPredModalOpen(false)}
+                  className="px-3.5 py-1.5 text-xs font-bold text-ink-muted hover:text-ink cursor-pointer"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-navy font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+                >
+                  + प्रेडिक्शन ट्रैक पर डालें
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

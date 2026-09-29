@@ -29,6 +29,11 @@ export interface Member {
     can_view_medical?: boolean;
     can_view_investments?: boolean;
   };
+  profession_type?: 'business' | 'job' | 'professional' | 'student' | 'homemaker' | 'other';
+  designation_or_business_name?: string;
+  monthly_income?: number; // Salary or Business Income
+  work_timings?: string; // e.g. "10:00 AM - 07:00 PM"
+  workplace_address?: string; // Office / Shop address
 }
 
 export type TransactionType = 'income' | 'expense' | 'udhar_given' | 'udhar_taken';
@@ -400,3 +405,61 @@ export interface RentDiversionRule {
   last_executed_date?: string;
   last_executed_amount?: number;
 }
+
+export interface StockPrediction {
+  id: string;
+  ticker: string;
+  name: string;
+  prediction_date: string;
+  entry_price: number;
+  target_price: number;
+  stoploss_price: number;
+  current_price: number;
+  timeframe: string; // 'Short Term (7-15 Days)' | 'Medium Term (1-3 Months)'
+  status: 'ACTIVE' | 'TARGET_HIT' | 'STOPLOSS_HIT' | 'EXPIRED';
+  technicals: {
+    rsi: number;
+    macd_signal: string;
+    pe_ratio: number;
+    dma_200_status: 'Above 200 DMA' | 'Near 200 DMA Support' | 'Below 200 DMA';
+    yearly_high_low?: string;
+  };
+  ai_reason: string;
+  post_mortem?: string; // AI का विश्लेषण कि क्यों पास या फेल हुआ
+  resolved_date?: string;
+  pnl_percent?: number;
+}
+
+export type TravelTripType = 'job_official' | 'business_tour' | 'personal_family';
+export type TravelClaimStatus = 'draft' | 'submitted' | 'reimbursed' | 'rejected';
+
+export interface TravelExpenseItem {
+  id: string;
+  category: 'ticket_transport' | 'hotel_stay' | 'food_meal' | 'client_meeting' | 'fuel_petrol' | 'other';
+  amount: number;
+  description: string;
+  expense_date: string;
+  receipt_url?: string; // Image / receipt photo
+}
+
+export interface TravelClaim {
+  id: string;
+  family_id: string;
+  member_id: string;
+  member_name?: string;
+  trip_title: string; // e.g. "Mandi Purchase Tour", "Client Meeting Raipur"
+  trip_type: TravelTripType;
+  destination: string; // e.g. "Raipur / Delhi"
+  start_date: string;
+  end_date: string;
+  total_amount: number;
+  status: TravelClaimStatus;
+  reimbursed_amount?: number;
+  reimbursement_date?: string;
+  reimbursement_note?: string;
+  receipt_images?: string[]; // Multiple receipt photos
+  expenses: TravelExpenseItem[];
+  created_at?: string;
+}
+
+

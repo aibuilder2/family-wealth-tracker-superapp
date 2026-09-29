@@ -6,11 +6,12 @@ import { FamilyHisabModule } from '@/components/business-modules/family-hisab/Fa
 import { PapaFamilyFundModule } from '@/components/business-modules/family-hisab/PapaFamilyFundModule';
 import { FamilyLoansModule } from '@/components/business-modules/family-loans/FamilyLoansModule';
 import { HouseholdStaffModule } from '@/components/business-modules/household-staff/HouseholdStaffModule';
+import { TravelReimbursementModule } from '@/components/business-modules/family-hisab/TravelReimbursementModule';
 import Link from 'next/link';
-import { ChevronLeft, Users, Landmark, UserCheck, CreditCard } from 'lucide-react';
+import { ChevronLeft, Users, Landmark, UserCheck, CreditCard, Plane } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
-type TabType = 'fund' | 'loans' | 'aapsi' | 'staff';
+type TabType = 'fund' | 'loans' | 'aapsi' | 'staff' | 'travel';
 
 function FamilyHisabContent() {
   const searchParams = useSearchParams();
@@ -93,6 +94,19 @@ function FamilyHisabContent() {
             <UserCheck size={15} />
             <span className="truncate">🧹 घरेलू कर्मचारी</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('travel')}
+            className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1.5 ${
+              activeTab === 'travel'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'text-ink-muted hover:text-ink hover:bg-paper-dim/50'
+            }`}
+          >
+            <Plane size={15} />
+            <span className="truncate">✈️ टूर क्लेम</span>
+          </button>
         </div>
       </div>
 
@@ -119,6 +133,12 @@ function FamilyHisabContent() {
         {activeTab === 'staff' && (
           <div className="animate-in fade-in duration-150">
             <HouseholdStaffModule />
+          </div>
+        )}
+
+        {activeTab === 'travel' && (
+          <div className="animate-in fade-in duration-150">
+            <TravelReimbursementModule />
           </div>
         )}
       </div>
