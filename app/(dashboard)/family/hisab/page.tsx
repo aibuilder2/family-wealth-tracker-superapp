@@ -20,8 +20,10 @@ function FamilyHisabContent() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabType;
-    if (tabParam && ['fund', 'loans', 'aapsi', 'staff'].includes(tabParam)) {
+    if (tabParam && ['fund', 'loans', 'aapsi', 'staff', 'travel'].includes(tabParam)) {
       setActiveTab(tabParam);
+    } else if (searchParams.get('partner')) {
+      setActiveTab('aapsi');
     }
   }, [searchParams]);
 

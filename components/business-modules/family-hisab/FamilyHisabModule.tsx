@@ -5,8 +5,10 @@ import {
   Users, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Calendar, 
   MessageSquare, CheckCircle2, ShoppingBag, Banknote, Smartphone, 
   CreditCard, Share2, Filter, ChevronDown, Check, ArrowRightLeft, 
-  Clock, DollarSign, FileText, Sparkles, Zap, Layers, Receipt
+  Clock, DollarSign, FileText, Sparkles, Zap, Layers, Receipt,
+  Copy, ExternalLink, X
 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { Mono } from '@/components/ui/Mono';
 import { useFamilyStore } from '@/lib/store/familyStore';
 
@@ -91,8 +93,13 @@ export function FamilyHisabModule() {
     return DEFAULT_ENTRIES;
   });
 
+  const searchParams = useSearchParams();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareMode, setShareMode] = useState<'full' | 'compact' | 'link_only'>('full');
+  const [copiedStatus, setCopiedStatus] = useState<string | null>(null);
+
   const [activePartner, setActivePartner] = useState<string>(() => {
     return partnerMembers[0]?.name || 'Ganesh Prasad kesharwani';
   });
@@ -109,6 +116,19 @@ export function FamilyHisabModule() {
       setActivePartner(partnerMembers[0].name);
     }
   }, [members]);
+
+  // Sync active partner from URL if provided (?partner=Name)
+  useEffect(() => {
+    const partnerFromUrl = searchParams.get('partner');
+    if (partnerFromUrl) {
+      const match = partnerMembers.find(m => m.name.toLowerCase() === partnerFromUrl.toLowerCase());
+      if (match) {
+        setActivePartner(match.name);
+      } else {
+        setActivePartner(partnerFromUrl);
+      }
+    }
+  }, [searchParams, partnerMembers]);
 
   // Form State 1: New Shopping / Expense Slip (सामान की पर्ची)
   const [fromMember, setFromMember] = useState<string>(mukhiya.name);
@@ -294,6 +314,13 @@ export function FamilyHisabModule() {
 
       return true;
     });
+
+    // Sort newest first for chronological clarity
+    return [...list].sort((a, b) => {
+      const dateA = new Date(a.date).getTime() || 0;
+      const dateB = new Date(b.date).getTime() || 0;
+      return dateB - dateA;
+    });
   }, [activePairEntries, viewCategory, timeFilter, customStartDate, customEndDate]);
 
   // Counts for tabs
@@ -304,32 +331,85 @@ export function FamilyHisabModule() {
   const mukhiyaShort = mukhiya.name.split(' ')[0];
   const partnerShort = activePartner.split(' ')[0];
 
-  // WhatsApp Share Message Generator
-  const handleShareWhatsApp = () => {
-    let msg = `📋 *पारिवारिक आपसी हिसाब स्टेटमेंट*\n`;
+  // Smart WhatsApp Message Generator (Supports 60-100 entries + Direct Passbook Link)
+  const generateShareMessage = (mode: 'full' | 'compact' | 'link_only' = shareMode) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const onlineUrl = `${origin}/family/hisab?tab=aapsi&partner=${encodeURIComponent(activePartner)}`;
+
+    let msg = `📋 *पारिवारिक आपसी हिसाब पासबुक*\n`;
     msg += `👥 *${mukhiya.name} ⇄ ${activePartner}*\n`;
     msg += `📅 तारीख: ${new Date().toLocaleDateString('hi-IN')}\n\n`;
-    msg += `─────────────────\n`;
-    msg += `🛒 *कुल सामान / काम का खर्च:* ₹${mukhiyaSpentForPartner.toLocaleString('en-IN')}\n`;
-    msg += `💵 *कुल मिला हुआ पैसा / एडवांस:* ₹${partnerPaidToMukhiya.toLocaleString('en-IN')}\n`;
-    msg += `─────────────────\n`;
+    msg += `─────────────────────────\n`;
+    msg += `🛒 *कुल सामान / काम खर्च:* ₹${mukhiyaSpentForPartner.toLocaleString('en-IN')}\n`;
+    msg += `💵 *कुल मिला पैसा / एडवांस:* ₹${partnerPaidToMukhiya.toLocaleString('en-IN')}\n`;
+    msg += `─────────────────────────\n`;
+
     if (netBalance > 0) {
       msg += `📌 *बकाया हिसाब:* ${mukhiyaShort} को ${partnerShort} से *₹${netBalance.toLocaleString('en-IN')} लेना है*।\n\n`;
     } else if (netBalance < 0) {
       msg += `📌 *बकाया हिसाब:* ${mukhiyaShort} को ${partnerShort} को *₹${Math.abs(netBalance).toLocaleString('en-IN')} देना है*।\n\n`;
     } else {
-      msg += `✅ *हिसाब पूरी तरह चुकता है (₹0 बाकी)*।\n\n`;
+      msg += `✅ *हिसाब पूरी तरह चुकता व बराबर है (₹0 बाकी)*।\n\n`;
     }
 
-    msg += `*हालिया लेन-देन सूची:*\n`;
-    filteredEntries.slice(0, 8).forEach((e, idx) => {
-      const modeIcon = e.paymentMode === 'upi' ? '📱 UPI' : e.paymentMode === 'cash' ? '💵 Cash' : '🏦 Bank';
-      const catIcon = e.category === 'advance' ? '⚡ एडवांस' : e.category === 'repayment' ? '✅ चुकता' : '🛍️ सामान';
-      msg += `${idx + 1}. ${e.date} | ${e.title} : ₹${e.amount.toLocaleString('en-IN')} (${catIcon} - ${modeIcon})\n`;
+    msg += `🌐 *ऑनलाइन पूरी पासबुक यहाँ खोलें:*\n👉 ${onlineUrl}\n\n`;
+
+    if (mode === 'link_only') {
+      msg += `_(सभी ${filteredEntries.length} प्रविष्टियों की लाइव पासबुक, रसीदें व विवरण देखने के लिए ऊपर दिए गए लिंक को खोलें।)_`;
+      return msg;
+    }
+
+    // Full mode supports up to 85-90 entries compactly (well within WhatsApp URL limits)
+    const limit = mode === 'compact' ? 15 : Math.min(filteredEntries.length, 90);
+    const entriesToSend = filteredEntries.slice(0, limit);
+
+    msg += `📑 *लेन-देन सूची (${filteredEntries.length} में से ${entriesToSend.length} प्रविष्टियां):*\n`;
+    msg += `─────────────────────────\n`;
+
+    entriesToSend.forEach((e, idx) => {
+      let dateStr = e.date;
+      try {
+        const parts = e.date.split('-');
+        if (parts.length === 3) dateStr = `${parts[2]}/${parts[1]}`;
+      } catch {}
+
+      const isAdv = e.category === 'advance' || e.type === 'advance_payment' || (e.title && e.title.includes('एडवांस'));
+      const isRepay = !isAdv && (e.category === 'repayment' || e.type === 'payment_received');
+      const badge = isAdv ? '⚡एडवांस' : isRepay ? '✅चुकता' : '🛍️सामान';
+      const payMode = e.paymentMode === 'upi' ? 'UPI' : e.paymentMode === 'cash' ? 'कैश' : 'बैंक';
+      const shortTitle = e.title.length > 20 ? e.title.slice(0, 19) + '…' : e.title;
+
+      msg += `${idx + 1}. ${dateStr} | ${shortTitle} : ₹${e.amount.toLocaleString('en-IN')} [${badge}•${payMode}]\n`;
     });
 
+    if (filteredEntries.length > limit) {
+      const remaining = filteredEntries.length - limit;
+      msg += `─────────────────────────\n`;
+      msg += `➕ ...और बाकी *${remaining} लेन-देन* देखने के लिए ऊपर दिए गए ऑनलाइन लिंक पर क्लिक करें।\n`;
+    }
+
+    return msg;
+  };
+
+  const handleShareWhatsApp = (mode: 'full' | 'compact' | 'link_only' = shareMode) => {
+    const msg = generateShareMessage(mode);
     const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
+  };
+
+  const handleCopyText = (mode: 'full' | 'compact' | 'link_only' = shareMode) => {
+    const text = generateShareMessage(mode);
+    navigator.clipboard.writeText(text);
+    setCopiedStatus('statement');
+    setTimeout(() => setCopiedStatus(null), 3000);
+  };
+
+  const handleCopyLink = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const onlineUrl = `${origin}/family/hisab?tab=aapsi&partner=${encodeURIComponent(activePartner)}`;
+    navigator.clipboard.writeText(onlineUrl);
+    setCopiedStatus('link');
+    setTimeout(() => setCopiedStatus(null), 3000);
   };
 
   return (
@@ -428,11 +508,11 @@ export function FamilyHisabModule() {
 
           <div className="flex items-center gap-2 self-start md:self-auto">
             <button
-              onClick={handleShareWhatsApp}
-              className="px-3 py-2 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-              title="WhatsApp पर हिसाब विवरण भेजें"
+              onClick={() => setIsShareModalOpen(true)}
+              className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+              title="WhatsApp पर पूरी पासबुक / हिसाब विवरण भेजें"
             >
-              <Share2 size={14} /> WhatsApp पर भेजें
+              <Share2 size={14} /> 📲 WhatsApp शेयर
             </button>
             <div className="text-right px-4 py-2 bg-black/30 rounded-xl border border-white/10 min-w-[130px]">
               <span className="text-[10px] text-paper-dim uppercase block font-bold">शुद्ध बैलेंस</span>
@@ -610,16 +690,25 @@ export function FamilyHisabModule() {
 
       {/* Entries Ledger List */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center justify-between px-1 flex-wrap gap-2">
           <h3 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
             <FileText size={14} className="text-gold" />
             <span>
               {viewCategory === 'expenses' ? '🛍️ सामान व खर्च पर्चियां' : viewCategory === 'payments' ? '💵 पैसा मिला व एडवांस कार्ड' : '📑 संयुक्त पासबुक'}: {mukhiyaShort} ⇄ {partnerShort} ({filteredEntries.length} प्रविष्टियां)
             </span>
           </h3>
-          <span className="text-[11px] text-ink-muted font-mono">
-            {timeFilter === 'all' ? 'सभी समय' : timeFilter === 'this_month' ? 'चालू माह' : timeFilter === 'this_week' ? 'चालू सप्ताह' : 'फ़िल्टर लागू'}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsShareModalOpen(true)}
+              className="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+            >
+              <Share2 size={12} /> WhatsApp पासबुक भेजें
+            </button>
+            <span className="text-[11px] text-ink-muted font-mono">
+              {timeFilter === 'all' ? 'सभी समय' : timeFilter === 'this_month' ? 'चालू माह' : timeFilter === 'this_week' ? 'चालू सप्ताह' : 'फ़िल्टर लागू'}
+            </span>
+          </div>
         </div>
 
         {filteredEntries.length === 0 ? (
@@ -1163,6 +1252,168 @@ export function FamilyHisabModule() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Statement Share Modal */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-paper border border-paper-dim rounded-3xl max-w-lg w-full p-4 sm:p-5 space-y-4 shadow-2xl relative max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-paper-dim pb-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2.5 bg-emerald-500/15 text-emerald-500 rounded-xl">
+                  <Share2 size={20} />
+                </span>
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-ink">पारिवारिक पासबुक WhatsApp शेयर</h3>
+                  <p className="text-[11px] text-ink-muted">
+                    {mukhiyaShort} ⇄ {partnerShort} • कुल {filteredEntries.length} प्रविष्टियां
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsShareModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-paper-dim text-ink-muted hover:text-ink transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto space-y-3.5 pr-1 text-xs">
+              {/* Net Balance Status */}
+              <div className="p-3 rounded-2xl bg-paper-dim/60 border border-paper-dim flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-ink-muted block uppercase font-bold">शुद्ध बैलेंस स्थिति</span>
+                  <span className={`font-black text-sm ${netBalance > 0 ? 'text-emerald-500' : netBalance < 0 ? 'text-rose-500' : 'text-gold'}`}>
+                    {netBalance > 0 ? `${mukhiyaShort} को ₹${netBalance.toLocaleString('en-IN')} लेना है` : netBalance < 0 ? `${mukhiyaShort} को ₹${Math.abs(netBalance).toLocaleString('en-IN')} देना है` : '₹0 हिसाब चुकता है'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-ink-muted block uppercase font-bold">सामान खर्च / मिला पैसा</span>
+                  <span className="font-mono text-ink font-bold text-xs">
+                    ₹{mukhiyaSpentForPartner.toLocaleString('en-IN')} / ₹{partnerPaidToMukhiya.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Direct Online Passbook Link Strip */}
+              <div className="p-3 rounded-2xl bg-gold/10 border border-gold/30 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-ink flex items-center gap-1.5 text-xs">
+                    <ExternalLink size={13} className="text-gold" />
+                    <span>डायरेक्ट ऑनलाइन पासबुक लिंक</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="px-2.5 py-1 rounded-lg bg-gold text-navy text-[10px] font-black hover:bg-gold-light flex items-center gap-1 transition-all shadow-sm"
+                  >
+                    {copiedStatus === 'link' ? <Check size={12} /> : <Copy size={12} />}
+                    <span>{copiedStatus === 'link' ? 'लिंक कॉपी हो गया!' : 'लिंक कॉपी करें'}</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-ink-muted leading-relaxed">
+                  इस लिंक को भेजकर परिवार का कोई भी सदस्य बिना किसी ऐप को खोजे, सीधे 1-क्लिक में पूरी {filteredEntries.length} प्रविष्टियों की लाइव पासबुक देख सकता है।
+                </p>
+              </div>
+
+              {/* Format Selection (Options) */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-ink uppercase tracking-wider block">
+                  स्टेटमेंट भेजने का विकल्प चुनें:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShareMode('full')}
+                    className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      shareMode === 'full'
+                        ? 'border-emerald-500 bg-emerald-500/10 text-ink shadow-sm ring-1 ring-emerald-500'
+                        : 'border-paper-dim bg-paper hover:bg-paper-dim/40 text-ink-muted'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-ink">📋 पूरी पासबुक</span>
+                      {shareMode === 'full' && <Check size={14} className="text-emerald-500" />}
+                    </div>
+                    <span className="text-[10px] opacity-80 leading-snug">
+                      60-100 प्रविष्टियां + ऑनलाइन लिंक
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShareMode('compact')}
+                    className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      shareMode === 'compact'
+                        ? 'border-amber-500 bg-amber-500/10 text-ink shadow-sm ring-1 ring-amber-500'
+                        : 'border-paper-dim bg-paper hover:bg-paper-dim/40 text-ink-muted'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-ink">⚡ संक्षिप्त</span>
+                      {shareMode === 'compact' && <Check size={14} className="text-amber-500" />}
+                    </div>
+                    <span className="text-[10px] opacity-80 leading-snug">
+                      हालिया 15 प्रविष्टियां + ऑनलाइन लिंक
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShareMode('link_only')}
+                    className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      shareMode === 'link_only'
+                        ? 'border-blue-500 bg-blue-500/10 text-ink shadow-sm ring-1 ring-blue-500'
+                        : 'border-paper-dim bg-paper hover:bg-paper-dim/40 text-ink-muted'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-ink">🔗 केवल लिंक</span>
+                      {shareMode === 'link_only' && <Check size={14} className="text-blue-500" />}
+                    </div>
+                    <span className="text-[10px] opacity-80 leading-snug">
+                      बैलेंस समरी + डायरेक्ट पासबुक लिंक
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Message Live Preview */}
+              <div className="space-y-1">
+                <span className="text-[10px] text-ink-muted uppercase font-bold flex items-center justify-between">
+                  <span>मैसेज प्रीव्यू (WhatsApp Text Preview):</span>
+                  <span className="font-mono text-[10px] text-emerald-500">
+                    {shareMode === 'full' ? `${Math.min(filteredEntries.length, 90)} प्रविष्टियां शामिल` : shareMode === 'compact' ? `${Math.min(filteredEntries.length, 15)} प्रविष्टियां` : 'केवल लिंक'}
+                  </span>
+                </span>
+                <pre className="p-3 bg-black/40 rounded-xl text-[11px] font-mono text-paper-dim/90 max-h-36 overflow-y-auto whitespace-pre-wrap border border-white/10 leading-relaxed no-scrollbar select-all">
+                  {generateShareMessage(shareMode)}
+                </pre>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-paper-dim shrink-0">
+              <button
+                type="button"
+                onClick={() => handleShareWhatsApp(shareMode)}
+                className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
+              >
+                <Share2 size={16} /> WhatsApp पर भेजें
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCopyText(shareMode)}
+                className="py-3 px-4 rounded-xl bg-paper-dim hover:bg-paper-dim/80 text-ink font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+              >
+                {copiedStatus === 'statement' ? <Check size={15} className="text-emerald-500" /> : <Copy size={15} />}
+                <span>{copiedStatus === 'statement' ? 'टेक्स्ट कॉपी हो गया!' : 'पूरा टेक्स्ट कॉपी करें'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
