@@ -505,6 +505,24 @@ export type LoanType =
   | 'education_loan' 
   | 'other';
 
+export type LoanDocType = 
+  | 'noc' 
+  | 'closure_letter' 
+  | 'handover_receipt' 
+  | 'sanction_letter' 
+  | 'form_35' 
+  | 'other';
+
+export interface LoanDocument {
+  id: string;
+  title: string;
+  doc_type: LoanDocType;
+  file_url: string; // Cloudinary URL or Data URL
+  file_name?: string;
+  uploaded_at: string;
+  notes?: string;
+}
+
 export interface LoanLiability {
   id: string;
   family_id: string;
@@ -525,6 +543,10 @@ export interface LoanLiability {
   end_date?: string; // लोन समाप्ति तारीख
   auto_reminder: boolean; // creates/syncs an EMI reminder
   notes?: string;
+  status?: 'active' | 'closed'; // क्या लोन चालू है या चुकता होकर बंद हो चुका है
+  closed_date?: string; // बंद होने / NOC मिलने की तारीख
+  closure_notes?: string; // e.g. "पूरा भुगतान चेक द्वारा हुआ, बैंक से NOC प्राप्त"
+  documents?: LoanDocument[]; // NOC, Closure Letter, Sanction Letter, Handover receipt photos
   created_at?: string;
 }
 

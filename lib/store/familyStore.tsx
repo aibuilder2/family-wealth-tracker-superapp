@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   Family, Member, Transaction, Asset, Goal, Reminder, DocumentItem, MedicalRecord,
   RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentDiversionRule,
-  HouseholdStaff, LoanLiability
+  HouseholdStaff, LoanLiability, LoanDocument
 } from '@/types';
 import { initUserScopedStorage, getActiveUser } from '@/lib/storage/userScopedStorage';
 import { createClient } from '@/lib/supabase/client';
@@ -609,6 +609,10 @@ interface FamilyContextType {
   addLoan: (loan: Omit<LoanLiability, 'id' | 'family_id' | 'created_at'>) => void;
   updateLoan: (id: string, updates: Partial<LoanLiability>) => void;
   deleteLoan: (id: string) => void;
+  closeLoan: (id: string, closureData: { closed_date: string; closure_notes?: string; documents?: LoanDocument[] }) => void;
+  reopenLoan: (id: string, outstandingBalance?: number) => void;
+  addLoanDocument: (loanId: string, doc: Omit<LoanDocument, 'id' | 'uploaded_at'>) => void;
+  deleteLoanDocument: (loanId: string, docId: string) => void;
   currentUserId: string;
   staff: HouseholdStaff[];
 
@@ -1457,7 +1461,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
     const cur = updated.find(l => l.id === id);
     if (cur) {
-      if (cur.auto_reminder && Number(cur.monthly_emi_amount) > 0 && cur.emi_due_day) {
+      if (cur.status !== 'closed' && cur.auto_reminder && Number(cur.monthly_emi_amount) > 0 && cur.emi_due_day) {
         const dueDate = calculateNextEmiDueDate(Number(cur.emi_due_day));
         const reminderItem: Reminder = {
           id: 'rem-loan-' + cur.id,
@@ -1495,6 +1499,55 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       try { localStorage.setItem('fwa_reminders', JSON.stringify(next)); } catch (e) {}
       return next;
     });
+  };
+
+  const closeLoan = (
+    id: string,
+    closureData: { closed_date: string; closure_notes?: string; documents?: LoanDocument[] }
+  ) => {
+    const target = loans.find(l => l.id === id);
+    if (!target) return;
+    const existingDocs = target.documents || [];
+    const newDocs = closureData.documents || [];
+    const mergedDocs = [...existingDocs, ...newDocs];
+
+    updateLoan(id, {
+      status: 'closed',
+      outstanding_balance: 0,
+      closed_date: closureData.closed_date,
+      closure_notes: closureData.closure_notes,
+      documents: mergedDocs,
+      auto_reminder: false,
+    });
+  };
+
+  const reopenLoan = (id: string, outstandingBalance?: number) => {
+    const target = loans.find(l => l.id === id);
+    if (!target) return;
+    updateLoan(id, {
+      status: 'active',
+      outstanding_balance: outstandingBalance !== undefined ? outstandingBalance : target.total_loan_amount,
+      auto_reminder: true,
+    });
+  };
+
+  const addLoanDocument = (loanId: string, doc: Omit<LoanDocument, 'id' | 'uploaded_at'>) => {
+    const target = loans.find(l => l.id === loanId);
+    if (!target) return;
+    const newDoc: LoanDocument = {
+      ...doc,
+      id: 'doc-loan-' + Date.now(),
+      uploaded_at: new Date().toISOString(),
+    };
+    const updatedDocs = [newDoc, ...(target.documents || [])];
+    updateLoan(loanId, { documents: updatedDocs });
+  };
+
+  const deleteLoanDocument = (loanId: string, docId: string) => {
+    const target = loans.find(l => l.id === loanId);
+    if (!target) return;
+    const updatedDocs = (target.documents || []).filter(d => d.id !== docId);
+    updateLoan(loanId, { documents: updatedDocs });
   };
 
   const updateFamilyName = (newName: string) => {
@@ -2146,8 +2199,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     .filter(t => t.type === 'udhar_taken')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-  const totalLoansOutstanding = loans.reduce((sum, l) => sum + Number(l.outstanding_balance || 0), 0);
-  const totalMonthlyEmi = loans.reduce((sum, l) => sum + Number(l.monthly_emi_amount || 0), 0);
+  const totalLoansOutstanding = loans
+    .filter(l => l.status !== 'closed')
+    .reduce((sum, l) => sum + Number(l.outstanding_balance || 0), 0);
+  const totalMonthlyEmi = loans
+    .filter(l => l.status !== 'closed')
+    .reduce((sum, l) => sum + Number(l.monthly_emi_amount || 0), 0);
 
   return (
     <FamilyContext.Provider
@@ -2169,6 +2226,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         addLoan,
         updateLoan,
         deleteLoan,
+        closeLoan,
+        reopenLoan,
+        addLoanDocument,
+        deleteLoanDocument,
         activeMemberId,
         setActiveMemberId,
         updateFamilyName,
