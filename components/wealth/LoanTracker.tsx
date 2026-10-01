@@ -20,6 +20,117 @@ const LOAN_TYPE_CONFIG: { [key in LoanType]: { label: string; icon: React.Elemen
   other: { label: 'अन्य कर्ज / लोन', icon: Shield, color: '#6B7280' },
 };
 
+export function calculateLoanRemainingTime(
+  startDate?: string,
+  tenure?: { years?: number; months?: number },
+  outstandingBalance?: number,
+  monthlyEmi?: number
+) {
+  const now = new Date();
+  let totalMonths = 0;
+  if (tenure?.months && tenure.months > 0) {
+    totalMonths = tenure.months;
+  } else if (tenure?.years && tenure.years > 0) {
+    totalMonths = Math.round(tenure.years * 12);
+  }
+
+  if (startDate && totalMonths > 0) {
+    const start = new Date(startDate);
+    const startYear = start.getFullYear();
+    const startMonth = start.getMonth();
+    const startDay = start.getDate();
+
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentDay = now.getDate();
+
+    let elapsed = (currentYear - startYear) * 12 + (currentMonth - startMonth);
+    if (currentDay < startDay) {
+      elapsed = Math.max(0, elapsed - 1);
+    }
+    elapsed = Math.max(0, elapsed);
+
+    const remainingMonths = Math.max(0, totalMonths - elapsed);
+
+    const endDate = new Date(startYear, startMonth + totalMonths, startDay);
+    const endDateFormatted = endDate.toLocaleDateString('hi-IN', { month: 'short', year: 'numeric' });
+
+    const remYears = Math.floor(remainingMonths / 12);
+    const remMonths = remainingMonths % 12;
+
+    let remainingText = '';
+    if (remainingMonths <= 0) {
+      remainingText = 'लोन पूर्ण / चुकता (Completed 🎉)';
+    } else if (remYears > 0 && remMonths > 0) {
+      remainingText = `${remYears} वर्ष ${remMonths} माह बाकी (${remainingMonths} किस्तें)`;
+    } else if (remYears > 0) {
+      remainingText = `${remYears} वर्ष बाकी (${remainingMonths} किस्तें)`;
+    } else {
+      remainingText = `${remMonths} माह बाकी (${remainingMonths} किस्तें)`;
+    }
+
+    const elapsedYears = Math.floor(elapsed / 12);
+    const elapsedRemMonths = elapsed % 12;
+    let elapsedText = '';
+    if (elapsedYears > 0 && elapsedRemMonths > 0) {
+      elapsedText = `${elapsedYears} वर्ष ${elapsedRemMonths} माह बीत चुके`;
+    } else if (elapsedYears > 0) {
+      elapsedText = `${elapsedYears} वर्ष बीत चुके`;
+    } else {
+      elapsedText = `${elapsedRemMonths} माह बीत चुके`;
+    }
+
+    return {
+      hasCalculation: true,
+      totalMonths,
+      elapsedMonths: elapsed,
+      remainingMonths,
+      remainingText,
+      elapsedText,
+      endDateFormatted,
+      isFinished: remainingMonths <= 0,
+      progressPct: Math.min(100, Math.round((elapsed / totalMonths) * 100)),
+    };
+  }
+
+  // Fallback estimation using balance / monthly EMI
+  if (outstandingBalance && monthlyEmi && monthlyEmi > 0) {
+    const estMonths = Math.ceil(outstandingBalance / monthlyEmi);
+    const remYears = Math.floor(estMonths / 12);
+    const remMonths = estMonths % 12;
+
+    let remainingText = '';
+    if (remYears > 0 && remMonths > 0) {
+      remainingText = `लगभग ${remYears} वर्ष ${remMonths} माह (${estMonths} किस्तें)`;
+    } else if (remYears > 0) {
+      remainingText = `लगभग ${remYears} वर्ष (${estMonths} किस्तें)`;
+    } else {
+      remainingText = `लगभग ${estMonths} माह (${estMonths} किस्तें)`;
+    }
+
+    return {
+      hasCalculation: true,
+      totalMonths: estMonths,
+      elapsedMonths: 0,
+      remainingMonths: estMonths,
+      remainingText,
+      elapsedText: 'बैलेंस व EMI अनुसार अनुमानित',
+      endDateFormatted: '',
+      isFinished: outstandingBalance <= 0,
+      progressPct: 0,
+    };
+  }
+
+  return {
+    hasCalculation: false,
+    remainingText: 'अवधि दर्ज नहीं है',
+    elapsedText: '',
+    endDateFormatted: '',
+    isFinished: false,
+    progressPct: 0,
+  };
+}
+
 export function LoanTracker() {
   const { 
     loans, members, addLoan, updateLoan, deleteLoan, 
@@ -40,6 +151,8 @@ export function LoanTracker() {
   const [monthlyEmiAmount, setMonthlyEmiAmount] = useState('');
   const [emiDueDay, setEmiDueDay] = useState('5');
   const [interestRate, setInterestRate] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [tenureYears, setTenureYears] = useState('');
   const [tenureMonths, setTenureMonths] = useState('');
   const [autoReminder, setAutoReminder] = useState(true);
   const [notes, setNotes] = useState('');
@@ -56,6 +169,8 @@ export function LoanTracker() {
     setMonthlyEmiAmount('');
     setEmiDueDay('5');
     setInterestRate('');
+    setStartDate('');
+    setTenureYears('');
     setTenureMonths('');
     setAutoReminder(true);
     setNotes('');
@@ -74,7 +189,9 @@ export function LoanTracker() {
     setMonthlyEmiAmount(String(loan.monthly_emi_amount));
     setEmiDueDay(String(loan.emi_due_day || 5));
     setInterestRate(loan.interest_rate ? String(loan.interest_rate) : '');
-    setTenureMonths(loan.tenure_months ? String(loan.tenure_months) : '');
+    setStartDate(loan.start_date || '');
+    setTenureYears(loan.tenure_years ? String(loan.tenure_years) : (loan.tenure_months ? String(Math.round((loan.tenure_months / 12) * 10) / 10) : ''));
+    setTenureMonths(loan.tenure_months ? String(loan.tenure_months) : (loan.tenure_years ? String(loan.tenure_years * 12) : ''));
     setAutoReminder(loan.auto_reminder);
     setNotes(loan.notes || '');
     setIsModalOpen(true);
@@ -95,6 +212,9 @@ export function LoanTracker() {
     const borrowerObj = members.find(m => m.id === borrowerMemberId);
     const borrowerName = borrowerObj?.name || 'सदस्य';
 
+    const tMonths = tenureMonths ? parseInt(tenureMonths, 10) : (tenureYears ? Math.round(parseFloat(tenureYears) * 12) : undefined);
+    const tYears = tenureYears ? parseFloat(tenureYears) : (tMonths ? Math.round((tMonths / 12) * 10) / 10 : undefined);
+
     if (editingLoanId) {
       updateLoan(editingLoanId, {
         borrower_member_id: borrowerMemberId,
@@ -108,7 +228,9 @@ export function LoanTracker() {
         monthly_emi_amount: emiAmt,
         emi_due_day: dueDayNum,
         interest_rate: interestRate ? parseFloat(interestRate) : undefined,
-        tenure_months: tenureMonths ? parseInt(tenureMonths, 10) : undefined,
+        start_date: startDate.trim() || undefined,
+        tenure_years: tYears,
+        tenure_months: tMonths,
         auto_reminder: autoReminder,
         notes: notes.trim() || undefined,
       });
@@ -125,7 +247,9 @@ export function LoanTracker() {
         monthly_emi_amount: emiAmt,
         emi_due_day: dueDayNum,
         interest_rate: interestRate ? parseFloat(interestRate) : undefined,
-        tenure_months: tenureMonths ? parseInt(tenureMonths, 10) : undefined,
+        start_date: startDate.trim() || undefined,
+        tenure_years: tYears,
+        tenure_months: tMonths,
         auto_reminder: autoReminder,
         notes: notes.trim() || undefined,
       });
@@ -340,6 +464,66 @@ export function LoanTracker() {
                   </div>
                 </div>
 
+                {/* Auto Calculated Remaining Time & Tenure Card */}
+                {(() => {
+                  const remInfo = calculateLoanRemainingTime(
+                    loan.start_date,
+                    { years: loan.tenure_years, months: loan.tenure_months },
+                    loan.outstanding_balance,
+                    loan.monthly_emi_amount
+                  );
+                  if (!remInfo.hasCalculation) return null;
+
+                  return (
+                    <div className="p-2.5 rounded-xl bg-paper-dim/40 border border-paper-dim space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <Clock size={13} className="text-coral shrink-0" />
+                          <span className="text-[11px] font-bold text-ink">
+                            बचा हुआ समय: <span className="text-coral font-black">{remInfo.remainingText}</span>
+                          </span>
+                        </div>
+                        {remInfo.endDateFormatted && (
+                          <span className="text-[10px] font-bold bg-coral/10 text-coral px-2 py-0.5 rounded-md">
+                            समाप्ति: {remInfo.endDateFormatted}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-ink-muted flex-wrap gap-1">
+                        {loan.start_date && (
+                          <span>
+                            आरंभ: {new Date(loan.start_date).toLocaleDateString('hi-IN', { month: 'short', year: 'numeric' })}
+                          </span>
+                        )}
+                        {remInfo.elapsedText && (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">✓ {remInfo.elapsedText}</span>
+                        )}
+                        {loan.tenure_years ? (
+                          <span>कुल अवधि: {loan.tenure_years} साल ({loan.tenure_months || loan.tenure_years * 12} माह)</span>
+                        ) : loan.tenure_months ? (
+                          <span>कुल अवधि: {loan.tenure_months} माह</span>
+                        ) : null}
+                      </div>
+
+                      {remInfo.progressPct > 0 && (
+                        <div className="space-y-0.5 pt-0.5">
+                          <div className="w-full h-1.5 rounded-full bg-paper-dim overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300"
+                              style={{ width: `${remInfo.progressPct}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[9px] text-ink-muted">
+                            <span>समय प्रगति: {remInfo.progressPct}% अवधि पूर्ण</span>
+                            <span>{remInfo.remainingMonths} किस्तें बाकी</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Repayment Progress Bar */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-[10px] text-ink-muted">
@@ -538,11 +722,76 @@ export function LoanTracker() {
                 </div>
               </div>
 
-              {/* Interest Rate & Tenure (Optional) */}
-              <div className="grid grid-cols-2 gap-2.5">
+              {/* Start Date & Tenure (USER REQUEST: KAB SE START HUA HAI, KITNE YEAR KA HAI) */}
+              <div className="p-3 rounded-xl bg-paper-dim/30 border border-paper-dim space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                  <Clock size={13} className="text-coral" />
+                  <span>लोन अवधि व शुरुआत विवरण (Tenure & Remaining Time) [वैकल्पिक]</span>
+                </div>
+
                 <div>
                   <label className="block text-[11px] font-bold text-ink uppercase tracking-wider mb-1">
-                    ब्याज दर (% Interest)
+                    कब से शुरू हुआ है (Loan Start Date)
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl font-mono text-ink focus:border-gold outline-none"
+                  />
+                  <span className="text-[10px] text-ink-muted block mt-0.5">
+                    तारीख दर्ज करने पर बीता हुआ समय और बची हुई किस्तें अपने आप निकल आएंगी
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-bold text-ink uppercase tracking-wider mb-1">
+                      कितने साल का है (Years)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      placeholder="उदा. 5, 10, 15, 20 साल"
+                      value={tenureYears}
+                      onChange={(e) => {
+                        const y = e.target.value;
+                        setTenureYears(y);
+                        if (y && !isNaN(parseFloat(y))) {
+                          setTenureMonths(String(Math.round(parseFloat(y) * 12)));
+                        } else if (y === '') {
+                          setTenureMonths('');
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl font-mono text-ink focus:border-gold outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-ink uppercase tracking-wider mb-1">
+                      कुल महीने (Tenure Months)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="उदा. 60, 120 महीने"
+                      value={tenureMonths}
+                      onChange={(e) => {
+                        const m = e.target.value;
+                        setTenureMonths(m);
+                        if (m && !isNaN(parseInt(m, 10))) {
+                          setTenureYears(String(Math.round((parseInt(m, 10) / 12) * 10) / 10));
+                        } else if (m === '') {
+                          setTenureYears('');
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl font-mono text-ink focus:border-gold outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-ink uppercase tracking-wider mb-1">
+                    ब्याज दर (% Annual Interest Rate)
                   </label>
                   <input
                     type="number"
@@ -550,22 +799,44 @@ export function LoanTracker() {
                     placeholder="8.50 %"
                     value={interestRate}
                     onChange={(e) => setInterestRate(e.target.value)}
-                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl font-mono text-ink focus:border-gold outline-none"
+                    className="w-full px-3 py-2 bg-paper border border-paper-dim rounded-xl font-mono text-ink focus:border-gold outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-ink uppercase tracking-wider mb-1">
-                    अवधि (कुल महीने / Tenure)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="उदा. 120 महीने (10 साल)"
-                    value={tenureMonths}
-                    onChange={(e) => setTenureMonths(e.target.value)}
-                    className="w-full px-3 py-2 bg-paper-dim/40 border border-paper-dim rounded-xl font-mono text-ink focus:border-gold outline-none"
-                  />
-                </div>
+                {/* Live Remaining Time Preview Box */}
+                {(() => {
+                  const preview = calculateLoanRemainingTime(
+                    startDate,
+                    { 
+                      years: tenureYears ? parseFloat(tenureYears) : undefined, 
+                      months: tenureMonths ? parseInt(tenureMonths, 10) : undefined 
+                    },
+                    outstandingBalance ? parseFloat(outstandingBalance) : undefined,
+                    monthlyEmiAmount ? parseFloat(monthlyEmiAmount) : undefined
+                  );
+                  if (!preview.hasCalculation) return null;
+                  return (
+                    <div className="p-2.5 rounded-lg bg-coral/10 border border-coral/20 text-coral space-y-1">
+                      <div className="flex items-center gap-1 font-bold text-xs">
+                        <Clock size={12} />
+                        <span>स्वचालित गणना पूर्वावलोकन (Auto Calculated):</span>
+                      </div>
+                      <p className="text-xs font-black text-ink">
+                        ⏳ {preview.remainingText}
+                      </p>
+                      {preview.endDateFormatted && (
+                        <p className="text-[10px] text-ink-muted">
+                          अनुमानित अंतिम किश्त / समाप्ति: <strong className="text-ink">{preview.endDateFormatted}</strong>
+                        </p>
+                      )}
+                      {preview.elapsedText && (
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          ✓ {preview.elapsedText}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Auto Reminder Switch */}

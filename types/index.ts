@@ -519,9 +519,10 @@ export interface LoanLiability {
   monthly_emi_amount: number; // मासिक EMI किश्त ₹
   emi_due_day: number; // e.g. 5 (5th of every month)
   interest_rate?: number; // e.g. 8.5
-  tenure_months?: number; // e.g. 60
-  start_date?: string;
-  end_date?: string;
+  tenure_years?: number; // कुल अवधि साल (e.g. 5, 10, 15, 20)
+  tenure_months?: number; // कुल अवधि महीने (e.g. 60, 120)
+  start_date?: string; // लोन कब से शुरू हुआ
+  end_date?: string; // लोन समाप्ति तारीख
   auto_reminder: boolean; // creates/syncs an EMI reminder
   notes?: string;
   created_at?: string;
