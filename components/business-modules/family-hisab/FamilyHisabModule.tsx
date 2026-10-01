@@ -4,9 +4,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Plus, ArrowUpRight, ArrowDownLeft, Trash2, Calendar, 
   MessageSquare, CheckCircle2, ShoppingBag, Banknote, Smartphone, 
-  CreditCard, Share2, Filter, ChevronDown, Check, ArrowRightLeft, 
+  CreditCard, Share2, Filter, ChevronDown, ChevronUp, Check, ArrowRightLeft, 
   Clock, DollarSign, FileText, Sparkles, Zap, Layers, Receipt,
-  Copy, ExternalLink, X
+  Copy, ExternalLink, X, Lock, Archive, RotateCcw, AlertTriangle,
+  FolderArchive, History, ChevronRight, ShieldCheck
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Mono } from '@/components/ui/Mono';
@@ -26,6 +27,23 @@ export interface MemberLedgerEntry {
   referenceNo?: string; // UPI txn id or receipt note
   notes?: string;
   isSettled: boolean;
+}
+
+export interface LedgerCycle {
+  id: string;
+  partnerName: string;
+  mukhiyaName: string;
+  title: string;
+  closedAt: string;
+  startDate: string;
+  endDate: string;
+  totalSpent: number;
+  totalPaid: number;
+  closingNetBalance: number;
+  settlementType: 'fully_settled' | 'carried_forward';
+  carriedForwardAmount: number;
+  closingNote?: string;
+  entries: MemberLedgerEntry[];
 }
 
 const DEFAULT_ENTRIES: MemberLedgerEntry[] = [];
@@ -100,6 +118,29 @@ export function FamilyHisabModule() {
   const [shareMode, setShareMode] = useState<'full' | 'compact' | 'link_only'>('full');
   const [copiedStatus, setCopiedStatus] = useState<string | null>(null);
 
+  // Cycle and Settlement States
+  const [cycles, setCycles] = useState<LedgerCycle[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_family_hisab_cycles_v1');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
+  const [selectedCycleId, setSelectedCycleId] = useState<string>('active');
+  const [isCloseCycleOpen, setIsCloseCycleOpen] = useState(false);
+  const [closeSettlementType, setCloseSettlementType] = useState<'carried_forward' | 'fully_settled'>('carried_forward');
+  const [closeCycleTitle, setCloseCycleTitle] = useState('');
+  const [closeCycleNote, setCloseCycleNote] = useState('');
+
+  // View Grouping State: 'flat' (continuous list) or 'monthly' (collapsible month folders)
+  const [viewGrouping, setViewGrouping] = useState<'flat' | 'monthly'>('flat');
+  const [collapsedMonths, setCollapsedMonths] = useState<Record<string, boolean>>({});
+
   const [activePartner, setActivePartner] = useState<string>(() => {
     return partnerMembers[0]?.name || 'Ganesh Prasad kesharwani';
   });
@@ -117,6 +158,11 @@ export function FamilyHisabModule() {
     }
   }, [members]);
 
+  // When active partner changes, reset selected cycle to 'active'
+  useEffect(() => {
+    setSelectedCycleId('active');
+  }, [activePartner]);
+
   // Sync active partner from URL if provided (?partner=Name)
   useEffect(() => {
     const partnerFromUrl = searchParams.get('partner');
@@ -127,6 +173,10 @@ export function FamilyHisabModule() {
       } else {
         setActivePartner(partnerFromUrl);
       }
+    }
+    const cycleFromUrl = searchParams.get('cycle');
+    if (cycleFromUrl) {
+      setSelectedCycleId(cycleFromUrl);
     }
   }, [searchParams, partnerMembers]);
 
@@ -161,15 +211,8 @@ export function FamilyHisabModule() {
 
   useEffect(() => {
     localStorage.setItem('fwa_family_hisab_v1', JSON.stringify(entries));
-    // Auto-sync to cloud so members opening the shared link on their phone see all entries
-    if (entries.length > 0) {
-      fetch('/api/family/hisab', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entries })
-      }).catch(() => {});
-    }
-  }, [entries]);
+    localStorage.setItem('fwa_family_hisab_cycles_v1', JSON.stringify(cycles));
+  }, [entries, cycles]);
 
   // On mount and page visit: Keep local and cloud fully synchronized
   // If Ankush enters a new transaction later, any member opening/refreshing the link will see it immediately!
@@ -183,21 +226,17 @@ export function FamilyHisabModule() {
             if (currentLocal.length === 0 || cloudEntries.length > currentLocal.length) {
               return cloudEntries;
             }
-            if (currentLocal.length > cloudEntries.length) {
-              fetch('/api/family/hisab', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entries: currentLocal })
-              }).catch(() => {});
-            }
             return currentLocal;
           });
-        } else if (entries.length > 0) {
-          fetch('/api/family/hisab', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ entries })
-          }).catch(() => {});
+        }
+        const cloudCycles: LedgerCycle[] = data?.allCycles || data?.cycles;
+        if (Array.isArray(cloudCycles) && cloudCycles.length > 0) {
+          setCycles(currentLocalCycles => {
+            if (currentLocalCycles.length === 0 || cloudCycles.length > currentLocalCycles.length) {
+              return cloudCycles;
+            }
+            return currentLocalCycles;
+          });
         }
       })
       .catch(() => {});
@@ -279,7 +318,7 @@ export function FamilyHisabModule() {
     }
   };
 
-  // Filter entries for active pair
+  // Filter entries for active pair in active ledger
   const activePairEntries = useMemo(() => {
     return entries.filter(
       e => (e.fromMember === mukhiya.name && e.toMember === activePartner) ||
@@ -287,9 +326,24 @@ export function FamilyHisabModule() {
     );
   }, [entries, mukhiya.name, activePartner]);
 
-  // Overall Running Balance Calculation across all pair entries
-  // Expenses/Items: fromMember spent for toMember
-  // Payments/Advances: money moved between members
+  // Archived cycles for active pair
+  const partnerCycles = useMemo(() => {
+    return cycles.filter(c =>
+      (c.mukhiyaName === mukhiya.name && c.partnerName === activePartner) ||
+      (c.mukhiyaName === activePartner && c.partnerName === mukhiya.name) ||
+      c.partnerName === activePartner
+    );
+  }, [cycles, mukhiya.name, activePartner]);
+
+  // Selected cycle if archived mode
+  const selectedArchivedCycle = useMemo(() => {
+    if (selectedCycleId === 'active') return null;
+    return cycles.find(c => c.id === selectedCycleId) || null;
+  }, [cycles, selectedCycleId]);
+
+  const isArchivedMode = Boolean(selectedArchivedCycle);
+
+  // Overall Running Balance for active pair
   const mukhiyaSpentForPartner = activePairEntries
     .filter(e => e.fromMember === mukhiya.name && e.toMember === activePartner && e.category === 'expense')
     .reduce((sum, e) => sum + e.amount, 0);
@@ -298,25 +352,33 @@ export function FamilyHisabModule() {
     .filter(e => e.fromMember === activePartner && e.toMember === mukhiya.name && e.category === 'expense')
     .reduce((sum, e) => sum + e.amount, 0);
 
-  // Money paid by Partner to Mukhiya (Advance + Repayments)
   const partnerPaidToMukhiya = activePairEntries
     .filter(e => e.fromMember === activePartner && e.toMember === mukhiya.name && (e.category === 'repayment' || e.category === 'advance' || e.type === 'payment_received' || e.type === 'advance_payment'))
     .reduce((sum, e) => sum + e.amount, 0);
 
-  // Money paid by Mukhiya to Partner (Advance + Repayments)
   const mukhiyaPaidToPartner = activePairEntries
     .filter(e => e.fromMember === mukhiya.name && e.toMember === activePartner && (e.category === 'repayment' || e.category === 'advance' || e.type === 'payment_received' || e.type === 'advance_payment'))
     .reduce((sum, e) => sum + e.amount, 0);
 
-  // Net Balance:
-  // Mukhiya should receive = (Mukhiya spent for partner - Partner paid to mukhiya) - (Partner spent for mukhiya - Mukhiya paid to partner)
   const netBalance = (mukhiyaSpentForPartner - partnerPaidToMukhiya) - (partnerSpentForMukhiya - mukhiyaPaidToPartner);
+
+  // Display stats depending on active vs archived cycle
+  const currentPairEntries = useMemo(() => {
+    if (selectedArchivedCycle) {
+      return selectedArchivedCycle.entries;
+    }
+    return activePairEntries;
+  }, [selectedArchivedCycle, activePairEntries]);
+
+  const displayMukhiyaSpent = selectedArchivedCycle ? selectedArchivedCycle.totalSpent : mukhiyaSpentForPartner;
+  const displayPartnerPaid = selectedArchivedCycle ? selectedArchivedCycle.totalPaid : partnerPaidToMukhiya;
+  const displayNetBalance = selectedArchivedCycle ? selectedArchivedCycle.closingNetBalance : netBalance;
 
   // Apply Time and Category Filters
   const filteredEntries = useMemo(() => {
     const today = new Date();
 
-    return activePairEntries.filter(entry => {
+    const list = currentPairEntries.filter(entry => {
       // 1. Category Filter (All vs Shopping vs Payments)
       const isPaymentOrAdvance = entry.category === 'advance' || entry.category === 'repayment' || entry.type === 'payment_received' || entry.type === 'advance_payment';
       if (viewCategory === 'expenses' && isPaymentOrAdvance) return false;
@@ -361,12 +423,177 @@ export function FamilyHisabModule() {
       const dateB = new Date(b.date).getTime() || 0;
       return dateB - dateA;
     });
-  }, [activePairEntries, viewCategory, timeFilter, customStartDate, customEndDate]);
+  }, [currentPairEntries, viewCategory, timeFilter, customStartDate, customEndDate]);
+
+  // Monthly Groups for collapsible accordion view
+  const monthlyGroups = useMemo(() => {
+    const map = new Map<string, {
+      monthKey: string;
+      monthLabel: string;
+      entries: MemberLedgerEntry[];
+      totalSpent: number;
+      totalPaid: number;
+    }>();
+
+    filteredEntries.forEach(entry => {
+      const monthKey = entry.date ? entry.date.slice(0, 7) : 'अन्य';
+      if (!map.has(monthKey)) {
+        let label = monthKey;
+        try {
+          const [y, m] = monthKey.split('-');
+          const d = new Date(Number(y), Number(m) - 1, 1);
+          label = d.toLocaleDateString('hi-IN', { month: 'long', year: 'numeric' });
+        } catch {}
+
+        map.set(monthKey, {
+          monthKey,
+          monthLabel: label,
+          entries: [],
+          totalSpent: 0,
+          totalPaid: 0
+        });
+      }
+
+      const g = map.get(monthKey)!;
+      g.entries.push(entry);
+
+      const isAdvOrPmt = entry.category === 'advance' || entry.category === 'repayment' || entry.type === 'payment_received' || entry.type === 'advance_payment';
+      if (isAdvOrPmt) {
+        g.totalPaid += entry.amount;
+      } else {
+        g.totalSpent += entry.amount;
+      }
+    });
+
+    return Array.from(map.values());
+  }, [filteredEntries]);
+
+  const toggleMonthCollapse = (monthKey: string) => {
+    setCollapsedMonths(prev => ({
+      ...prev,
+      [monthKey]: !prev[monthKey]
+    }));
+  };
+
+  // Handlers for closing and reopening cycles
+  const handleOpenCloseCycle = () => {
+    if (activePairEntries.length === 0) {
+      alert('इस चालू खाते में क्लोज़ करने के लिए कोई लेन-देन नहीं है!');
+      return;
+    }
+    const cycleNum = partnerCycles.length + 1;
+    const nowMonth = new Date().toLocaleDateString('hi-IN', { month: 'short', year: 'numeric' });
+    setCloseCycleTitle(`साइकिल ${cycleNum} (${nowMonth})`);
+    setCloseCycleNote('');
+    setCloseSettlementType('carried_forward');
+    setIsCloseCycleOpen(true);
+  };
+
+  const handleConfirmCloseCycle = () => {
+    if (activePairEntries.length === 0) return;
+
+    const sorted = [...activePairEntries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const startDate = sorted[0]?.date || new Date().toISOString().split('T')[0];
+    const endDate = sorted[sorted.length - 1]?.date || new Date().toISOString().split('T')[0];
+
+    const cycleId = `cycle-${Date.now()}`;
+    const finalTitle = closeCycleTitle.trim() || `साइकिल ${partnerCycles.length + 1} (${startDate} से ${endDate})`;
+
+    const newCycle: LedgerCycle = {
+      id: cycleId,
+      partnerName: activePartner,
+      mukhiyaName: mukhiya.name,
+      title: finalTitle,
+      closedAt: new Date().toISOString(),
+      startDate,
+      endDate,
+      totalSpent: mukhiyaSpentForPartner,
+      totalPaid: partnerPaidToMukhiya,
+      closingNetBalance: netBalance,
+      settlementType: closeSettlementType,
+      carriedForwardAmount: closeSettlementType === 'carried_forward' ? netBalance : 0,
+      closingNote: closeCycleNote.trim() || undefined,
+      entries: [...activePairEntries]
+    };
+
+    const updatedCycles = [newCycle, ...cycles];
+    setCycles(updatedCycles);
+    localStorage.setItem('fwa_family_hisab_cycles_v1', JSON.stringify(updatedCycles));
+
+    // Remove activePairEntries from entries
+    const remainingEntries = entries.filter(e => !activePairEntries.some(ape => ape.id === e.id));
+
+    let nextEntries = remainingEntries;
+    if (closeSettlementType === 'carried_forward' && netBalance !== 0) {
+      const openingEntry: MemberLedgerEntry = {
+        id: `mle-open-${Date.now()}`,
+        fromMember: netBalance > 0 ? mukhiya.name : activePartner,
+        toMember: netBalance > 0 ? activePartner : mukhiya.name,
+        amount: Math.abs(netBalance),
+        type: 'bought_item',
+        category: 'expense',
+        paymentMode: 'cash',
+        title: `📌 पिछला शेष कैरी-फ़ॉरवर्ड (${finalTitle})`,
+        date: new Date().toISOString().split('T')[0],
+        notes: `पुराने सुरक्षित खाते (${finalTitle}) का बाकी शेष नए पन्ने पर ओपनिंग बैलेंस के रूप में लाया गया।`,
+        isSettled: false
+      };
+      nextEntries = [openingEntry, ...remainingEntries];
+    }
+
+    setEntries(nextEntries);
+    localStorage.setItem('fwa_family_hisab_v1', JSON.stringify(nextEntries));
+
+    // Cloud sync
+    fetch('/api/family/hisab', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries: nextEntries, cycles: updatedCycles })
+    }).catch(() => {});
+
+    setIsCloseCycleOpen(false);
+    setSelectedCycleId('active');
+  };
+
+  const handleReopenCycle = (cycle: LedgerCycle) => {
+    if (confirm(`क्या आप "${cycle.title}" को पुनः चालू (Re-open) करना चाहते हैं? इसके लेन-देन वापस चालू खाते में जुड़ जाएंगे।`)) {
+      const cleanedEntries = entries.filter(e => !e.title?.includes(cycle.title));
+      const restoredEntries = [...cycle.entries, ...cleanedEntries];
+      const updatedCycles = cycles.filter(c => c.id !== cycle.id);
+
+      setEntries(restoredEntries);
+      setCycles(updatedCycles);
+      localStorage.setItem('fwa_family_hisab_v1', JSON.stringify(restoredEntries));
+      localStorage.setItem('fwa_family_hisab_cycles_v1', JSON.stringify(updatedCycles));
+
+      fetch('/api/family/hisab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries: restoredEntries, cycles: updatedCycles })
+      }).catch(() => {});
+
+      setSelectedCycleId('active');
+    }
+  };
+
+  const handleDeleteCycle = (cycleId: string) => {
+    if (confirm('क्या आप इस सुरक्षित आर्काइव खाते को हटाना चाहते हैं?')) {
+      const updatedCycles = cycles.filter(c => c.id !== cycleId);
+      setCycles(updatedCycles);
+      localStorage.setItem('fwa_family_hisab_cycles_v1', JSON.stringify(updatedCycles));
+      fetch('/api/family/hisab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries, cycles: updatedCycles })
+      }).catch(() => {});
+      setSelectedCycleId('active');
+    }
+  };
 
   // Counts for tabs
-  const allCount = activePairEntries.length;
-  const expenseCount = activePairEntries.filter(e => e.category === 'expense' || (!e.category && e.type !== 'payment_received' && e.type !== 'advance_payment')).length;
-  const paymentCount = activePairEntries.filter(e => e.category === 'advance' || e.category === 'repayment' || e.type === 'payment_received' || e.type === 'advance_payment').length;
+  const allCount = currentPairEntries.length;
+  const expenseCount = currentPairEntries.filter(e => e.category === 'expense' || (!e.category && e.type !== 'payment_received' && e.type !== 'advance_payment')).length;
+  const paymentCount = currentPairEntries.filter(e => e.category === 'advance' || e.category === 'repayment' || e.type === 'payment_received' || e.type === 'advance_payment').length;
 
   const mukhiyaShort = mukhiya.name.split(' ')[0];
   const partnerShort = activePartner.split(' ')[0];
@@ -374,22 +601,26 @@ export function FamilyHisabModule() {
   // Smart WhatsApp Message Generator (Supports 60-100 entries + Direct Passbook Link)
   const generateShareMessage = (mode: 'full' | 'compact' | 'link_only' = shareMode) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const onlineUrl = `${origin}/family/hisab?tab=aapsi&partner=${encodeURIComponent(activePartner)}`;
+    const onlineUrl = `${origin}/family/hisab?tab=aapsi&partner=${encodeURIComponent(activePartner)}${isArchivedMode && selectedArchivedCycle ? `&cycle=${encodeURIComponent(selectedArchivedCycle.id)}` : ''}`;
 
-    let msg = `📋 *पारिवारिक आपसी हिसाब पासबुक*\n`;
+    let msg = `📋 *पारिवारिक आपसी हिसाब पासबुक${isArchivedMode && selectedArchivedCycle ? ` (${selectedArchivedCycle.title} - सुरक्षित आर्काइव)` : ''}*\n`;
     msg += `👥 *${mukhiya.name} ⇄ ${activePartner}*\n`;
     msg += `📅 तारीख: ${new Date().toLocaleDateString('hi-IN')}\n\n`;
     msg += `─────────────────────────\n`;
-    msg += `🛒 *कुल सामान / काम खर्च:* ₹${mukhiyaSpentForPartner.toLocaleString('en-IN')}\n`;
-    msg += `💵 *कुल मिला पैसा / एडवांस:* ₹${partnerPaidToMukhiya.toLocaleString('en-IN')}\n`;
+    msg += `🛒 *कुल सामान / काम खर्च:* ₹${displayMukhiyaSpent.toLocaleString('en-IN')}\n`;
+    msg += `💵 *कुल मिला पैसा / एडवांस:* ₹${displayPartnerPaid.toLocaleString('en-IN')}\n`;
     msg += `─────────────────────────\n`;
 
-    if (netBalance > 0) {
-      msg += `📌 *बकाया हिसाब:* ${mukhiyaShort} को ${partnerShort} से *₹${netBalance.toLocaleString('en-IN')} लेना है*।\n\n`;
-    } else if (netBalance < 0) {
-      msg += `📌 *बकाया हिसाब:* ${mukhiyaShort} को ${partnerShort} को *₹${Math.abs(netBalance).toLocaleString('en-IN')} देना है*।\n\n`;
+    if (displayNetBalance > 0) {
+      msg += `📌 *बकाया हिसाब:* ${mukhiyaShort} को ${partnerShort} से *₹${displayNetBalance.toLocaleString('en-IN')} लेना है*।\n\n`;
+    } else if (displayNetBalance < 0) {
+      msg += `📌 *बकाया हिसाब:* ${mukhiyaShort} को ${partnerShort} को *₹${Math.abs(displayNetBalance).toLocaleString('en-IN')} देना है*।\n\n`;
     } else {
       msg += `✅ *हिसाब पूरी तरह चुकता व बराबर है (₹0 बाकी)*।\n\n`;
+    }
+
+    if (isArchivedMode && selectedArchivedCycle) {
+      msg += `🔒 *आर्काइव क्लोजिंग:* ${selectedArchivedCycle.settlementType === 'carried_forward' ? `₹${Math.abs(selectedArchivedCycle.carriedForwardAmount).toLocaleString('en-IN')} कैरी-फ़ॉरवर्ड` : 'पूर्ण चुकता (₹0)'}\n\n`;
     }
 
     msg += `🌐 *ऑनलाइन पूरी पासबुक यहाँ खोलें:*\n👉 ${onlineUrl}\n\n`;
@@ -454,10 +685,162 @@ export function FamilyHisabModule() {
 
   const handleCopyLink = () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const onlineUrl = `${origin}/family/hisab?tab=aapsi&partner=${encodeURIComponent(activePartner)}`;
+    const onlineUrl = `${origin}/family/hisab?tab=aapsi&partner=${encodeURIComponent(activePartner)}${isArchivedMode && selectedArchivedCycle ? `&cycle=${encodeURIComponent(selectedArchivedCycle.id)}` : ''}`;
     navigator.clipboard.writeText(onlineUrl);
     setCopiedStatus('link');
     setTimeout(() => setCopiedStatus(null), 3000);
+  };
+
+  const renderEntryCard = (e: MemberLedgerEntry, isArchived: boolean = false) => {
+    const isAdvance = e.category === 'advance' || e.type === 'advance_payment' || (e.title && e.title.includes('एडवांस'));
+    const isPayment = !isAdvance && (e.category === 'repayment' || e.type === 'payment_received');
+    const isExpense = !isAdvance && !isPayment;
+    const isOpeningCarry = e.title && e.title.includes('कैरी-फ़ॉरवर्ड');
+    const formattedDate = new Date(e.date).toLocaleDateString('hi-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    return (
+      <div 
+        key={e.id} 
+        className={`bg-paper border rounded-2xl p-4 shadow-sm space-y-2.5 transition-all hover:border-gold/50 ${
+          isOpeningCarry
+            ? 'border-gold/60 bg-gold/10'
+            : isAdvance 
+            ? 'border-purple-500/40 bg-purple-50/15 dark:bg-purple-950/10'
+            : isPayment 
+            ? 'border-emerald-500/40 bg-emerald-50/15 dark:bg-emerald-950/10' 
+            : 'border-paper-dim'
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* CARD TYPE BADGE */}
+              {isOpeningCarry ? (
+                <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-gold/25 text-gold-darker dark:text-gold border border-gold/40 flex items-center gap-1">
+                  <Sparkles size={11} className="text-gold" />
+                  <span>📌 ओपनिंग बैलेंस (पिछला शेष)</span>
+                </span>
+              ) : isAdvance ? (
+                <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                  <Zap size={11} className="text-purple-600" />
+                  <span>⚡ काम के लिए एडवांस पैसा</span>
+                </span>
+              ) : isPayment ? (
+                <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <CheckCircle2 size={11} className="text-emerald-600" />
+                  <span>✅ बाद में हिसाब चुकता</span>
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                  <ShoppingBag size={11} className="text-amber-600" />
+                  <span>🛍️ सामान / काम का खर्च</span>
+                </span>
+              )}
+
+              {/* Direction: Who paid to Whom */}
+              <span className="text-[10px] font-bold text-ink-muted">
+                ({e.fromMember.split(' ')[0]} → {e.toMember.split(' ')[0]})
+              </span>
+
+              {/* Payment Mode Badge */}
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-paper-dim text-ink flex items-center gap-1">
+                {e.paymentMode === 'upi' ? (
+                  <>
+                    <Smartphone size={11} className="text-purple-600" />
+                    <span>UPI (GPay/PhonePe)</span>
+                  </>
+                ) : e.paymentMode === 'bank_transfer' ? (
+                  <>
+                    <CreditCard size={11} className="text-blue-600" />
+                    <span>बैंक ट्रांसफर</span>
+                  </>
+                ) : (
+                  <>
+                    <Banknote size={11} className="text-emerald-600" />
+                    <span>कैश (Cash)</span>
+                  </>
+                )}
+              </span>
+            </div>
+
+            <h4 className="text-sm font-bold text-ink flex items-center gap-1.5 mt-0.5">
+              <span>{e.title}</span>
+            </h4>
+
+            {(e.referenceNo || e.notes) && (
+              <p className="text-[11px] text-ink-muted">
+                {e.referenceNo && <span className="font-mono font-semibold text-ink-muted">Txn Ref: {e.referenceNo} </span>}
+                {e.notes && <span>• {e.notes}</span>}
+              </p>
+            )}
+          </div>
+
+          <div className="text-right shrink-0">
+            <Mono className={`text-base md:text-lg font-black ${
+              isOpeningCarry ? 'text-gold' : isAdvance ? 'text-purple-600 dark:text-purple-400' : isPayment ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink'
+            }`}>
+              {isAdvance || isPayment ? '+' : ''}₹{e.amount.toLocaleString('en-IN')}
+            </Mono>
+            <div className="flex items-center justify-end gap-1 text-[10px] text-ink-muted mt-0.5">
+              <Calendar size={11} />
+              <span>{formattedDate}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-paper-dim text-xs">
+          {isArchived ? (
+            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-500 flex items-center gap-1">
+              <Lock size={12} /> सुरक्षित आर्काइव रिकॉर्ड (Read-Only)
+            </span>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleSettle(e.id)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+                  e.isSettled 
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold' 
+                    : 'bg-paper-dim text-ink-muted hover:text-ink hover:bg-paper-dim/80'
+                }`}
+              >
+                <CheckCircle2 size={13} className={e.isSettled ? 'text-emerald-600' : 'text-ink-muted'} />
+                <span>{e.isSettled ? '✓ हिसाब दर्ज / चुकता' : 'बकाया (पेंडिंग)'}</span>
+              </button>
+
+              {isExpense && !e.isSettled && (
+                <button
+                  onClick={() => {
+                    setPayCategory('repayment');
+                    setPayFromMember(e.toMember);
+                    setPayToMember(e.fromMember);
+                    setPayAmount(e.amount);
+                    setPayNotes(`${e.title} का चुकता भुगतान`);
+                    setIsPaymentOpen(true);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-emerald-600 hover:bg-emerald-500/10 flex items-center gap-1 border border-emerald-500/30"
+                >
+                  <Banknote size={12} /> बाद में पैसा मिला?
+                </button>
+              )}
+            </div>
+          )}
+
+          {!isArchived && (
+            <button
+              onClick={() => handleDelete(e.id)}
+              className="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition-all"
+              title="प्रविष्टि हटाएं"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -480,7 +863,7 @@ export function FamilyHisabModule() {
             </div>
           </div>
 
-          {/* TWO DEDICATED SEPARATE BUTTONS */}
+          {/* TWO DEDICATED SEPARATE BUTTONS + CLOSE CYCLE */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => {
@@ -497,6 +880,15 @@ export function FamilyHisabModule() {
             >
               <ShoppingBag size={15} /> + सामान / काम का खर्च लिखें
             </button>
+            {!isArchivedMode && (
+              <button
+                onClick={handleOpenCloseCycle}
+                className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-black rounded-xl flex items-center gap-1.5 active:scale-95 transition-all shadow-md"
+                title="वर्तमान खाता बंद कर सुरक्षित आर्काइव करें और नया पन्ना शुरू करें"
+              >
+                <Lock size={14} className="text-amber-400" /> 🔒 खाता क्लोज़ करें
+              </button>
+            )}
           </div>
         </div>
 
@@ -525,22 +917,133 @@ export function FamilyHisabModule() {
           </div>
         </div>
 
+        {/* Ledger Cycle History Switcher Bar */}
+        <div className="pt-1 border-t border-white/5">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+            <span className="text-[10px] text-paper-dim/70 uppercase tracking-wider font-bold flex items-center gap-1">
+              <History size={12} className="text-gold" /> खाता चक्र / साइकिल चुनें (Active vs Archived Cycles):
+            </span>
+            {partnerCycles.length > 0 && (
+              <span className="text-[10px] text-amber-300/80 font-bold">
+                {partnerCycles.length} पुराने खाते सुरक्षित आर्काइव में हैं
+              </span>
+            )}
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+            <button
+              onClick={() => setSelectedCycleId('active')}
+              className={`px-3 py-2 rounded-xl font-black whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                selectedCycleId === 'active'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md scale-102 ring-2 ring-emerald-400/50'
+                  : 'bg-navy-light/60 text-paper-dim hover:bg-navy-light hover:text-white'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+              <span>🟢 वर्तमान चालू खाता</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30 font-mono">
+                {activePairEntries.length}
+              </span>
+            </button>
+
+            {partnerCycles.map(cycle => {
+              const isSelected = selectedCycleId === cycle.id;
+              const formattedClose = new Date(cycle.closedAt).toLocaleDateString('hi-IN', {
+                month: 'short',
+                year: 'numeric'
+              });
+              return (
+                <button
+                  key={cycle.id}
+                  onClick={() => setSelectedCycleId(cycle.id)}
+                  className={`px-3 py-2 rounded-xl font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-amber-400 text-navy shadow-md scale-102 ring-2 ring-amber-300/50'
+                      : 'bg-navy-light/60 text-paper-dim hover:bg-navy-light hover:text-white'
+                  }`}
+                >
+                  <FolderArchive size={13} className={isSelected ? 'text-navy' : 'text-amber-400'} />
+                  <span>{cycle.title}</span>
+                  <span className="text-[10px] opacity-75 font-mono">({formattedClose})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Archived Banner Notice (if an archived cycle is selected) */}
+        {isArchivedMode && selectedArchivedCycle && (
+          <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+                <FolderArchive size={20} />
+              </span>
+              <div>
+                <h4 className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                  <span>📁 सुरक्षित पुराना खाता: {selectedArchivedCycle.title}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                    Read-Only (सुरक्षित)
+                  </span>
+                </h4>
+                <p className="text-[11px] text-amber-200/80 mt-0.5">
+                  अवधि: {selectedArchivedCycle.startDate} से {selectedArchivedCycle.endDate} • {selectedArchivedCycle.settlementType === 'carried_forward' ? `₹${Math.abs(selectedArchivedCycle.carriedForwardAmount).toLocaleString('en-IN')} कैरी-फ़ॉरवर्ड शेष` : 'पूर्ण चुकता (₹0)'} {selectedArchivedCycle.closingNote ? `• ${selectedArchivedCycle.closingNote}` : ''}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedCycleId('active')}
+                className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-navy font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all"
+              >
+                ← वर्तमान चालू खाते पर लौटें
+              </button>
+              <button
+                type="button"
+                onClick={() => handleReopenCycle(selectedArchivedCycle)}
+                className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 rounded-xl text-[11px] font-bold flex items-center gap-1 border border-amber-500/40 transition-all"
+                title="इस पुराने खाते को पुनः चालू खाते में जोड़ें"
+              >
+                <RotateCcw size={12} /> पुनः चालू करें
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteCycle(selectedArchivedCycle.id)}
+                className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded-xl transition-all"
+                title="यह आर्काइव हटाएं"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Net Running Balance Hero Card */}
         <div className="p-4 rounded-2xl bg-gradient-to-r from-navy-light/80 via-navy/90 to-navy-light/80 border border-white/10 shadow-inner flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <span className="text-[11px] text-paper-dim font-medium uppercase tracking-wider flex items-center gap-1.5">
-              <ArrowRightLeft size={13} className="text-gold" /> शुद्ध रनिंग बैलेंस ({mukhiyaShort} ⇄ {partnerShort}):
+              {isArchivedMode ? (
+                <>
+                  <FolderArchive size={13} className="text-amber-400" />
+                  <span>आर्काइव क्लोजिंग बैलेंस ({selectedArchivedCycle?.title}):</span>
+                </>
+              ) : (
+                <>
+                  <ArrowRightLeft size={13} className="text-gold" />
+                  <span>शुद्ध रनिंग बैलेंस ({mukhiyaShort} ⇄ {partnerShort}):</span>
+                </>
+              )}
             </span>
             <h3 className="text-lg md:text-xl font-black text-paper">
-              {netBalance > 0 ? (
+              {displayNetBalance > 0 ? (
                 <span className="text-emerald-400 font-bold flex items-center gap-1.5">
                   <ArrowDownLeft size={20} className="text-emerald-400" />
-                  {mukhiyaShort} को {partnerShort} से ₹{netBalance.toLocaleString('en-IN')} लेना है
+                  {mukhiyaShort} को {partnerShort} से ₹{displayNetBalance.toLocaleString('en-IN')} लेना है
                 </span>
-              ) : netBalance < 0 ? (
+              ) : displayNetBalance < 0 ? (
                 <span className="text-rose-400 font-bold flex items-center gap-1.5">
                   <ArrowUpRight size={20} className="text-rose-400" />
-                  {mukhiyaShort} को {partnerShort} को ₹{Math.abs(netBalance).toLocaleString('en-IN')} देना है
+                  {mukhiyaShort} को {partnerShort} को ₹{Math.abs(displayNetBalance).toLocaleString('en-IN')} देना है
                 </span>
               ) : (
                 <span className="text-gold font-bold flex items-center gap-1.5">
@@ -550,7 +1053,9 @@ export function FamilyHisabModule() {
               )}
             </h3>
             <p className="text-[11px] text-paper-dim/70">
-              लाए गए सामान में से पहले मिला एडवांस या बाद का रीपेमेंट घटाकर यह शुद्ध हिसाब है।
+              {isArchivedMode
+                ? 'यह सुरक्षित रूप से बंद किया गया खाता है। इसका बैलेंस फ्रीज है।'
+                : 'लाए गए सामान में से पहले मिला एडवांस या बाद का रीपेमेंट घटाकर यह शुद्ध हिसाब है।'}
             </p>
           </div>
 
@@ -563,9 +1068,11 @@ export function FamilyHisabModule() {
               <Share2 size={14} /> 📲 WhatsApp शेयर
             </button>
             <div className="text-right px-4 py-2 bg-black/30 rounded-xl border border-white/10 min-w-[130px]">
-              <span className="text-[10px] text-paper-dim uppercase block font-bold">शुद्ध बैलेंस</span>
-              <Mono className={`text-xl font-black ${netBalance > 0 ? 'text-emerald-400' : netBalance < 0 ? 'text-rose-400' : 'text-gold'}`}>
-                ₹{Math.abs(netBalance).toLocaleString('en-IN')}
+              <span className="text-[10px] text-paper-dim uppercase block font-bold">
+                {isArchivedMode ? 'क्लोजिंग बैलेंस' : 'शुद्ध बैलेंस'}
+              </span>
+              <Mono className={`text-xl font-black ${displayNetBalance > 0 ? 'text-emerald-400' : displayNetBalance < 0 ? 'text-rose-400' : 'text-gold'}`}>
+                ₹{Math.abs(displayNetBalance).toLocaleString('en-IN')}
               </Mono>
             </div>
           </div>
@@ -579,7 +1086,7 @@ export function FamilyHisabModule() {
               <span className="text-[10px] text-slate-500">{expenseCount} पर्चियां</span>
             </div>
             <div className="text-base font-black text-amber-300 mt-1 font-mono">
-              ₹{mukhiyaSpentForPartner.toLocaleString('en-IN')}
+              ₹{displayMukhiyaSpent.toLocaleString('en-IN')}
             </div>
             <p className="text-[10px] text-slate-400 mt-0.5">{mukhiyaShort} द्वारा सामान/खर्च</p>
           </div>
@@ -590,7 +1097,7 @@ export function FamilyHisabModule() {
               <span className="text-[10px] text-slate-500">{paymentCount} भुगतान</span>
             </div>
             <div className="text-base font-black text-emerald-400 mt-1 font-mono">
-              ₹{partnerPaidToMukhiya.toLocaleString('en-IN')}
+              ₹{displayPartnerPaid.toLocaleString('en-IN')}
             </div>
             <p className="text-[10px] text-slate-400 mt-0.5">{partnerShort} ने एडवांस या बाद में दिया</p>
           </div>
@@ -601,19 +1108,19 @@ export function FamilyHisabModule() {
               <span className="text-[10px] text-slate-500">{filteredEntries.length} प्रविष्टियां</span>
             </div>
             <div className="text-base font-black text-cyan-300 mt-1 font-mono">
-              {netBalance > 0 ? `+₹${netBalance.toLocaleString('en-IN')}` : `₹${Math.abs(netBalance).toLocaleString('en-IN')}`}
+              {displayNetBalance > 0 ? `+₹${displayNetBalance.toLocaleString('en-IN')}` : `₹${Math.abs(displayNetBalance).toLocaleString('en-IN')}`}
             </div>
             <p className="text-[10px] text-slate-400 mt-0.5">
-              {netBalance > 0 ? `${mukhiyaShort} को लेना है` : netBalance < 0 ? `${mukhiyaShort} को देना है` : 'हिसाब बराबर'}
+              {displayNetBalance > 0 ? `${mukhiyaShort} को लेना है` : displayNetBalance < 0 ? `${mukhiyaShort} को देना है` : 'हिसाब बराबर'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* DISTINCT CATEGORY VIEW TABS (Shopping vs Advance vs All) */}
-      <div className="bg-paper border border-paper-dim rounded-2xl p-2 shadow-sm">
-        <div className="flex items-center justify-between gap-1 flex-wrap">
-          <div className="flex items-center gap-1.5">
+      {/* DISTINCT CATEGORY VIEW TABS (Shopping vs Advance vs All) + GROUPING TOGGLE */}
+      <div className="bg-paper border border-paper-dim rounded-2xl p-2 shadow-sm space-y-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               onClick={() => setViewCategory('all')}
               className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
@@ -651,10 +1158,30 @@ export function FamilyHisabModule() {
             </button>
           </div>
 
-          <div className="text-[11px] text-ink-muted px-2 py-1 bg-paper-dim rounded-lg font-bold">
-            {viewCategory === 'expenses' && '🛒 केवल लाए गए सामान व काम की पर्चियां'}
-            {viewCategory === 'payments' && '💵 केवल मिला हुआ एडवांस व चुकता पैसा'}
-            {viewCategory === 'all' && '📑 दोनों का संयुक्त रनिंग लेजर'}
+          {/* Grouping View Switcher: Flat List vs Monthly Folders */}
+          <div className="flex items-center gap-1 bg-paper-dim p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setViewGrouping('flat')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                viewGrouping === 'flat' ? 'bg-navy text-paper shadow-sm' : 'text-ink-muted hover:text-ink'
+              }`}
+              title="सीधी लगातार सूची"
+            >
+              <FileText size={13} />
+              <span>सीधी सूची</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewGrouping('monthly')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                viewGrouping === 'monthly' ? 'bg-navy text-paper shadow-sm' : 'text-ink-muted hover:text-ink'
+              }`}
+              title="महीने अनुसार फ़ोल्डर्स में समेटें"
+            >
+              <FolderArchive size={13} />
+              <span>महीने अनुसार फ़ोल्डर्स</span>
+            </button>
           </div>
         </div>
       </div>
@@ -742,7 +1269,7 @@ export function FamilyHisabModule() {
           <h3 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
             <FileText size={14} className="text-gold" />
             <span>
-              {viewCategory === 'expenses' ? '🛍️ सामान व खर्च पर्चियां' : viewCategory === 'payments' ? '💵 पैसा मिला व एडवांस कार्ड' : '📑 संयुक्त पासबुक'}: {mukhiyaShort} ⇄ {partnerShort} ({filteredEntries.length} प्रविष्टियां)
+              {isArchivedMode ? `📁 आर्काइव: ${selectedArchivedCycle?.title}` : (viewCategory === 'expenses' ? '🛍️ सामान व खर्च पर्चियां' : viewCategory === 'payments' ? '💵 पैसा मिला व एडवांस कार्ड' : '📑 संयुक्त पासबुक')}: {mukhiyaShort} ⇄ {partnerShort} ({filteredEntries.length} प्रविष्टियां)
             </span>
           </h3>
           <div className="flex items-center gap-2">
@@ -766,163 +1293,79 @@ export function FamilyHisabModule() {
             </div>
             <div>
               <p className="text-xs font-bold text-ink">इस फिल्टर में कोई प्रविष्टि नहीं मिली</p>
-              <p className="text-[11px] text-ink-muted mt-0.5">नया सामान लिखने या मिला हुआ एडवांस/पैसा दर्ज करने के लिए ऊपर दिए गए बटनों का उपयोग करें।</p>
+              <p className="text-[11px] text-ink-muted mt-0.5">
+                {isArchivedMode 
+                  ? 'इस सुरक्षित आर्काइव खाते में चुने गए फिल्टर के अनुसार कोई प्रविष्टि नहीं है।' 
+                  : 'नया सामान लिखने या मिला हुआ एडवांस/पैसा दर्ज करने के लिए ऊपर दिए गए बटनों का उपयोग करें।'}
+              </p>
             </div>
-            <div className="flex justify-center gap-2 pt-1">
-              <button
-                onClick={() => setIsAddOpen(true)}
-                className="px-3.5 py-2 bg-gold text-navy text-xs font-bold rounded-xl shadow-sm hover:bg-gold-light"
-              >
-                + सामान / काम का खर्च लिखें
-              </button>
-              <button
-                onClick={() => {
-                  setPayCategory('advance');
-                  setIsPaymentOpen(true);
-                }}
-                className="px-3.5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-emerald-500"
-              >
-                + पैसा मिला / एडवांस लिखें
-              </button>
-            </div>
+            {!isArchivedMode && (
+              <div className="flex justify-center gap-2 pt-1">
+                <button
+                  onClick={() => setIsAddOpen(true)}
+                  className="px-3.5 py-2 bg-gold text-navy text-xs font-bold rounded-xl shadow-sm hover:bg-gold-light"
+                >
+                  + सामान / काम का खर्च लिखें
+                </button>
+                <button
+                  onClick={() => {
+                    setPayCategory('advance');
+                    setIsPaymentOpen(true);
+                  }}
+                  className="px-3.5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-emerald-500"
+                >
+                  + पैसा मिला / एडवांस लिखें
+                </button>
+              </div>
+            )}
+          </div>
+        ) : viewGrouping === 'monthly' ? (
+          <div className="space-y-3">
+            {monthlyGroups.map((group, idx) => {
+              const isCollapsed = collapsedMonths[group.monthKey] ?? (idx > 0);
+              return (
+                <div key={group.monthKey} className="bg-paper border border-paper-dim rounded-2xl overflow-hidden shadow-sm transition-all">
+                  <button
+                    type="button"
+                    onClick={() => toggleMonthCollapse(group.monthKey)}
+                    className="w-full p-3.5 bg-paper-dim/40 hover:bg-paper-dim/70 flex items-center justify-between text-left transition-all"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-2 rounded-xl bg-gold/20 text-gold shrink-0">
+                        <Calendar size={16} />
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-black text-ink">{group.monthLabel}</h4>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-paper font-bold text-ink border border-paper-dim">
+                            {group.entries.length} प्रविष्टियां
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-ink-muted mt-0.5 flex items-center gap-2 font-mono">
+                          <span>🛍️ खर्च: ₹{group.totalSpent.toLocaleString('en-IN')}</span>
+                          <span>•</span>
+                          <span>💵 भुगतान: ₹{group.totalPaid.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-1 rounded-lg bg-paper border border-paper-dim text-ink-muted shrink-0">
+                      {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                    </div>
+                  </button>
+
+                  {!isCollapsed && (
+                    <div className="p-3 space-y-2.5 border-t border-paper-dim">
+                      {group.entries.map(e => renderEntryCard(e, isArchivedMode))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
-          filteredEntries.map(e => {
-            const isAdvance = e.category === 'advance' || e.type === 'advance_payment' || (e.title && e.title.includes('एडवांस'));
-            const isPayment = !isAdvance && (e.category === 'repayment' || e.type === 'payment_received');
-            const isExpense = !isAdvance && !isPayment;
-            const isFromMukhiya = e.fromMember === mukhiya.name;
-            const formattedDate = new Date(e.date).toLocaleDateString('hi-IN', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric'
-            });
-
-            return (
-              <div 
-                key={e.id} 
-                className={`bg-paper border rounded-2xl p-4 shadow-sm space-y-2.5 transition-all hover:border-gold/50 ${
-                  isAdvance 
-                    ? 'border-purple-500/40 bg-purple-50/15 dark:bg-purple-950/10'
-                    : isPayment 
-                    ? 'border-emerald-500/40 bg-emerald-50/15 dark:bg-emerald-950/10' 
-                    : 'border-paper-dim'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* CARD TYPE BADGE */}
-                      {isAdvance ? (
-                        <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-1">
-                          <Zap size={11} className="text-purple-600" />
-                          <span>⚡ काम के लिए एडवांस पैसा</span>
-                        </span>
-                      ) : isPayment ? (
-                        <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                          <CheckCircle2 size={11} className="text-emerald-600" />
-                          <span>✅ बाद में हिसाब चुकता</span>
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                          <ShoppingBag size={11} className="text-amber-600" />
-                          <span>🛍️ सामान / काम का खर्च</span>
-                        </span>
-                      )}
-
-                      {/* Direction: Who paid to Whom */}
-                      <span className="text-[10px] font-bold text-ink-muted">
-                        ({e.fromMember.split(' ')[0]} → {e.toMember.split(' ')[0]})
-                      </span>
-
-                      {/* Payment Mode Badge */}
-                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-paper-dim text-ink flex items-center gap-1">
-                        {e.paymentMode === 'upi' ? (
-                          <>
-                            <Smartphone size={11} className="text-purple-600" />
-                            <span>UPI (GPay/PhonePe)</span>
-                          </>
-                        ) : e.paymentMode === 'bank_transfer' ? (
-                          <>
-                            <CreditCard size={11} className="text-blue-600" />
-                            <span>बैंक ट्रांसफर</span>
-                          </>
-                        ) : (
-                          <>
-                            <Banknote size={11} className="text-emerald-600" />
-                            <span>कैश (Cash)</span>
-                          </>
-                        )}
-                      </span>
-                    </div>
-
-                    <h4 className="text-sm font-bold text-ink flex items-center gap-1.5 mt-0.5">
-                      <span>{e.title}</span>
-                    </h4>
-
-                    {(e.referenceNo || e.notes) && (
-                      <p className="text-[11px] text-ink-muted">
-                        {e.referenceNo && <span className="font-mono font-semibold text-ink-muted">Txn Ref: {e.referenceNo} </span>}
-                        {e.notes && <span>• {e.notes}</span>}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="text-right shrink-0">
-                    <Mono className={`text-base md:text-lg font-black ${
-                      isAdvance ? 'text-purple-600 dark:text-purple-400' : isPayment ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink'
-                    }`}>
-                      {isAdvance || isPayment ? '+' : ''}₹{e.amount.toLocaleString('en-IN')}
-                    </Mono>
-                    <div className="flex items-center justify-end gap-1 text-[10px] text-ink-muted mt-0.5">
-                      <Calendar size={11} />
-                      <span>{formattedDate}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-paper-dim text-xs">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleSettle(e.id)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
-                        e.isSettled 
-                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold' 
-                          : 'bg-paper-dim text-ink-muted hover:text-ink hover:bg-paper-dim/80'
-                      }`}
-                    >
-                      <CheckCircle2 size={13} className={e.isSettled ? 'text-emerald-600' : 'text-ink-muted'} />
-                      <span>{e.isSettled ? '✓ हिसाब दर्ज / चुकता' : 'बकाया (पेंडिंग)'}</span>
-                    </button>
-
-                    {isExpense && !e.isSettled && (
-                      <button
-                        onClick={() => {
-                          setPayCategory('repayment');
-                          setPayFromMember(e.toMember);
-                          setPayToMember(e.fromMember);
-                          setPayAmount(e.amount);
-                          setPayNotes(`${e.title} का चुकता भुगतान`);
-                          setIsPaymentOpen(true);
-                        }}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-emerald-600 hover:bg-emerald-500/10 flex items-center gap-1 border border-emerald-500/30"
-                      >
-                        <Banknote size={12} /> बाद में पैसा मिला?
-                      </button>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => handleDelete(e.id)}
-                    className="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition-all"
-                    title="प्रविष्टि हटाएं"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            );
-          })
+          <div className="space-y-2.5">
+            {filteredEntries.map(e => renderEntryCard(e, isArchivedMode))}
+          </div>
         )}
       </div>
 
@@ -1460,6 +1903,156 @@ export function FamilyHisabModule() {
               >
                 {copiedStatus === 'statement' ? <Check size={15} className="text-emerald-500" /> : <Copy size={15} />}
                 <span>{copiedStatus === 'statement' ? 'टेक्स्ट कॉपी हो गया!' : 'पूरा टेक्स्ट कॉपी करें'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: 🔒 खाता क्लोज़ व नया पन्ना शुरू करें */}
+      {isCloseCycleOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-paper border border-paper-dim rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 md:p-6 shadow-2xl space-y-4 no-scrollbar">
+            <div className="flex items-center justify-between pb-3 border-b border-paper-dim">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2.5 bg-amber-500/20 text-amber-500 rounded-2xl">
+                  <Lock size={20} />
+                </span>
+                <div>
+                  <h3 className="text-base font-black text-ink">खाता क्लोज़ व नया पन्ना शुरू करें</h3>
+                  <p className="text-xs text-ink-muted">{mukhiyaShort} ⇄ {partnerShort} का रनिंग हिसाब सेटलमेंट</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCloseCycleOpen(false)}
+                className="p-1.5 rounded-full hover:bg-paper-dim text-ink-muted hover:text-ink"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Cycle Summary Box */}
+            <div className="p-3.5 rounded-2xl bg-navy text-paper space-y-2">
+              <div className="flex items-center justify-between text-xs text-paper-dim">
+                <span>कुल सक्रिय प्रविष्टियां:</span>
+                <span className="font-bold text-paper">{activePairEntries.length} प्रविष्टियां</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-paper-dim">
+                <span>कुल सामान / काम खर्च ({mukhiyaShort}):</span>
+                <span className="font-bold text-amber-300 font-mono">₹{mukhiyaSpentForPartner.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-paper-dim">
+                <span>कुल मिला पैसा / एडवांस ({partnerShort}):</span>
+                <span className="font-bold text-emerald-400 font-mono">₹{partnerPaidToMukhiya.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                <span className="text-xs font-bold text-gold uppercase tracking-wider">वर्तमान शुद्ध शेष (Net Balance):</span>
+                <Mono className={`text-base font-black ${netBalance > 0 ? 'text-emerald-400' : netBalance < 0 ? 'text-rose-400' : 'text-gold'}`}>
+                  {netBalance > 0 ? `+₹${netBalance.toLocaleString('en-IN')} (लेना है)` : netBalance < 0 ? `-₹${Math.abs(netBalance).toLocaleString('en-IN')} (देना है)` : '₹0 (बराबर)'}
+                </Mono>
+              </div>
+            </div>
+
+            {/* Settlement Mode Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-ink uppercase tracking-wider block">
+                क्लोजिंग व सेटलमेंट मोड चुनें:
+              </label>
+              <div className="grid grid-cols-1 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setCloseSettlementType('carried_forward')}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    closeSettlementType === 'carried_forward'
+                      ? 'border-gold bg-gold/10 text-ink ring-2 ring-gold/40'
+                      : 'border-paper-dim bg-paper text-ink-muted hover:bg-paper-dim/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-ink flex items-center gap-1.5 flex-wrap">
+                      <span>📌 बाकी शेष को नए पन्ने पर कैरी-फ़ॉरवर्ड करें</span>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-gold text-navy">अनुशंसित (Recommended)</span>
+                    </span>
+                    {closeSettlementType === 'carried_forward' && <Check size={16} className="text-gold shrink-0" />}
+                  </div>
+                  <p className="text-[11px] text-ink-muted mt-1 leading-snug">
+                    वर्तमान {activePairEntries.length} पर्चियां सुरक्षित आर्काइव में लॉक हो जाएंगी, और बाकी ₹{Math.abs(netBalance).toLocaleString('en-IN')} नए पन्ने की पहली पर्ची (ओपनिंग बैलेंस) बन जाएगी। इससे स्क्रीन बिल्कुल साफ़ हो जाएगी।
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCloseSettlementType('fully_settled')}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    closeSettlementType === 'fully_settled'
+                      ? 'border-emerald-500 bg-emerald-500/10 text-ink ring-2 ring-emerald-500/40'
+                      : 'border-paper-dim bg-paper text-ink-muted hover:bg-paper-dim/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-ink flex items-center gap-1.5">
+                      <span>✅ पूर्ण चुकता हिसाब (Full ₹0 Settlement)</span>
+                    </span>
+                    {closeSettlementType === 'fully_settled' && <Check size={16} className="text-emerald-500 shrink-0" />}
+                  </div>
+                  <p className="text-[11px] text-ink-muted mt-1 leading-snug">
+                    दोनों पक्षों के बीच पूरा लेन-देन चुकता व बराबर मानकर पुराना खाता सुरक्षित लॉक किया जाएगा और नया खाता ₹0 शेष से शुरू होगा।
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Cycle Name Input */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-ink">
+                इस सुरक्षित साइकिल / खाते का नाम:
+              </label>
+              <input
+                type="text"
+                value={closeCycleTitle}
+                onChange={e => setCloseCycleTitle(e.target.value)}
+                placeholder={`उदा. साइकिल ${partnerCycles.length + 1}`}
+                className="w-full px-3 py-2 rounded-xl bg-paper-dim border border-paper-dim text-xs font-bold text-ink focus:outline-none focus:border-gold"
+              />
+            </div>
+
+            {/* Closing Note Input */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-ink">
+                क्लोजिंग नोट / टिप्पणी (वैकल्पिक):
+              </label>
+              <input
+                type="text"
+                value={closeCycleNote}
+                onChange={e => setCloseCycleNote(e.target.value)}
+                placeholder="उदा. दीवाली से पहले का हिसाब चुकता किया गया"
+                className="w-full px-3 py-2 rounded-xl bg-paper-dim border border-paper-dim text-xs text-ink focus:outline-none focus:border-gold"
+              />
+            </div>
+
+            {/* Zero Data Loss Guarantee Notice */}
+            <div className="p-3 rounded-xl bg-blue-50/20 dark:bg-blue-950/20 border border-blue-500/30 flex items-start gap-2 text-xs">
+              <ShieldCheck size={16} className="text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-ink-muted leading-relaxed">
+                <strong className="text-blue-500">100% सुरक्षित डेटा (0% Loss):</strong> आपका कोई भी पुराना लेन-देन कभी डिलीट नहीं होगा। आप ऊपर दिए गए 'खाता चक्र' बटन से इस साइकिल की पूरी पर्चियां, रसीदें कभी भी देख सकते हैं और WhatsApp पर शेयर भी कर सकते हैं।
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 pt-2 border-t border-paper-dim">
+              <button
+                type="button"
+                onClick={() => setIsCloseCycleOpen(false)}
+                className="flex-1 py-2.5 rounded-xl bg-paper-dim hover:bg-paper-dim/80 text-xs font-bold text-ink transition-all"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCloseCycle}
+                className="flex-1 py-2.5 rounded-xl bg-gold hover:bg-gold-light text-navy text-xs font-black shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-95"
+              >
+                <Lock size={14} /> खाता क्लोज़ करें व नया पन्ना बनाएं
               </button>
             </div>
           </div>

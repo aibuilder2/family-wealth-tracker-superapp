@@ -6,6 +6,7 @@ const DATA_FILE = path.join(process.cwd(), 'data_family_hisab.json');
 
 // In-memory cache for fast response and serverless fallback
 let hisabCache: any[] = [];
+let cyclesCache: any[] = [];
 
 // Try to hydrate cache on server start if file exists
 try {
@@ -14,6 +15,9 @@ try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
       hisabCache = parsed;
+    } else if (parsed && typeof parsed === 'object') {
+      if (Array.isArray(parsed.entries)) hisabCache = parsed.entries;
+      if (Array.isArray(parsed.cycles)) cyclesCache = parsed.cycles;
     }
   }
 } catch (e) {
@@ -30,11 +34,16 @@ export async function GET(req: Request) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         hisabCache = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.entries)) hisabCache = parsed.entries;
+        if (Array.isArray(parsed.cycles)) cyclesCache = parsed.cycles;
       }
     }
   } catch (e) {}
 
   let entries = hisabCache;
+  let cycles = cyclesCache;
+
   if (partner) {
     const pLower = partner.toLowerCase().trim();
     const partnerEntries = hisabCache.filter(e => 
@@ -46,6 +55,14 @@ export async function GET(req: Request) {
     if (partnerEntries.length > 0) {
       entries = partnerEntries;
     }
+
+    const partnerCycles = cyclesCache.filter(c =>
+      String(c.partnerName || '').toLowerCase().trim().includes(pLower) ||
+      pLower.includes(String(c.partnerName || '').toLowerCase().trim())
+    );
+    if (partnerCycles.length > 0) {
+      cycles = partnerCycles;
+    }
   }
 
   return NextResponse.json({
@@ -53,23 +70,37 @@ export async function GET(req: Request) {
     count: entries.length,
     totalAll: hisabCache.length,
     entries: entries,
-    allEntries: hisabCache
+    allEntries: hisabCache,
+    cycles: cycles,
+    allCycles: cyclesCache
   });
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const incomingEntries = Array.isArray(body?.entries) 
-      ? body.entries 
-      : Array.isArray(body) 
-      ? body 
-      : [];
+    let hasChanges = false;
 
-    if (incomingEntries.length > 0) {
-      hisabCache = incomingEntries;
+    if (Array.isArray(body?.entries)) {
+      hisabCache = body.entries;
+      hasChanges = true;
+    } else if (Array.isArray(body)) {
+      hisabCache = body;
+      hasChanges = true;
+    }
+
+    if (Array.isArray(body?.cycles)) {
+      cyclesCache = body.cycles;
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
       try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(incomingEntries, null, 2), 'utf-8');
+        fs.writeFileSync(
+          DATA_FILE, 
+          JSON.stringify({ entries: hisabCache, cycles: cyclesCache }, null, 2), 
+          'utf-8'
+        );
       } catch (err) {
         // Ignore filesystem write errors in restricted serverless environments
       }
@@ -77,8 +108,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       status: 'ok',
-      message: 'Family hisab entries synced successfully',
-      count: hisabCache.length
+      message: 'Family hisab entries & cycles synced successfully',
+      count: hisabCache.length,
+      cyclesCount: cyclesCache.length
     });
   } catch (err: any) {
     return NextResponse.json(
