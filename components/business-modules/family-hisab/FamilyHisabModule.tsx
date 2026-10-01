@@ -171,28 +171,36 @@ export function FamilyHisabModule() {
     }
   }, [entries]);
 
-  // On mount: if device has no entries (e.g. Papa opening link on his phone without app installed),
-  // fetch the full ledger from the cloud automatically!
+  // On mount and page visit: Keep local and cloud fully synchronized
+  // If Ankush enters a new transaction later, any member opening/refreshing the link will see it immediately!
   useEffect(() => {
-    if (entries.length === 0) {
-      fetch('/api/family/hisab')
-        .then(res => res.json())
-        .then(data => {
-          if (data?.allEntries && Array.isArray(data.allEntries) && data.allEntries.length > 0) {
-            setEntries(data.allEntries);
-          } else if (data?.entries && Array.isArray(data.entries) && data.entries.length > 0) {
-            setEntries(data.entries);
-          }
-        })
-        .catch(() => {});
-    } else {
-      // Sync initial local entries to cloud
-      fetch('/api/family/hisab', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entries })
-      }).catch(() => {});
-    }
+    fetch('/api/family/hisab')
+      .then(res => res.json())
+      .then(data => {
+        const cloudEntries: MemberLedgerEntry[] = data?.allEntries || data?.entries;
+        if (Array.isArray(cloudEntries) && cloudEntries.length > 0) {
+          setEntries(currentLocal => {
+            if (currentLocal.length === 0 || cloudEntries.length > currentLocal.length) {
+              return cloudEntries;
+            }
+            if (currentLocal.length > cloudEntries.length) {
+              fetch('/api/family/hisab', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entries: currentLocal })
+              }).catch(() => {});
+            }
+            return currentLocal;
+          });
+        } else if (entries.length > 0) {
+          fetch('/api/family/hisab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entries })
+          }).catch(() => {});
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Submit Shopping / Expense Slip
