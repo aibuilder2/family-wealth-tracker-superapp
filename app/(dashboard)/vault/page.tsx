@@ -5,9 +5,11 @@ import { useFamilyStore } from '@/lib/store/familyStore';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { DocumentCard } from '@/components/vault/DocumentCard';
 import { ReminderCard } from '@/components/reminders/ReminderCard';
+import { SecretsLocker } from '@/components/vault/SecretsLocker';
 import { 
   Upload, Plus, X, FileText, CheckCircle2, AlertTriangle, 
-  ShieldCheck, FolderPlus, Folder, Users, User, Share2, Filter 
+  ShieldCheck, FolderPlus, Folder, Users, User, Share2, Filter,
+  Lock, Key
 } from 'lucide-react';
 import { DocumentCategory } from '@/types';
 
@@ -23,6 +25,9 @@ const DEFAULT_FOLDERS = [
 
 export default function VaultPage() {
   const { documents, reminders, members, addDocument, deleteDocument } = useFamilyStore();
+
+  // Master Vault Tab: Documents vs Secrets Locker
+  const [activeVaultTab, setActiveVaultTab] = useState<'documents' | 'secrets'>('documents');
 
   // Custom User Folders (Stored in localStorage)
   const [customFolders, setCustomFolders] = useState<string[]>(DEFAULT_FOLDERS);
@@ -142,142 +147,178 @@ export default function VaultPage() {
   return (
     <div className="space-y-4 pt-2">
       <ScreenHeader
-        title="Document Vault"
-        subtitle="फ़ैमिली मेंबर व फ़ोल्डर अनुसार सुरक्षित दस्तावेज़"
+        title="Family Vault"
+        subtitle="फ़ैमिली दस्तावेज़, पासवर्ड व प्रोजेक्ट .env लॉकर"
       />
 
-      {/* Top Action Bar */}
-      <div className="px-4 flex gap-2">
-        <button
-          onClick={() => setIsUploadModalOpen(true)}
-          className="flex-1 py-2.5 px-3 rounded-xl bg-gold hover:bg-gold-soft text-navy text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95 cursor-pointer"
-        >
-          <Upload size={14} />
-          <span>+ नया डॉक्यूमेंट जोड़ें</span>
-        </button>
-        <button
-          onClick={() => setIsCreateFolderModalOpen(true)}
-          className="py-2.5 px-3 rounded-xl bg-paper hover:bg-paper-dim border border-paper-dim text-ink text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-          title="नया फ़ोल्डर बनाएं"
-        >
-          <FolderPlus size={15} className="text-gold" />
-          <span>+ नया फ़ोल्डर</span>
-        </button>
-      </div>
-
-      {/* 📁 Member-wise & Folder Filter Tabs */}
-      <div className="px-4 space-y-2">
-        <div className="flex items-center justify-between text-[11px] font-bold text-ink-muted">
-          <span>फ़िल्टर करें (सदस्य या फ़ोल्डर):</span>
-          {filterType !== 'ALL' && (
-            <button
-              onClick={() => { setFilterType('ALL'); setActiveFilter('ALL'); }}
-              className="text-gold hover:underline cursor-pointer"
-            >
-              सभी दिखाएं
-            </button>
-          )}
-        </div>
-
-        {/* Members Pill Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-          <button
-            onClick={() => { setFilterType('ALL'); setActiveFilter('ALL'); }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-              filterType === 'ALL'
-                ? 'bg-navy text-gold shadow-xs'
-                : 'bg-paper text-ink-muted border border-paper-dim hover:bg-paper-dim'
-            }`}
-          >
-            सभी ({documents.length})
-          </button>
-
-          <button
-            onClick={() => { setFilterType('MEMBER'); setActiveFilter('COMMON'); }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
-              filterType === 'MEMBER' && activeFilter === 'COMMON'
-                ? 'bg-navy text-gold shadow-xs'
-                : 'bg-paper text-ink-muted border border-paper-dim hover:bg-paper-dim'
-            }`}
-          >
-            <Users size={12} /> कॉमन फ़ाइलें
-          </button>
-
-          {members.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => { setFilterType('MEMBER'); setActiveFilter(m.id); }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
-                filterType === 'MEMBER' && activeFilter === m.id
-                  ? 'bg-navy text-gold shadow-xs'
-                  : 'bg-paper text-ink-muted border border-paper-dim hover:bg-paper-dim'
-              }`}
-            >
-              <User size={12} /> {m.name}
-            </button>
-          ))}
-        </div>
-
-        {/* Category / Custom Folders Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
-          {customFolders.map((fName) => (
-            <button
-              key={fName}
-              onClick={() => { setFilterType('FOLDER'); setActiveFilter(fName); }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
-                filterType === 'FOLDER' && activeFilter === fName
-                  ? 'bg-gold/20 text-gold font-bold border border-gold/40'
-                  : 'bg-paper-dim/40 text-ink-muted border border-transparent hover:bg-paper-dim'
-              }`}
-            >
-              <Folder size={11} className={filterType === 'FOLDER' && activeFilter === fName ? 'text-gold' : 'text-ink-muted'} />
-              <span>{fName}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Stored Documents List */}
+      {/* Master Mode Switcher: Documents vs Secrets Locker */}
       <div className="px-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-serif font-semibold text-ink text-sm">
-            {filterType === 'ALL' ? 'सभी दस्तावेज़' : (filterType === 'MEMBER' ? `सदस्य अनुसार फ़ाइलें` : `फ़ोल्डर: ${activeFilter}`)} ({filteredDocuments.length})
-          </h2>
+        <div className="grid grid-cols-2 p-1 bg-paper-dim/60 rounded-2xl border border-paper-dim">
+          <button
+            onClick={() => setActiveVaultTab('documents')}
+            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeVaultTab === 'documents'
+                ? 'bg-navy text-gold shadow-xs'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            <Folder size={14} />
+            <span>📁 दस्तावेज़ व फ़ाइलें</span>
+          </button>
+          <button
+            onClick={() => setActiveVaultTab('secrets')}
+            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeVaultTab === 'secrets'
+                ? 'bg-navy text-gold shadow-xs'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            <Lock size={14} />
+            <span>🔐 पासवर्ड व .env लॉकर</span>
+          </button>
         </div>
+      </div>
 
-        <div className="rounded-xl bg-paper border border-paper-dim overflow-hidden divide-y divide-paper-dim shadow-sm">
-          {filteredDocuments.length === 0 ? (
-            <div className="p-8 text-center text-ink-muted text-xs space-y-1">
-              <FileText size={24} className="mx-auto text-ink-muted/50 mb-1" />
-              <p className="font-bold">इस फ़ोल्डर/सदस्य में कोई डॉक्यूमेंट नहीं है</p>
-              <p className="text-[11px]">ऊपर '+ नया डॉक्यूमेंट जोड़ें' पर क्लिक करें।</p>
+      {activeVaultTab === 'secrets' ? (
+        <div className="px-4 pb-6">
+          <SecretsLocker />
+        </div>
+      ) : (
+        <>
+          {/* Top Action Bar */}
+          <div className="px-4 flex gap-2">
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-gold hover:bg-gold-soft text-navy text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95 cursor-pointer"
+            >
+              <Upload size={14} />
+              <span>+ नया डॉक्यूमेंट जोड़ें</span>
+            </button>
+            <button
+              onClick={() => setIsCreateFolderModalOpen(true)}
+              className="py-2.5 px-3 rounded-xl bg-paper hover:bg-paper-dim border border-paper-dim text-ink text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+              title="नया फ़ोल्डर बनाएं"
+            >
+              <FolderPlus size={15} className="text-gold" />
+              <span>+ नया फ़ोल्डर</span>
+            </button>
+          </div>
+
+          {/* 📁 Member-wise & Folder Filter Tabs */}
+          <div className="px-4 space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-bold text-ink-muted">
+              <span>फ़िल्टर करें (सदस्य या फ़ोल्डर):</span>
+              {filterType !== 'ALL' && (
+                <button
+                  onClick={() => { setFilterType('ALL'); setActiveFilter('ALL'); }}
+                  className="text-gold hover:underline cursor-pointer"
+                >
+                  सभी दिखाएं
+                </button>
+              )}
             </div>
-          ) : (
-            filteredDocuments.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                doc={doc}
-                onDelete={(id) => deleteDocument(id)}
-              />
-            ))
-          )}
-        </div>
-      </div>
 
-      {/* Upcoming Expiry & Reminders Section */}
-      <div className="px-4 pt-2">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-serif font-semibold text-ink text-sm">
-            Upcoming Expiry & Reminders
-          </h2>
-        </div>
+            {/* Members Pill Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              <button
+                onClick={() => { setFilterType('ALL'); setActiveFilter('ALL'); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  filterType === 'ALL'
+                    ? 'bg-navy text-gold shadow-xs'
+                    : 'bg-paper text-ink-muted border border-paper-dim hover:bg-paper-dim'
+                }`}
+              >
+                सभी ({documents.length})
+              </button>
 
-        <div className="rounded-xl bg-paper border border-paper-dim overflow-hidden divide-y divide-paper-dim shadow-sm">
-          {reminders.map((reminder) => (
-            <ReminderCard key={reminder.id} reminder={reminder} />
-          ))}
-        </div>
-      </div>
+              <button
+                onClick={() => { setFilterType('MEMBER'); setActiveFilter('COMMON'); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+                  filterType === 'MEMBER' && activeFilter === 'COMMON'
+                    ? 'bg-navy text-gold shadow-xs'
+                    : 'bg-paper text-ink-muted border border-paper-dim hover:bg-paper-dim'
+                }`}
+              >
+                <Users size={12} /> कॉमन फ़ाइलें
+              </button>
+
+              {members.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => { setFilterType('MEMBER'); setActiveFilter(m.id); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+                    filterType === 'MEMBER' && activeFilter === m.id
+                      ? 'bg-navy text-gold shadow-xs'
+                      : 'bg-paper text-ink-muted border border-paper-dim hover:bg-paper-dim'
+                  }`}
+                >
+                  <User size={12} /> {m.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Category / Custom Folders Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+              {customFolders.map((fName) => (
+                <button
+                  key={fName}
+                  onClick={() => { setFilterType('FOLDER'); setActiveFilter(fName); }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+                    filterType === 'FOLDER' && activeFilter === fName
+                      ? 'bg-gold/20 text-gold font-bold border border-gold/40'
+                      : 'bg-paper-dim/40 text-ink-muted border border-transparent hover:bg-paper-dim'
+                  }`}
+                >
+                  <Folder size={11} className={filterType === 'FOLDER' && activeFilter === fName ? 'text-gold' : 'text-ink-muted'} />
+                  <span>{fName}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stored Documents List */}
+          <div className="px-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-serif font-semibold text-ink text-sm">
+                {filterType === 'ALL' ? 'सभी दस्तावेज़' : (filterType === 'MEMBER' ? `सदस्य अनुसार फ़ाइलें` : `फ़ोल्डर: ${activeFilter}`)} ({filteredDocuments.length})
+              </h2>
+            </div>
+
+            <div className="rounded-xl bg-paper border border-paper-dim overflow-hidden divide-y divide-paper-dim shadow-sm">
+              {filteredDocuments.length === 0 ? (
+                <div className="p-8 text-center text-ink-muted text-xs space-y-1">
+                  <FileText size={24} className="mx-auto text-ink-muted/50 mb-1" />
+                  <p className="font-bold">इस फ़ोल्डर/सदस्य में कोई डॉक्यूमेंट नहीं है</p>
+                  <p className="text-[11px]">ऊपर '+ नया डॉक्यूमेंट जोड़ें' पर क्लिक करें।</p>
+                </div>
+              ) : (
+                filteredDocuments.map((doc) => (
+                  <DocumentCard
+                    key={doc.id}
+                    doc={doc}
+                    onDelete={(id) => deleteDocument(id)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Upcoming Expiry & Reminders Section */}
+          <div className="px-4 pt-2">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-serif font-semibold text-ink text-sm">
+                Upcoming Expiry & Reminders
+              </h2>
+            </div>
+
+            <div className="rounded-xl bg-paper border border-paper-dim overflow-hidden divide-y divide-paper-dim shadow-sm">
+              {reminders.map((reminder) => (
+                <ReminderCard key={reminder.id} reminder={reminder} />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ➕ CREATE CUSTOM FOLDER MODAL */}
       {isCreateFolderModalOpen && (

@@ -91,6 +91,12 @@ export interface Asset {
   monthly_installment?: number; // मासिक आरडी/एसआईपी किश्त
   account_number?: string; // खाता या फोलियो संख्या
   linked_goal_id?: string; // किस लक्ष्य से जुड़ा है
+  sip_or_rd_due_day?: number; // SIP / RD महीने की तारीख
+
+  // Vehicle Details
+  vehicle_image_url?: string; // गाड़ी की फ़ोटो (Optional Image)
+  vehicle_number?: string; // गाड़ी का नंबर (e.g. MP 09 AB 1234)
+  vehicle_model?: string; // मॉडल / वर्शन
 }
 
 export interface Goal {
@@ -110,12 +116,13 @@ export interface Goal {
   notes?: string;
 }
 
-export type ReminderCategory = 'insurance' | 'service' | 'appointment' | 'emi' | 'other';
+export type ReminderCategory = 'insurance' | 'service' | 'appointment' | 'emi' | 'sip_rd' | 'other';
 
 export interface Reminder {
   id: string;
   family_id: string;
   member_id?: string;
+  member_name?: string;
   title: string;
   category: ReminderCategory;
   due_date: string;
@@ -124,6 +131,8 @@ export interface Reminder {
   notify_1_week?: boolean;
   is_completed?: boolean;
   color?: string;
+  linked_loan_id?: string;
+  linked_asset_id?: string;
 }
 
 export type DocumentCategory = 'insurance' | 'vehicle' | 'property' | 'id_proof' | 'tax' | 'other';
@@ -461,5 +470,62 @@ export interface TravelClaim {
   expenses: TravelExpenseItem[];
   created_at?: string;
 }
+
+// ==========================================
+// VAULT SECRETS & .ENV LOCKER
+// ==========================================
+export type VaultSecretType = 'env_file' | 'password' | 'pin_secret';
+
+export interface VaultSecretItem {
+  id: string;
+  family_id: string;
+  member_id?: string;
+  member_name?: string;
+  secret_type: VaultSecretType;
+  title: string; // Project Name or Account/Service Name
+  environment?: 'production' | 'staging' | 'local' | 'other'; // For .env files
+  env_content?: string; // Multi-line .env text
+  username_or_email?: string; // For account / login
+  password?: string; // Password / Secret
+  url?: string; // Website / Project repo URL
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ==========================================
+// LOANS & LIABILITIES (कर्ज व ईएमआई)
+// ==========================================
+export type LoanType = 
+  | 'home_loan' 
+  | 'car_loan' 
+  | 'business_loan' 
+  | 'personal_loan' 
+  | 'gold_loan' 
+  | 'education_loan' 
+  | 'other';
+
+export interface LoanLiability {
+  id: string;
+  family_id: string;
+  borrower_member_id: string; // kiske naam se loan hai
+  borrower_member_name: string;
+  loan_type: LoanType;
+  title: string; // e.g. "SBI Home Loan", "HDFC Car Loan - Creta"
+  lender_bank: string; // e.g. "State Bank of India", "HDFC Bank"
+  account_number?: string; // Loan Account No.
+  total_loan_amount: number; // कुल ऋण राशि
+  outstanding_balance: number; // बाकी बकाया राशि
+  monthly_emi_amount: number; // मासिक EMI किश्त ₹
+  emi_due_day: number; // e.g. 5 (5th of every month)
+  interest_rate?: number; // e.g. 8.5
+  tenure_months?: number; // e.g. 60
+  start_date?: string;
+  end_date?: string;
+  auto_reminder: boolean; // creates/syncs an EMI reminder
+  notes?: string;
+  created_at?: string;
+}
+
 
 

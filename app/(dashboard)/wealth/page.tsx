@@ -6,11 +6,13 @@ import { useFamilyStore } from '@/lib/store/familyStore';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { AssetCard } from '@/components/wealth/AssetCard';
 import { GoalCard } from '@/components/wealth/GoalCard';
+import { LoanTracker } from '@/components/wealth/LoanTracker';
 import { Mono } from '@/components/ui/Mono';
 import { 
   Plus, PiggyBank, Landmark, X, Building2, Home, CheckCircle2, 
   AlertCircle, Sparkles, User, Calendar, Link as LinkIcon, DollarSign,
-  TrendingUp, Zap, ChevronRight
+  TrendingUp, Zap, ChevronRight, Car, CreditCard, Image as ImageIcon,
+  Camera, Trash2, Sprout, Bell
 } from 'lucide-react';
 import { AssetCategory, AssetType, Goal } from '@/types';
 
@@ -28,9 +30,12 @@ export default function WealthPage() {
     addAsset,
     rentalProperties,
     totalRentalIncomePerMonth,
+    totalLoansOutstanding,
+    totalMonthlyEmi,
+    addReminder,
   } = useFamilyStore();
 
-  const [viewTab, setViewTab] = useState<'all' | 'liquid' | 'fixed'>('all');
+  const [viewTab, setViewTab] = useState<'all' | 'liquid' | 'fixed' | 'loans'>('all');
 
   // Add Asset Modal State
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
@@ -44,10 +49,30 @@ export default function WealthPage() {
   // RD / Investment Specific Flexible Fields
   const [depositSubType, setDepositSubType] = useState<'RD' | 'FD' | 'SIP' | 'Savings' | 'General'>('General');
   const [startDate, setStartDate] = useState('');
+  const [maturityDate, setMaturityDate] = useState('');
   const [openedBy, setOpenedBy] = useState<'direct_bank' | 'agent'>('direct_bank');
   const [agentName, setAgentName] = useState('');
   const [agentPhone, setAgentPhone] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+
+  // SIP / RD Installments
+  const [monthlyInstallment, setMonthlyInstallment] = useState('');
+  const [sipDueDay, setSipDueDay] = useState('10');
+  const [autoSipReminder, setAutoSipReminder] = useState(false);
+
+  // Vehicle Specific Fields (Optional Photo & Reg No)
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [vehicleImageUrl, setVehicleImageUrl] = useState<string | null>(null);
+
+  const handleVehiclePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setVehicleImageUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Add / Edit Goal Modal State
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
@@ -63,7 +88,7 @@ export default function WealthPage() {
 
   // Filtered Assets
   const filteredAssets = assets.filter((a) => {
-    if (viewTab === 'all') return true;
+    if (viewTab === 'all' || viewTab === 'loans') return true;
     return a.category === viewTab;
   });
 
@@ -88,21 +113,55 @@ export default function WealthPage() {
       member_id: assetMemberId || undefined,
       notes,
       start_date: startDate.trim() || undefined,
+      maturity_date: maturityDate.trim() || undefined,
       opened_by: (assetType === 'bank_deposit' || assetType === 'mutual_funds') ? openedBy : undefined,
       agent_name: openedBy === 'agent' ? agentName.trim() || undefined : undefined,
       agent_phone: openedBy === 'agent' ? agentPhone.trim() || undefined : undefined,
       account_number: accountNumber.trim() || undefined,
+      monthly_installment: monthlyInstallment ? parseFloat(monthlyInstallment) : undefined,
+      sip_or_rd_due_day: sipDueDay ? parseInt(sipDueDay, 10) : undefined,
+      vehicle_image_url: assetType === 'vehicle' ? (vehicleImageUrl || undefined) : undefined,
+      vehicle_number: assetType === 'vehicle' ? (vehicleNumber.trim() || undefined) : undefined,
     });
+
+    // Auto-create SIP/RD reminder if opted
+    if (autoSipReminder && parseFloat(monthlyInstallment) > 0 && sipDueDay) {
+      const now = new Date();
+      let targetMonth = now.getMonth();
+      let targetYear = now.getFullYear();
+      if (now.getDate() > parseInt(sipDueDay, 10)) {
+        targetMonth += 1;
+        if (targetMonth > 11) {
+          targetMonth = 0;
+          targetYear += 1;
+        }
+      }
+      const dueDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(Math.min(parseInt(sipDueDay, 10), 28)).padStart(2, '0')}`;
+      addReminder({
+        title: `${assetName.trim()} - मासिक किश्त (SIP/RD)`,
+        category: 'sip_rd',
+        due_date: dueDate,
+        amount: parseFloat(monthlyInstallment),
+        member_id: assetMemberId || undefined,
+        color: '#059669',
+      });
+    }
 
     // Reset Form
     setAssetName('');
     setAssetValue('');
     setMonthlyRent('');
     setStartDate('');
+    setMaturityDate('');
     setOpenedBy('direct_bank');
     setAgentName('');
     setAgentPhone('');
     setAccountNumber('');
+    setVehicleNumber('');
+    setVehicleImageUrl(null);
+    setMonthlyInstallment('');
+    setSipDueDay('10');
+    setAutoSipReminder(false);
     setIsAddAssetOpen(false);
   };
 
@@ -187,49 +246,99 @@ export default function WealthPage() {
         }
       />
 
-      {/* Net Wealth Card */}
-      <div className="px-4">
-        <div className="rounded-2xl p-5 text-center bg-navy shadow-md text-paper">
-          <p className="text-xs text-gold-soft tracking-wider font-mono">TOTAL NET WEALTH</p>
-          <Mono className="text-3xl font-black text-paper block mt-1">
+      {/* Net Wealth & Debt Summary Cards */}
+      <div className="px-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="rounded-2xl p-4 text-center bg-navy shadow-md text-paper">
+          <p className="text-[11px] text-gold-soft tracking-wider font-mono">TOTAL NET WEALTH</p>
+          <Mono className="text-2xl sm:text-3xl font-black text-paper block mt-0.5">
             ₹{totalWealth.toLocaleString('en-IN')}
           </Mono>
-          <p className="text-xs text-paper-dim/80 mt-1">पारिवारिक कुल संपत्ति मूल्यांकन</p>
+          <p className="text-[10px] text-paper-dim/80 mt-0.5">पारिवारिक कुल संपत्ति मूल्यांकन</p>
+        </div>
+
+        <div className="rounded-2xl p-4 text-center bg-paper border border-coral/30 shadow-xs">
+          <p className="text-[11px] text-coral tracking-wider font-mono font-bold">TOTAL OUTSTANDING DEBT</p>
+          <Mono className="text-2xl sm:text-3xl font-black text-coral block mt-0.5">
+            ₹{totalLoansOutstanding.toLocaleString('en-IN')}
+          </Mono>
+          <p className="text-[10px] text-ink-muted mt-0.5">
+            मासिक EMI किश्त: <strong className="text-ink font-mono">₹{totalMonthlyEmi.toLocaleString('en-IN')}/माह</strong>
+          </p>
         </div>
       </div>
 
-      {/* Liquid vs Fixed Breakdown Cards */}
-      <div className="px-4 grid grid-cols-2 gap-3">
-        <div
-          onClick={() => setViewTab(viewTab === 'liquid' ? 'all' : 'liquid')}
-          className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-            viewTab === 'liquid'
-              ? 'bg-gold/15 border-gold shadow-sm'
-              : 'bg-paper border-paper-dim hover:border-paper-dim/80'
-          }`}
-        >
-          <span className="text-[10px] font-bold text-ink-muted uppercase block">तरल संपत्ति (Liquid)</span>
-          <Mono className="text-lg font-black text-ink block mt-0.5">
-            ₹{liquidWealth.toLocaleString('en-IN')}
-          </Mono>
-          <span className="text-[10px] text-ink-muted">बैंक, सोना, शेयर, नकदी</span>
-        </div>
-
-        <div
-          onClick={() => setViewTab(viewTab === 'fixed' ? 'all' : 'fixed')}
-          className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-            viewTab === 'fixed'
-              ? 'bg-gold/15 border-gold shadow-sm'
-              : 'bg-paper border-paper-dim hover:border-paper-dim/80'
-          }`}
-        >
-          <span className="text-[10px] font-bold text-ink-muted uppercase block">अचल संपत्ति (Fixed)</span>
-          <Mono className="text-lg font-black text-ink block mt-0.5">
-            ₹{fixedWealth.toLocaleString('en-IN')}
-          </Mono>
-          <span className="text-[10px] text-ink-muted">मकान, जमीन, दुकान, फ्लैट्स</span>
+      {/* Wealth View Tab Switcher: All, Liquid, Fixed, Loans */}
+      <div className="px-4">
+        <div className="grid grid-cols-4 p-1 bg-paper-dim/60 rounded-2xl border border-paper-dim text-center">
+          <button
+            onClick={() => setViewTab('all')}
+            className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              viewTab === 'all'
+                ? 'bg-navy text-gold shadow-xs'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            सभी ({assets.length})
+          </button>
+          <button
+            onClick={() => setViewTab('liquid')}
+            className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              viewTab === 'liquid'
+                ? 'bg-navy text-gold shadow-xs'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            तरल (₹{Math.round(liquidWealth / 100000)}L)
+          </button>
+          <button
+            onClick={() => setViewTab('fixed')}
+            className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              viewTab === 'fixed'
+                ? 'bg-navy text-gold shadow-xs'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            अचल (₹{Math.round(fixedWealth / 100000)}L)
+          </button>
+          <button
+            onClick={() => setViewTab('loans')}
+            className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              viewTab === 'loans'
+                ? 'bg-coral text-white shadow-xs'
+                : 'text-coral hover:bg-coral/10 font-bold'
+            }`}
+          >
+            कर्ज / EMI
+          </button>
         </div>
       </div>
+
+      {/* 📈 SIP & RD Disciplined Monthly Savings Banner */}
+      {(() => {
+        const totalMonthlySipRd = assets
+          .filter(a => a.monthly_installment && Number(a.monthly_installment) > 0)
+          .reduce((sum, a) => sum + Number(a.monthly_installment || 0), 0);
+
+        if (totalMonthlySipRd <= 0) return null;
+        return (
+          <div className="px-4">
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+                  <Sprout size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-ink">मासिक SIP व RD बचत (Disciplined Investments)</p>
+                  <p className="text-[10px] text-ink-muted">परिवार द्वारा हर माह नियमित जमा की जा रही कुल किश्त</p>
+                </div>
+              </div>
+              <Mono className="text-sm font-black text-emerald-700 dark:text-emerald-400">
+                ₹{totalMonthlySipRd.toLocaleString('en-IN')}/माह
+              </Mono>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 🏢 Family Real Estate Portfolio (High-level Wealth Summary) */}
       <div className="px-4 pt-1">
@@ -307,6 +416,11 @@ export default function WealthPage() {
             <AssetCard key={asset.id} asset={asset} />
           ))}
         </div>
+      </div>
+
+      {/* 💳 Loans & Liabilities Tracker Section */}
+      <div className="px-4 pt-2">
+        <LoanTracker />
       </div>
 
       {/* Goals Section (With Full Edit, Delete, Asset Linking) */}
@@ -429,9 +543,9 @@ export default function WealthPage() {
               {/* Asset Type Selector */}
               <div>
                 <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                  प्रकार (Category & Type)
+                  प्रकार (Category & Type) *
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -439,13 +553,13 @@ export default function WealthPage() {
                       setAssetType('bank_deposit');
                       setDepositSubType('RD');
                     }}
-                    className={`py-2 px-2.5 rounded-xl border text-center font-semibold text-xs transition-all ${
+                    className={`py-2 px-2 rounded-xl border text-center font-bold text-xs transition-all ${
                       assetType === 'bank_deposit' && depositSubType === 'RD'
-                        ? 'border-gold bg-gold/15 text-gold-dark font-bold'
+                        ? 'border-gold bg-gold/15 text-gold-dark'
                         : 'border-paper-dim bg-paper text-ink-muted'
                     }`}
                   >
-                    🏦 आरडी (Recurring Deposit)
+                    🏦 आरडी (RD)
                   </button>
                   <button
                     type="button"
@@ -454,13 +568,42 @@ export default function WealthPage() {
                       setAssetType('bank_deposit');
                       setDepositSubType('FD');
                     }}
-                    className={`py-2 px-2.5 rounded-xl border text-center font-semibold text-xs transition-all ${
+                    className={`py-2 px-2 rounded-xl border text-center font-bold text-xs transition-all ${
                       assetType === 'bank_deposit' && depositSubType === 'FD'
-                        ? 'border-gold bg-gold/15 text-gold-dark font-bold'
+                        ? 'border-gold bg-gold/15 text-gold-dark'
                         : 'border-paper-dim bg-paper text-ink-muted'
                     }`}
                   >
-                    🏛️ एफडी (Fixed Deposit)
+                    🏛️ एफडी (FD)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssetCategory('liquid');
+                      setAssetType('mutual_funds');
+                      setDepositSubType('SIP');
+                    }}
+                    className={`py-2 px-2 rounded-xl border text-center font-bold text-xs transition-all ${
+                      assetType === 'mutual_funds' || (assetType === 'bank_deposit' && depositSubType === 'SIP')
+                        ? 'border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                        : 'border-paper-dim bg-paper text-ink-muted'
+                    }`}
+                  >
+                    📈 एसआईपी (SIP)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssetCategory('fixed');
+                      setAssetType('vehicle');
+                    }}
+                    className={`py-2 px-2 rounded-xl border text-center font-bold text-xs transition-all ${
+                      assetType === 'vehicle'
+                        ? 'border-amber-600 bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                        : 'border-paper-dim bg-paper text-ink-muted'
+                    }`}
+                  >
+                    🚗 वाहन (कार/बाइक)
                   </button>
                   <button
                     type="button"
@@ -468,13 +611,13 @@ export default function WealthPage() {
                       setAssetCategory('liquid');
                       setAssetType('gold');
                     }}
-                    className={`py-2 px-2.5 rounded-xl border text-center font-semibold text-xs transition-all ${
+                    className={`py-2 px-2 rounded-xl border text-center font-bold text-xs transition-all ${
                       assetType === 'gold'
-                        ? 'border-gold bg-gold/15 text-gold-dark font-bold'
+                        ? 'border-gold bg-gold/15 text-gold-dark'
                         : 'border-paper-dim bg-paper text-ink-muted'
                     }`}
                   >
-                    🪙 सोना / जेवर (Gold)
+                    🪙 सोना / जेवर
                   </button>
                   <button
                     type="button"
@@ -482,39 +625,146 @@ export default function WealthPage() {
                       setAssetCategory('fixed');
                       setAssetType('property');
                     }}
-                    className={`py-2 px-2.5 rounded-xl border text-center font-semibold text-xs transition-all ${
+                    className={`py-2 px-2 rounded-xl border text-center font-bold text-xs transition-all ${
                       assetType === 'property'
-                        ? 'border-gold bg-gold/15 text-gold-dark font-bold'
+                        ? 'border-gold bg-gold/15 text-gold-dark'
                         : 'border-paper-dim bg-paper text-ink-muted'
                     }`}
                   >
-                    🏢 जमीन / मकान (Property)
+                    🏢 जमीन / मकान
                   </button>
                 </div>
               </div>
 
-              {/* RD / Deposit Flexible Fields (USER EXPLICIT REQUIREMENT) */}
-              {(assetType === 'bank_deposit' || assetType === 'mutual_funds') && (
-                <div className="p-3 rounded-xl bg-paper-dim/30 border border-paper-dim space-y-2">
-                  <span className="text-[11px] font-bold text-ink uppercase block">
-                    आरडी / बैंक जमा आरंभ व माध्यम विवरण (वैकल्पिक)
+              {/* 🚗 VEHICLE PHOTO & REGISTRATION (USER REQUIREMENT) */}
+              {assetType === 'vehicle' && (
+                <div className="p-3 rounded-xl bg-paper-dim/30 border border-paper-dim space-y-2.5">
+                  <span className="text-[11px] font-bold text-ink uppercase block flex items-center gap-1.5">
+                    <Car size={14} className="text-gold" />
+                    गाड़ी का विवरण व फ़ोटो (Vehicle Details & Photo)
                   </span>
 
                   <div>
                     <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                      कब से शुरू हुआ (Start Date) [वैकल्पिक]
+                      गाड़ी नंबर (Vehicle Registration No.) [वैकल्पिक]
                     </label>
                     <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-paper border border-paper-dim text-ink"
+                      type="text"
+                      placeholder="उदा. MP 09 AB 1234, DL 01 CA 9999"
+                      value={vehicleNumber}
+                      onChange={(e) => setVehicleNumber(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl bg-paper border border-paper-dim text-ink font-mono uppercase"
                     />
                   </div>
 
                   <div>
                     <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                      किसने / कैसे खोला (Channel) [वैकल्पिक]
+                      गाड़ी की फ़ोटो (Vehicle Photo Upload) [वैकल्पिक]
+                    </label>
+                    {vehicleImageUrl ? (
+                      <div className="relative rounded-xl overflow-hidden border border-paper-dim bg-paper h-32 w-full group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={vehicleImageUrl}
+                          alt="Vehicle Preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setVehicleImageUrl(null)}
+                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/70 text-white hover:bg-coral transition-colors"
+                          title="फ़ोटो हटाएं"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="border-2 border-dashed border-paper-dim hover:border-gold rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer bg-paper hover:bg-paper-dim/30 transition-all text-center">
+                        <Camera size={20} className="text-gold" />
+                        <span className="text-xs font-bold text-ink">गाड़ी की फ़ोटो चुनें या खींचे</span>
+                        <span className="text-[10px] text-ink-muted">JPG, PNG (गैलरी या कैमरा)</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleVehiclePhotoChange}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 📈 RD / SIP / INVESTMENT DETAILED FIELDS */}
+              {(assetType === 'bank_deposit' || assetType === 'mutual_funds') && (
+                <div className="p-3 rounded-xl bg-paper-dim/30 border border-paper-dim space-y-2.5">
+                  <span className="text-[11px] font-bold text-ink uppercase block flex items-center gap-1.5">
+                    <Sprout size={14} className="text-gold" />
+                    {depositSubType === 'SIP' || assetType === 'mutual_funds' 
+                      ? 'एसआईपी (SIP) व म्यूचुअल फंड विवरण' 
+                      : 'आरडी / बैंक जमा आरंभ व माध्यम विवरण'}
+                  </span>
+
+                  {(depositSubType === 'RD' || depositSubType === 'SIP' || assetType === 'mutual_funds') && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                          मासिक किश्त (Monthly Installment ₹)
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="₹ 5,000 / माह"
+                          value={monthlyInstallment}
+                          onChange={(e) => setMonthlyInstallment(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-paper border border-paper-dim text-ink font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                          हर महीने की तारीख (Due Day)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={31}
+                          placeholder="10"
+                          value={sipDueDay}
+                          onChange={(e) => setSipDueDay(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-paper border border-paper-dim text-ink font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                        कब से शुरू हुआ (Start Date)
+                      </label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-paper border border-paper-dim text-ink"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                        परिपक्वता तारीख (Maturity Date)
+                      </label>
+                      <input
+                        type="date"
+                        value={maturityDate}
+                        onChange={(e) => setMaturityDate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-paper border border-paper-dim text-ink"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-ink-muted block mb-1">
+                      किसने / कैसे खोला (Channel)
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -524,7 +774,7 @@ export default function WealthPage() {
                           openedBy === 'direct_bank' ? 'bg-gold/15 border-gold text-gold-dark' : 'bg-paper border-paper-dim text-ink-muted'
                         }`}
                       >
-                        डायरेक्ट बैंक से
+                        डायरेक्ट बैंक / AMC
                       </button>
                       <button
                         type="button"
@@ -565,7 +815,7 @@ export default function WealthPage() {
 
                   <div>
                     <label className="text-[11px] font-bold text-ink-muted block mb-1">
-                      खाता संख्या / रसीद नं (Account / Folio No.) [वैकल्पिक]
+                      खाता संख्या / फोलियो नं (Account / Folio No.)
                     </label>
                     <input
                       type="text"
@@ -575,6 +825,25 @@ export default function WealthPage() {
                       className="w-full px-2.5 py-1.5 rounded-lg bg-paper border border-paper-dim text-ink font-mono"
                     />
                   </div>
+
+                  {/* Auto-reminder toggle for SIP/RD */}
+                  {(depositSubType === 'RD' || depositSubType === 'SIP' || assetType === 'mutual_funds') && (
+                    <div className="p-2.5 rounded-xl bg-paper border border-paper-dim flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Bell size={14} className="text-gold" />
+                        <div>
+                          <span className="text-[11px] font-bold text-ink block">मासिक किश्त का रिमाइंडर सेट करें</span>
+                          <span className="text-[9px] text-ink-muted">हर महीने तारीख से पहले अलर्ट मिलेगा</span>
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={autoSipReminder}
+                        onChange={(e) => setAutoSipReminder(e.target.checked)}
+                        className="w-4 h-4 accent-gold cursor-pointer"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 

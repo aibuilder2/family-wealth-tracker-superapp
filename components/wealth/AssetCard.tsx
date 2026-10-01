@@ -53,13 +53,49 @@ export function AssetCard({ asset }: AssetCardProps) {
         </Mono>
       </div>
 
+      {/* Vehicle Image Preview Banner */}
+      {asset.type === 'vehicle' && asset.vehicle_image_url && (
+        <div className="relative w-full h-32 rounded-xl overflow-hidden bg-paper-dim/40 border border-paper-dim my-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={asset.vehicle_image_url}
+            alt={asset.label}
+            className="w-full h-full object-cover"
+          />
+          {asset.vehicle_number && (
+            <span className="absolute bottom-1.5 right-1.5 bg-navy/85 backdrop-blur-xs text-gold text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border border-gold/30">
+              {asset.vehicle_number}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Vehicle Number tag if no photo */}
+      {asset.type === 'vehicle' && asset.vehicle_number && !asset.vehicle_image_url && (
+        <div className="flex items-center gap-1.5 text-[11px] font-mono text-ink-muted">
+          <Car size={13} className="text-gold" />
+          <span>नं: <strong className="text-ink font-bold">{asset.vehicle_number}</strong></span>
+        </div>
+      )}
+
+      {/* SIP / RD Monthly Installment */}
+      {asset.monthly_installment && asset.monthly_installment > 0 && (
+        <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+          <span>मासिक किश्त: ₹{Number(asset.monthly_installment).toLocaleString('en-IN')}/माह</span>
+          {asset.sip_or_rd_due_day && <span>({asset.sip_or_rd_due_day} तारीख)</span>}
+        </div>
+      )}
+
       {/* RD / Deposit Metadata (Start Date, Agent, Channel) */}
-      {(asset.start_date || asset.opened_by || asset.agent_name) && (
+      {(asset.start_date || asset.opened_by || asset.agent_name || asset.maturity_date) && (
         <div className="pt-1.5 border-t border-paper-dim/60 space-y-1 text-[10px] text-ink-muted">
           {asset.start_date && (
             <div className="flex items-center gap-1">
               <Calendar size={11} className="text-gold" />
-              <span>आरंभ तिथि: <strong className="font-mono text-ink">{asset.start_date}</strong></span>
+              <span>आरंभ: <strong className="font-mono text-ink">{asset.start_date}</strong></span>
+              {asset.maturity_date && (
+                <span> | परिपक्वता: <strong className="font-mono text-ink">{asset.maturity_date}</strong></span>
+              )}
             </div>
           )}
 

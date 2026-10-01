@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   Family, Member, Transaction, Asset, Goal, Reminder, DocumentItem, MedicalRecord,
   RentalProperty, RentalTenant, HostelRoom, HostelBed, RentalExpense, RentDiversionRule,
-  HouseholdStaff
+  HouseholdStaff, LoanLiability
 } from '@/types';
 import { initUserScopedStorage, getActiveUser } from '@/lib/storage/userScopedStorage';
 import { createClient } from '@/lib/supabase/client';
@@ -588,6 +588,7 @@ interface FamilyContextType {
   medicalRecords: MedicalRecord[];
   rentalProperties: RentalProperty[];
   rentalTenants: RentalTenant[];
+  loans: LoanLiability[];
   activeMemberId: string | null;
   setActiveMemberId: (id: string | null) => void;
   // Actions
@@ -605,6 +606,9 @@ interface FamilyContextType {
   addDocument: (doc: Omit<DocumentItem, 'id' | 'family_id'>) => void;
   deleteDocument: (id: string) => void;
   updateAsset: (id: string, updates: Partial<Asset>) => void;
+  addLoan: (loan: Omit<LoanLiability, 'id' | 'family_id' | 'created_at'>) => void;
+  updateLoan: (id: string, updates: Partial<LoanLiability>) => void;
+  deleteLoan: (id: string) => void;
   currentUserId: string;
   staff: HouseholdStaff[];
 
@@ -638,6 +642,8 @@ interface FamilyContextType {
   totalUdharTaken: number;
   totalRentalIncomePerMonth: number;
   totalSecurityDepositHeld: number;
+  totalLoansOutstanding: number;
+  totalMonthlyEmi: number;
   // Quick Add Modal Trigger
   isQuickAddOpen: boolean;
   quickAddType: 'expense' | 'income' | 'udhar';
@@ -739,6 +745,19 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           if (Array.isArray(parsed)) {
             return parsed.filter(r => !['r-1', 'r-2', 'r-3'].includes(r.id));
           }
+        } catch (e) {}
+      }
+    }
+    return [];
+  });
+
+  const [loans, setLoans] = useState<LoanLiability[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fwa_loans_liabilities_v1');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
         } catch (e) {}
       }
     }
@@ -1370,6 +1389,112 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         notes: newA.notes || null,
       }).then();
     }
+  };
+
+  const calculateNextEmiDueDate = (dueDay: number): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const todayDate = now.getDate();
+
+    let targetYear = year;
+    let targetMonth = month;
+
+    if (todayDate > dueDay) {
+      targetMonth += 1;
+      if (targetMonth > 11) {
+        targetMonth = 0;
+        targetYear += 1;
+      }
+    }
+
+    const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+    const validDay = Math.min(Math.max(1, dueDay), maxDays);
+    const formattedMonth = String(targetMonth + 1).padStart(2, '0');
+    const formattedDay = String(validDay).padStart(2, '0');
+    return `${targetYear}-${formattedMonth}-${formattedDay}`;
+  };
+
+  const addLoan = (loanData: Omit<LoanLiability, 'id' | 'family_id' | 'created_at'>) => {
+    const newId = 'loan-' + Date.now();
+    const newLoan: LoanLiability = {
+      ...loanData,
+      id: newId,
+      family_id: family.id,
+      created_at: new Date().toISOString(),
+    };
+    const updated = [newLoan, ...loans];
+    setLoans(updated);
+    try { localStorage.setItem('fwa_loans_liabilities_v1', JSON.stringify(updated)); } catch (e) {}
+
+    // Auto-sync EMI reminder if enabled
+    if (newLoan.auto_reminder && Number(newLoan.monthly_emi_amount) > 0 && newLoan.emi_due_day) {
+      const dueDate = calculateNextEmiDueDate(Number(newLoan.emi_due_day));
+      const reminderItem: Reminder = {
+        id: 'rem-loan-' + newId,
+        family_id: family.id,
+        member_id: newLoan.borrower_member_id,
+        member_name: newLoan.borrower_member_name,
+        title: `${newLoan.title} - मासिक EMI (किश्त)`,
+        category: 'emi',
+        due_date: dueDate,
+        amount: Number(newLoan.monthly_emi_amount),
+        linked_loan_id: newId,
+        color: '#C1502E',
+      };
+      setReminders(prev => {
+        const next = [...prev.filter(r => r.linked_loan_id !== newId), reminderItem];
+        try { localStorage.setItem('fwa_reminders', JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
+    }
+  };
+
+  const updateLoan = (id: string, updates: Partial<LoanLiability>) => {
+    const updated = loans.map(l => l.id === id ? { ...l, ...updates } : l);
+    setLoans(updated);
+    try { localStorage.setItem('fwa_loans_liabilities_v1', JSON.stringify(updated)); } catch (e) {}
+
+    const cur = updated.find(l => l.id === id);
+    if (cur) {
+      if (cur.auto_reminder && Number(cur.monthly_emi_amount) > 0 && cur.emi_due_day) {
+        const dueDate = calculateNextEmiDueDate(Number(cur.emi_due_day));
+        const reminderItem: Reminder = {
+          id: 'rem-loan-' + cur.id,
+          family_id: family.id,
+          member_id: cur.borrower_member_id,
+          member_name: cur.borrower_member_name,
+          title: `${cur.title} - मासिक EMI (किश्त)`,
+          category: 'emi',
+          due_date: dueDate,
+          amount: Number(cur.monthly_emi_amount),
+          linked_loan_id: cur.id,
+          color: '#C1502E',
+        };
+        setReminders(prev => {
+          const next = [...prev.filter(r => r.linked_loan_id !== cur.id), reminderItem];
+          try { localStorage.setItem('fwa_reminders', JSON.stringify(next)); } catch (e) {}
+          return next;
+        });
+      } else {
+        setReminders(prev => {
+          const next = prev.filter(r => r.linked_loan_id !== cur.id);
+          try { localStorage.setItem('fwa_reminders', JSON.stringify(next)); } catch (e) {}
+          return next;
+        });
+      }
+    }
+  };
+
+  const deleteLoan = (id: string) => {
+    const updated = loans.filter(l => l.id !== id);
+    setLoans(updated);
+    try { localStorage.setItem('fwa_loans_liabilities_v1', JSON.stringify(updated)); } catch (e) {}
+    setReminders(prev => {
+      const next = prev.filter(r => r.linked_loan_id !== id);
+      try { localStorage.setItem('fwa_reminders', JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
   };
 
   const updateFamilyName = (newName: string) => {
@@ -2021,6 +2146,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     .filter(t => t.type === 'udhar_taken')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
+  const totalLoansOutstanding = loans.reduce((sum, l) => sum + Number(l.outstanding_balance || 0), 0);
+  const totalMonthlyEmi = loans.reduce((sum, l) => sum + Number(l.monthly_emi_amount || 0), 0);
+
   return (
     <FamilyContext.Provider
       value={{
@@ -2034,9 +2162,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         medicalRecords,
         rentalProperties,
         rentalTenants,
+        loans,
         currentUserId,
         staff,
         updateAsset,
+        addLoan,
+        updateLoan,
+        deleteLoan,
         activeMemberId,
         setActiveMemberId,
         updateFamilyName,
@@ -2080,6 +2212,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         totalUdharTaken,
         totalRentalIncomePerMonth,
         totalSecurityDepositHeld,
+        totalLoansOutstanding,
+        totalMonthlyEmi,
         isQuickAddOpen,
         quickAddType,
         openQuickAdd,
