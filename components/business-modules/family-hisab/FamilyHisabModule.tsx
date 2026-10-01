@@ -161,7 +161,39 @@ export function FamilyHisabModule() {
 
   useEffect(() => {
     localStorage.setItem('fwa_family_hisab_v1', JSON.stringify(entries));
+    // Auto-sync to cloud so members opening the shared link on their phone see all entries
+    if (entries.length > 0) {
+      fetch('/api/family/hisab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries })
+      }).catch(() => {});
+    }
   }, [entries]);
+
+  // On mount: if device has no entries (e.g. Papa opening link on his phone without app installed),
+  // fetch the full ledger from the cloud automatically!
+  useEffect(() => {
+    if (entries.length === 0) {
+      fetch('/api/family/hisab')
+        .then(res => res.json())
+        .then(data => {
+          if (data?.allEntries && Array.isArray(data.allEntries) && data.allEntries.length > 0) {
+            setEntries(data.allEntries);
+          } else if (data?.entries && Array.isArray(data.entries) && data.entries.length > 0) {
+            setEntries(data.entries);
+          }
+        })
+        .catch(() => {});
+    } else {
+      // Sync initial local entries to cloud
+      fetch('/api/family/hisab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries })
+      }).catch(() => {});
+    }
+  }, []);
 
   // Submit Shopping / Expense Slip
   const handleAddEntry = (e: React.FormEvent) => {
@@ -392,6 +424,14 @@ export function FamilyHisabModule() {
   };
 
   const handleShareWhatsApp = (mode: 'full' | 'compact' | 'link_only' = shareMode) => {
+    // Ensure cloud sync is up-to-date before sharing
+    if (entries.length > 0) {
+      fetch('/api/family/hisab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries })
+      }).catch(() => {});
+    }
     const msg = generateShareMessage(mode);
     const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
