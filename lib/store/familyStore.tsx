@@ -2130,7 +2130,40 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
     const today = new Date().toISOString().split('T')[0];
 
-    if (rule.allocation_target === 'fd_rd_investment') {
+    if (rule.allocation_target === 'loan_emi') {
+      if (rule.linked_loan_id) {
+        const targetLoan = loans.find(l => l.id === rule.linked_loan_id);
+        if (targetLoan) {
+          const newBal = Math.max(0, Number(targetLoan.outstanding_balance || 0) - amount);
+          updateLoan(targetLoan.id, {
+            outstanding_balance: newBal,
+            status: newBal === 0 ? 'closed' : targetLoan.status,
+            notes: `${targetLoan.notes || ''} (किराया ${prop.title} से ₹${amount.toLocaleString('en-IN')} चुकता - ${today})`.trim()
+          });
+          addTransaction({
+            member_id: rule.target_member_id || targetLoan.borrower_member_id || currentUserId,
+            type: 'expense',
+            amount: amount,
+            category: 'Loan EMI Repayment',
+            mode: rule.payment_mode === 'cash' ? 'offline' : 'online',
+            scope: 'bahar',
+            note: `किराया (${prop.title}) से लोन EMI चुकता: ${targetLoan.title} (${targetLoan.lender_bank})`,
+            txn_date: today
+          });
+        }
+      } else {
+        addTransaction({
+          member_id: rule.target_member_id || currentUserId,
+          type: 'expense',
+          amount: amount,
+          category: 'Loan EMI Repayment',
+          mode: rule.payment_mode === 'cash' ? 'offline' : 'online',
+          scope: 'bahar',
+          note: `किराया (${prop.title}) से लोन EMI: ${rule.purpose}`,
+          txn_date: today
+        });
+      }
+    } else if (rule.allocation_target === 'fd_rd_investment') {
       if (rule.linked_asset_id) {
         const targetAsset = assets.find(a => a.id === rule.linked_asset_id);
         if (targetAsset) {
@@ -2159,7 +2192,45 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         note: `Rent Diversion for Ration: ${prop.title}`,
         txn_date: today
       });
+    } else if (rule.allocation_target === 'member_personal') {
+      addTransaction({
+        member_id: rule.target_member_id || currentUserId,
+        type: 'income',
+        amount: amount,
+        category: 'Rental Income Share',
+        mode: rule.payment_mode === 'cash' ? 'offline' : 'online',
+        scope: 'bahar',
+        note: `किराया हिस्सा (${prop.title}): ${rule.target_member_name} (${rule.purpose})`,
+        txn_date: today
+      });
+    } else if (rule.allocation_target === 'staff_payment') {
+      addTransaction({
+        member_id: rule.target_member_id || currentUserId,
+        type: 'expense',
+        amount: amount,
+        category: 'Staff Salary',
+        mode: rule.payment_mode === 'cash' ? 'offline' : 'online',
+        scope: 'ghar',
+        note: `किराया से स्टाफ भुगतान: ${prop.title} - ${rule.purpose}`,
+        txn_date: today
+      });
+    } else if (rule.allocation_target === 'other') {
+      addTransaction({
+        member_id: rule.target_member_id || currentUserId,
+        type: 'expense',
+        amount: amount,
+        category: rule.custom_other_purpose || 'Other Rent Allocation',
+        mode: rule.payment_mode === 'cash' ? 'offline' : 'online',
+        scope: 'bahar',
+        note: `किराया (${prop.title}) से: ${rule.custom_other_purpose || rule.purpose}`,
+        txn_date: today
+      });
     }
+
+    updateRentDiversion(propertyId, ruleId, {
+      last_executed_date: today,
+      last_executed_amount: amount,
+    });
 
     return {
       success: true,

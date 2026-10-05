@@ -406,11 +406,14 @@ export interface RentDiversionRule {
   payment_mode?: 'bank_transfer' | 'cash' | 'upi';
   is_active?: boolean;
   notes?: string;
-  allocation_target?: 'member_personal' | 'fd_rd_investment' | 'ghar_ration_expense' | 'staff_payment' | 'loan_emi';
+  allocation_target?: 'member_personal' | 'fd_rd_investment' | 'ghar_ration_expense' | 'staff_payment' | 'loan_emi' | 'other';
   linked_asset_id?: string;
   linked_asset_name?: string;
+  linked_loan_id?: string;
+  linked_loan_title?: string;
   linked_staff_id?: string;
   linked_staff_name?: string;
+  custom_other_purpose?: string;
   last_executed_date?: string;
   last_executed_amount?: number;
 }
