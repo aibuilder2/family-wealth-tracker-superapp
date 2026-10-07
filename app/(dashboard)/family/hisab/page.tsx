@@ -8,10 +8,11 @@ import { FamilyLoansModule } from '@/components/business-modules/family-loans/Fa
 import { HouseholdStaffModule } from '@/components/business-modules/household-staff/HouseholdStaffModule';
 import { TravelReimbursementModule } from '@/components/business-modules/family-hisab/TravelReimbursementModule';
 import Link from 'next/link';
-import { ChevronLeft, Users, Landmark, UserCheck, CreditCard, Plane } from 'lucide-react';
+import { ChevronLeft, Users, Landmark, UserCheck, CreditCard, Plane, Sparkles } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { SmartWhatsAppImporter } from '@/components/money/SmartWhatsAppImporter';
 
-type TabType = 'fund' | 'loans' | 'aapsi' | 'staff' | 'travel';
+type TabType = 'fund' | 'loans' | 'aapsi' | 'staff' | 'travel' | 'importer';
 
 function FamilyHisabContent() {
   const searchParams = useSearchParams();
@@ -20,7 +21,7 @@ function FamilyHisabContent() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabType;
-    if (tabParam && ['fund', 'loans', 'aapsi', 'staff', 'travel'].includes(tabParam)) {
+    if (tabParam && ['fund', 'loans', 'aapsi', 'staff', 'travel', 'importer'].includes(tabParam)) {
       setActiveTab(tabParam);
     } else if (searchParams.get('partner')) {
       setActiveTab('aapsi');
@@ -42,9 +43,9 @@ function FamilyHisabContent() {
         }
       />
 
-      {/* 4 Main Tabs Switcher */}
+      {/* 6 Main Tabs Switcher */}
       <div className="px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 p-1.5 bg-paper rounded-2xl border border-paper-dim shadow-sm gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 p-1.5 bg-paper rounded-2xl border border-paper-dim shadow-sm gap-1.5">
           <button
             type="button"
             onClick={() => setActiveTab('fund')}
@@ -68,7 +69,7 @@ function FamilyHisabContent() {
             }`}
           >
             <CreditCard size={15} />
-            <span className="truncate">💳 लोन व EMI हब</span>
+            <span className="truncate">💳 लोन व EMI</span>
           </button>
 
           <button
@@ -81,7 +82,7 @@ function FamilyHisabContent() {
             }`}
           >
             <Users size={15} />
-            <span className="truncate">👥 सदस्य आपसी हिसाब</span>
+            <span className="truncate">👥 आपसी हिसाब</span>
           </button>
 
           <button
@@ -94,7 +95,7 @@ function FamilyHisabContent() {
             }`}
           >
             <UserCheck size={15} />
-            <span className="truncate">🧹 घरेलू कर्मचारी</span>
+            <span className="truncate">🧹 स्टाफ</span>
           </button>
 
           <button
@@ -108,6 +109,19 @@ function FamilyHisabContent() {
           >
             <Plane size={15} />
             <span className="truncate">✈️ टूर क्लेम</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('importer')}
+            className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1.5 ${
+              activeTab === 'importer'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'text-ink-muted hover:text-ink hover:bg-paper-dim/50'
+            }`}
+          >
+            <Sparkles size={15} />
+            <span className="truncate">📲 व्यापार इम्पोर्ट</span>
           </button>
         </div>
       </div>
@@ -141,6 +155,12 @@ function FamilyHisabContent() {
         {activeTab === 'travel' && (
           <div className="animate-in fade-in duration-150">
             <TravelReimbursementModule />
+          </div>
+        )}
+
+        {activeTab === 'importer' && (
+          <div className="animate-in fade-in duration-150">
+            <SmartWhatsAppImporter />
           </div>
         )}
       </div>

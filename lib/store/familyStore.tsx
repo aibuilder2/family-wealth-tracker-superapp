@@ -594,6 +594,7 @@ interface FamilyContextType {
   // Actions
   updateFamilyName: (newName: string) => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'family_id' | 'created_at'>) => void;
+  addBulkTransactions: (txList: Omit<Transaction, 'id' | 'family_id' | 'created_at'>[]) => number;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => void;
   addGoal: (goal: Omit<Goal, 'id' | 'family_id'>) => void;
@@ -1297,6 +1298,37 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         txn_date: newTx.txn_date,
       }).then();
     }
+  };
+
+  const addBulkTransactions = (txList: Omit<Transaction, 'id' | 'family_id' | 'created_at'>[]): number => {
+    if (!txList || txList.length === 0) return 0;
+    const now = Date.now();
+    const newTxs: Transaction[] = txList.map((tx, idx) => ({
+      ...tx,
+      id: 'tx-bulk-' + (now + idx),
+      family_id: family.id,
+      created_at: new Date(now + idx).toISOString(),
+    }));
+
+    saveTransactions([...newTxs, ...transactions]);
+
+    const supabase = createClient();
+    if (supabase) {
+      supabase.from('transactions').insert(newTxs.map(tx => ({
+        id: tx.id,
+        family_id: tx.family_id,
+        member_id: tx.member_id,
+        type: tx.type,
+        amount: tx.amount,
+        category: tx.category,
+        mode: tx.mode,
+        scope: tx.scope,
+        note: tx.note,
+        udhar_person: tx.udhar_person,
+        txn_date: tx.txn_date,
+      }))).then();
+    }
+    return newTxs.length;
   };
 
   const deleteTransaction = (id: string) => {
@@ -2305,6 +2337,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         setActiveMemberId,
         updateFamilyName,
         addTransaction,
+        addBulkTransactions,
         updateTransaction,
         deleteTransaction,
         addGoal,

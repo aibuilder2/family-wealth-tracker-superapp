@@ -6,13 +6,15 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Chip } from '@/components/ui/Chip';
 import { MemberFilter } from '@/components/money/MemberFilter';
 import { TransactionList } from '@/components/money/TransactionList';
-import { Plus, Calendar, Clock, Filter, ArrowUpRight, ArrowDownRight, RefreshCw, PieChart } from 'lucide-react';
+import { Plus, Calendar, Clock, Filter, ArrowUpRight, ArrowDownRight, RefreshCw, PieChart, Sparkles } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
 import Link from 'next/link';
+import { SmartWhatsAppImporter } from '@/components/money/SmartWhatsAppImporter';
 
 export default function MoneyPage() {
   const { transactions, members, activeMemberId, openQuickAdd } = useFamilyStore();
   const [filterType, setFilterType] = useState<string>('all');
+  const [showImporter, setShowImporter] = useState(false);
   
   // Time Range Filter (USER EXPLICIT REQUIREMENT: "time ke hisab se nikalne ka option")
   const [timeRange, setTimeRange] = useState<'all' | 'this_month' | 'last_month' | 'last_3_months' | 'custom'>('this_month');
@@ -94,7 +96,16 @@ export default function MoneyPage() {
         title="Money"
         subtitle="सब खर्च, आमदनी, उधारी व समयवार रिकॉर्ड"
         action={
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowImporter(!showImporter)}
+              className="px-3 py-1.5 bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold text-xs rounded-xl flex items-center gap-1.5 hover:bg-emerald-500/25 transition cursor-pointer"
+              title="WhatsApp / व्यापार ऐप से खर्च इम्पोर्ट करें"
+            >
+              <Sparkles size={14} className="text-emerald-400" />
+              <span>📲 व्यापार इम्पोर्ट</span>
+            </button>
             <Link
               href="/analytics"
               className="px-2.5 py-1.5 bg-paper border border-paper-dim text-navy font-bold text-xs rounded-xl flex items-center gap-1 hover:bg-paper-dim transition"
@@ -114,6 +125,40 @@ export default function MoneyPage() {
           </div>
         }
       />
+
+      {/* WhatsApp / Vyapar App Importer Collapsible */}
+      {showImporter && (
+        <div className="px-4 animate-in fade-in slide-in-from-top-3 duration-200">
+          <SmartWhatsAppImporter onClose={() => setShowImporter(false)} />
+        </div>
+      )}
+
+      {/* Quick Launch Banner if importer is closed */}
+      {!showImporter && (
+        <div className="px-4">
+          <div
+            onClick={() => setShowImporter(true)}
+            className="p-3 bg-gradient-to-r from-emerald-950/30 via-slate-900 to-amber-950/20 border border-emerald-500/30 hover:border-emerald-500/60 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition shadow-xs group"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 bg-emerald-500/20 text-emerald-300 rounded-xl">
+                <Sparkles size={16} />
+              </span>
+              <div>
+                <div className="text-xs font-bold text-white group-hover:text-emerald-300 transition">
+                  📲 WhatsApp / व्यापार ऐप से बल्क में खर्च जोड़ें (Universal Date-Wise)
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  महीनेवार रिपोर्ट का टेक्स्ट यहाँ पेस्ट करें—तारीख, सदस्य और रकम अपने आप पहचान ली जाएगी।
+                </div>
+              </div>
+            </div>
+            <span className="text-xs font-bold px-3 py-1.5 bg-emerald-500 text-slate-950 rounded-xl shrink-0">
+              पेस्ट करें ➜
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Time Range Filter Bar (Time ke hisab se nikalne ka option) */}
       <div className="px-4 space-y-2">
