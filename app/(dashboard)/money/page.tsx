@@ -6,13 +6,13 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Chip } from '@/components/ui/Chip';
 import { MemberFilter } from '@/components/money/MemberFilter';
 import { TransactionList } from '@/components/money/TransactionList';
-import { Plus, Calendar, Clock, Filter, ArrowUpRight, ArrowDownRight, RefreshCw, PieChart, Sparkles } from 'lucide-react';
+import { Plus, Calendar, Clock, Filter, ArrowUpRight, ArrowDownRight, RefreshCw, PieChart, Sparkles, ShieldCheck } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
 import Link from 'next/link';
 import { SmartWhatsAppImporter } from '@/components/money/SmartWhatsAppImporter';
 
 export default function MoneyPage() {
-  const { transactions, members, activeMemberId, openQuickAdd } = useFamilyStore();
+  const { transactions, members, activeMemberId, openQuickAdd, cleanDuplicateTransactions } = useFamilyStore();
   const [filterType, setFilterType] = useState<string>('all');
   const [showImporter, setShowImporter] = useState(false);
   
@@ -105,6 +105,22 @@ export default function MoneyPage() {
             >
               <Sparkles size={14} className="text-emerald-400" />
               <span>📲 व्यापार इम्पोर्ट</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const res = cleanDuplicateTransactions();
+                if (res.countRemoved > 0) {
+                  alert(`सफलतापूर्वक ${res.countRemoved} डुप्लिकेट एंट्रियां हटा दी गईं! अब ऐप में कुल ${res.totalRemaining} सही एंट्रियां सुरक्षित हैं।`);
+                } else {
+                  alert(`कोई डुप्लिकेट एंट्री नहीं मिली। आपके सभी ${res.totalRemaining} ट्रांजेक्शन यूनिक हैं।`);
+                }
+              }}
+              className="px-2.5 py-1.5 bg-rose-500/15 border border-rose-500/30 text-rose-300 font-bold text-xs rounded-xl flex items-center gap-1 hover:bg-rose-500/25 transition cursor-pointer"
+              title="डबल/डुप्लिकेट एंट्रियों को साफ करें"
+            >
+              <ShieldCheck size={14} className="text-rose-400" />
+              <span>🧹 डुप्लिकेट हटाएं</span>
             </button>
             <Link
               href="/analytics"

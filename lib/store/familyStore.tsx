@@ -595,6 +595,7 @@ interface FamilyContextType {
   updateFamilyName: (newName: string) => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'family_id' | 'created_at'>) => void;
   addBulkTransactions: (txList: Omit<Transaction, 'id' | 'family_id' | 'created_at'>[]) => number;
+  cleanDuplicateTransactions: () => { countRemoved: number; totalRemaining: number };
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => void;
   addGoal: (goal: Omit<Goal, 'id' | 'family_id'>) => void;
@@ -1346,6 +1347,35 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     if (supabase) {
       supabase.from('transactions').update(updates).eq('id', id).then();
     }
+  };
+
+  const cleanDuplicateTransactions = (): { countRemoved: number; totalRemaining: number } => {
+    const seen = new Set<string>();
+    const unique: Transaction[] = [];
+    const removed: Transaction[] = [];
+
+    transactions.forEach(t => {
+      const normNote = (t.note || '').trim().toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/g, '');
+      const key = `${t.member_id}_${t.txn_date}_${Number(t.amount || 0)}_${t.type}_${normNote}`;
+      if (seen.has(key)) {
+        removed.push(t);
+      } else {
+        seen.add(key);
+        unique.push(t);
+      }
+    });
+
+    if (removed.length > 0) {
+      saveTransactions(unique);
+      const supabase = createClient();
+      if (supabase) {
+        removed.forEach(r => {
+          supabase.from('transactions').delete().eq('id', r.id).then();
+        });
+      }
+    }
+
+    return { countRemoved: removed.length, totalRemaining: unique.length };
   };
 
   const addGoal = (g: Omit<Goal, 'id' | 'family_id'>) => {
@@ -2338,6 +2368,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         updateFamilyName,
         addTransaction,
         addBulkTransactions,
+        cleanDuplicateTransactions,
         updateTransaction,
         deleteTransaction,
         addGoal,

@@ -18,7 +18,9 @@ import {
   FileText,
   Check,
   RefreshCw,
-  Info
+  Info,
+  ShieldCheck,
+  Layers
 } from 'lucide-react';
 import { Transaction } from '@/types';
 
@@ -37,14 +39,25 @@ interface ParsedItem {
 }
 
 export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
-  const { members, currentUserId, transactions, addBulkTransactions, assets, updateAsset, addAsset } = useFamilyStore();
+  const {
+    members,
+    currentUserId,
+    transactions,
+    addBulkTransactions,
+    cleanDuplicateTransactions,
+    assets,
+    updateAsset,
+    addAsset
+  } = useFamilyStore();
 
   const [rawText, setRawText] = useState('');
   const [defaultMemberId, setDefaultMemberId] = useState<string>(currentUserId || members[0]?.id || '');
   const [defaultYear, setDefaultYear] = useState<number>(new Date().getFullYear());
+  const [importMode, setImportMode] = useState<'itemized' | 'summary'>('itemized');
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
   const [hasParsed, setHasParsed] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [autoAddRdToAssets, setAutoAddRdToAssets] = useState(true);
 
   // Month map for Hindi and English
@@ -95,7 +108,6 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
     if (lower.includes('children') || lower.includes('kids') || lower.includes('bachha') || lower.includes('bachhe') || lower.includes('beta') || lower.includes('beti')) {
       const c = members.find(m => m.relationship?.toLowerCase().includes('child') || m.relationship?.toLowerCase().includes('son') || m.relationship?.toLowerCase().includes('daughter'));
       if (c) return { id: c.id, name: c.name };
-      // Fallback with Children tag
       const def = members.find(m => m.id === defaultMemberId) || members[0];
       return { id: def?.id || 'm-self', name: `${def?.name || 'Self'} (Children)` };
     }
@@ -135,21 +147,32 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
     return 'Ghar Kharcha / General';
   };
 
+  // Handle Clean Duplicates (Fixes user's doubled expenses immediately)
+  const handleCleanDuplicates = () => {
+    const res = cleanDuplicateTransactions();
+    if (res.countRemoved > 0) {
+      setCleanupMessage(`सफलतापूर्वक ${res.countRemoved} डुप्लिकेट एंट्रियां हटा दी गईं! अब ऐप में कुल ${res.totalRemaining} सही व शुद्ध एंट्रियां सुरक्षित हैं।`);
+    } else {
+      setCleanupMessage(`कोई डुप्लिकेट ट्रांजेक्शन नहीं मिला। आपके सभी ${res.totalRemaining} ट्रांजेक्शन पहले से बिल्कुल सही और यूनिक हैं।`);
+    }
+    setTimeout(() => setCleanupMessage(null), 8000);
+  };
+
   // Paste from clipboard helper
   const handlePasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
         setRawText(text);
-        parseTextData(text);
+        parseTextData(text, importMode);
       }
     } catch (err) {
       alert('कृपया टेक्स्ट बॉक्स में सीधा Paste (Ctrl+V) करें।');
     }
   };
 
-  // The Main Parser Engine
-  const parseTextData = (textToParse?: string) => {
+  // The Robust Parser Engine
+  const parseTextData = (textToParse?: string, mode: 'itemized' | 'summary' = importMode) => {
     const content = textToParse !== undefined ? textToParse : rawText;
     if (!content.trim()) return;
 
@@ -161,19 +184,65 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
       setDefaultYear(detectedYear);
     }
 
+    // Detect default month if header has e.g. "सितंबर 2026"
+    let defaultMonthNum = '10';
+    Object.keys(monthMap).forEach(mStr => {
+      if (content.toLowerCase().includes(mStr)) {
+        defaultMonthNum = monthMap[mStr];
+      }
+    });
+
     const lines = content.split('\n');
     const items: ParsedItem[] = [];
 
-    // Check if report has a summary section like:
-    // • Self: ₹46,897
-    // • Papa: ₹5,428
-    const summaryLines = lines.filter(l => l.includes('•') && l.includes('₹'));
+    // CASE 1: SUMMARY MODE (Only member totals: Self: ₹46,897, Papa: ₹5,428, etc.)
+    if (mode === 'summary') {
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        // Check for bullet summary line: • Self: ₹46,897
+        if (trimmed.includes('•') && (trimmed.includes('₹') || trimmed.match(/:\s*₹?[0-9,]+/))) {
+          const colonMatch = trimmed.match(/•\s*(.*?):\s*₹?([0-9,]+(?:\.[0-9]+)?)/);
+          if (colonMatch) {
+            const memberText = colonMatch[1].trim();
+            const amt = parseFloat(colonMatch[2].replace(/,/g, ''));
+            const matchedMember = matchMemberFromText(memberText);
+            const dateStr = `${detectedYear}-${defaultMonthNum}-28`;
 
+            const isDup = transactions.some(t =>
+              Number(t.amount) === amt &&
+              t.member_id === matchedMember.id &&
+              t.txn_date.startsWith(`${detectedYear}-${defaultMonthNum}`)
+            );
+
+            items.push({
+              id: `summary-${index}-${Date.now()}`,
+              selected: !isDup,
+              date: dateStr,
+              amount: amt,
+              description: `घर खर्च मासिक योग (${memberText})`,
+              category: 'Ghar Kharcha / General',
+              memberId: matchedMember.id,
+              memberName: matchedMember.name,
+              mode: 'online',
+              isDuplicate: isDup,
+              isRdSavings: false
+            });
+          }
+        }
+      });
+      setParsedItems(items);
+      setHasParsed(true);
+      return;
+    }
+
+    // CASE 2: ITEMIZED MODE (Detailed line-by-line transactions: 1. राशन - ₹200 (6 अक्टू॰))
     lines.forEach((line, index) => {
       const trimmed = line.trim();
       if (!trimmed) return;
 
-      // Skip non-transaction headers and metadata lines
+      // CRITICAL: Skip summary headers AND member summary bullets (• Self: ₹46,897) in itemized mode
+      // This PREVENTS DOUBLE-COUNTING OF SUMMARY TOTALS WITH LINE ITEMS!
       if (
         trimmed.startsWith('*🏡') ||
         trimmed.startsWith('*🏢') ||
@@ -183,38 +252,44 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
         trimmed.startsWith('*👥') ||
         trimmed.startsWith('*📋') ||
         trimmed.startsWith('_Generated') ||
-        trimmed.includes('...और')
+        trimmed.includes('...और') ||
+        (trimmed.startsWith('•') && trimmed.includes(':')) // Skips summary bullets!
       ) {
         return;
       }
 
-      // Check if line is a numbered item or bullet item:
-      // e.g. "1. राशन/किराना - Self - ₹200 (6 अक्टू॰)"
-      // e.g. "11. बचत किस्त (Salary Drawing) - Post office rd 3000rs (1) - ₹3,000 (23 सित॰)"
-      // e.g. "Akshay paint - ₹200 (29 सित॰)"
-      // e.g. "2026-10-01 | 500 | Petrol | online"
+      // Extract Date from end if present in parentheses e.g. (6 अक्टू॰) or (29 सित॰)
+      let datePart = '';
+      let lineWithoutDate = trimmed;
+      const dateMatch = lineWithoutDate.match(/\(([^)]+)\)$/);
+      if (dateMatch) {
+        datePart = dateMatch[1].trim();
+        lineWithoutDate = lineWithoutDate.substring(0, lineWithoutDate.lastIndexOf('(')).trim();
+      }
 
-      // 1. Regex for Mobile Vyapar App format:
-      // Matches: description - ₹amount (date)
-      const vyaparPattern = /^(?:\d+[\.\)]\s*)?(.*?)-\s*₹?([0-9,]+(?:\.\d+)?)\s*(?:\((.*?)\))?$/;
-      const vyaparMatch = trimmed.match(vyaparPattern);
+      // Extract Amount from end e.g. - ₹200 or - 1,500 or ₹4,800
+      // Matches: [₹ or unicode rupee or hyphen or space] followed by digits at the end
+      const amtMatch = lineWithoutDate.match(/[\u20B9₹]\s*([0-9,]+(?:\.[0-9]+)?)\s*$/) ||
+                       lineWithoutDate.match(/[-:\s]\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)\s*$/);
 
-      if (vyaparMatch) {
-        let descPart = vyaparMatch[1].trim();
-        const amtStr = vyaparMatch[2].replace(/,/g, '');
-        const datePart = vyaparMatch[3] ? vyaparMatch[3].trim() : '';
+      if (amtMatch) {
+        const amt = parseFloat(amtMatch[1].replace(/,/g, ''));
+        if (!isNaN(amt) && amt > 0) {
+          // Description is everything before the amount match
+          let descPart = lineWithoutDate.substring(0, amtMatch.index).trim();
+          // Remove leading numbers or bullets e.g. "1. " or "• "
+          descPart = descPart.replace(/^[\d+.)•\s]+/, '').trim();
+          // Remove trailing hyphens or colons
+          descPart = descPart.replace(/[-:\s]+$/, '').trim();
 
-        const amount = parseFloat(amtStr);
-        if (!isNaN(amount) && amount > 0) {
           // Date parsing
-          let parsedDate = `${detectedYear}-10-01`; // fallback
+          let parsedDate = `${detectedYear}-${defaultMonthNum}-01`;
           if (datePart) {
-            // e.g. "6 अक्टू॰" or "29 सित॰" or "28 सित" or "05/10/2026"
-            const dateMatch = datePart.match(/(\d{1,2})\s*([^\s\d]+)/);
-            if (dateMatch) {
-              const day = dateMatch[1].padStart(2, '0');
-              const rawMonth = dateMatch[2].replace(/॰/g, '').toLowerCase();
-              const monthNum = monthMap[rawMonth] || '10';
+            const dMatch = datePart.match(/(\d{1,2})\s*([^\s\d]+)/);
+            if (dMatch) {
+              const day = dMatch[1].padStart(2, '0');
+              const rawMonth = dMatch[2].replace(/॰/g, '').toLowerCase();
+              const monthNum = monthMap[rawMonth] || defaultMonthNum;
               parsedDate = `${detectedYear}-${monthNum}-${day}`;
             } else if (datePart.match(/\d{4}-\d{2}-\d{2}/)) {
               parsedDate = datePart;
@@ -227,26 +302,30 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
           // Member parsing
           const matchedMember = matchMemberFromText(descPart);
 
-          // Clean description: remove member tag if present e.g. "- Self"
+          // Clean description: remove member tags from note
           let cleanDesc = descPart;
-          [' - Self', ' - Papa', ' - Wife', ' - Children', ' - Mummy', ' - self', ' - papa'].forEach(tag => {
+          [' - Self', ' - Papa', ' - Wife', ' - Children', ' - Mummy', ' - self', ' - papa', ' - wife'].forEach(tag => {
             cleanDesc = cleanDesc.replace(tag, '');
           });
+          cleanDesc = cleanDesc.replace(/[-:\s]+$/, '').trim();
 
           const isRd = cleanDesc.toLowerCase().includes('rd') || cleanDesc.toLowerCase().includes('बचत किस्त');
 
           // Check duplicate against existing transactions
-          const isDup = transactions.some(t => 
-            Number(t.amount) === amount && 
-            t.txn_date === parsedDate && 
-            (t.note.toLowerCase().includes(cleanDesc.toLowerCase().substring(0, 10)) || cleanDesc.toLowerCase().includes(t.note.toLowerCase().substring(0, 10)))
-          );
+          const isDup = transactions.some(t => {
+            const sameAmt = Math.abs(Number(t.amount) - amt) < 0.01;
+            const sameDate = t.txn_date === parsedDate;
+            const normExisting = (t.note || '').toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/g, '');
+            const normNew = cleanDesc.toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/g, '');
+            const similarNote = normExisting.includes(normNew.substring(0, 8)) || normNew.includes(normExisting.substring(0, 8));
+            return sameAmt && (sameDate || similarNote);
+          });
 
           items.push({
-            id: `parse-${index}-${Date.now()}`,
-            selected: !isDup, // auto-uncheck duplicates
+            id: `parse-item-${index}-${Date.now()}`,
+            selected: !isDup, // Pre-uncheck duplicates to prevent double-counting!
             date: parsedDate,
-            amount,
+            amount: amt,
             description: cleanDesc,
             category: detectCategory(cleanDesc),
             memberId: matchedMember.id,
@@ -259,7 +338,7 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
         }
       }
 
-      // 2. Fallback for Pipe Separated: YYYY-MM-DD | AMOUNT | CATEGORY | NOTE | MODE
+      // Pipe-delimited fallback: YYYY-MM-DD | AMOUNT | CATEGORY | NOTE
       if (trimmed.includes('|')) {
         const parts = trimmed.split('|').map(p => p.trim());
         if (parts.length >= 2) {
@@ -267,21 +346,24 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
           const amt = parseFloat(parts[1].replace(/[^0-9.]/g, ''));
           const desc = parts[3] || parts[2] || 'Expense';
           const cat = parts[2] || detectCategory(desc);
-          const modeStr = (parts[4] || 'online').toLowerCase() === 'offline' ? 'offline' : 'online';
           const matchedMember = matchMemberFromText(desc);
 
           if (!isNaN(amt) && amt > 0) {
+            const isDup = transactions.some(t =>
+              Number(t.amount) === amt && t.txn_date === dateStr
+            );
+
             items.push({
               id: `parse-pipe-${index}-${Date.now()}`,
-              selected: true,
-              date: dateStr.length === 10 ? dateStr : `${detectedYear}-10-01`,
+              selected: !isDup,
+              date: dateStr.length === 10 ? dateStr : `${detectedYear}-${defaultMonthNum}-01`,
               amount: amt,
               description: desc,
               category: cat,
               memberId: matchedMember.id,
               memberName: matchedMember.name,
-              mode: modeStr,
-              isDuplicate: false,
+              mode: 'online',
+              isDuplicate: isDup,
               isRdSavings: desc.toLowerCase().includes('rd')
             });
           }
@@ -296,6 +378,11 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
   // Toggle item selection
   const toggleItem = (id: string) => {
     setParsedItems(prev => prev.map(it => it.id === id ? { ...it, selected: !it.selected } : it));
+  };
+
+  // Select only new items (uncheck all duplicates)
+  const selectOnlyNewItems = () => {
+    setParsedItems(prev => prev.map(it => ({ ...it, selected: !it.isDuplicate })));
   };
 
   // Toggle select all
@@ -315,7 +402,7 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
     }));
   };
 
-  // Remove single item from list
+  // Remove single item from preview list
   const removeItem = (id: string) => {
     setParsedItems(prev => prev.filter(it => it.id !== id));
   };
@@ -346,7 +433,6 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
     if (autoAddRdToAssets) {
       const rdItems = selected.filter(it => it.isRdSavings);
       rdItems.forEach(rd => {
-        // Find existing RD asset or create
         const existingRd = assets.find(a => a.label.toLowerCase().includes('post office') || a.label.toLowerCase().includes('rd'));
         if (existingRd) {
           updateAsset(existingRd.id, {
@@ -371,7 +457,7 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
     setHasParsed(false);
   };
 
-  // Calculate stats
+  // Stats
   const totalSelectedCount = useMemo(() => parsedItems.filter(i => i.selected).length, [parsedItems]);
   const totalSelectedAmount = useMemo(() => parsedItems.filter(i => i.selected).reduce((s, i) => s + i.amount, 0), [parsedItems]);
   const duplicateCount = useMemo(() => parsedItems.filter(i => i.isDuplicate).length, [parsedItems]);
@@ -386,29 +472,59 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
               <Sparkles className="w-5 h-5" />
             </span>
             <div>
-              <h3 className="text-lg md:text-xl font-black text-white flex items-center gap-2">
+              <h3 className="text-lg md:text-xl font-black text-white flex items-center gap-2 flex-wrap">
                 स्मार्ट WhatsApp व व्यापार ऐप बल्क इम्पोर्टर
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                   Universal Date-Wise
                 </span>
               </h3>
               <p className="text-xs text-slate-300 mt-0.5">
-                Mobile Vyapar App या WhatsApp से कॉपी किया गया मैसेज सीधे पेस्ट करें। सिस्टम तारीख, सदस्य और रकम अपने आप पहचान लेगा।
+                Mobile Vyapar App या WhatsApp से कॉपी किया गया मैसेज सीधे पेस्ट करें। डुप्लिकेट से सुरक्षित व तारीख-वार ऑटो-मैपिंग।
               </p>
             </div>
           </div>
         </div>
 
-        {onClose && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Quick Duplicate Cleaner Button */}
           <button
             type="button"
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-900 border border-slate-800"
+            onClick={handleCleanDuplicates}
+            className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+            title="सिस्टम में मौजूद किसी भी डबल/डुप्लिकेट एंट्री को 1-क्लिक में साफ करें"
           >
-            <X className="w-5 h-5" />
+            <ShieldCheck className="w-4 h-4 text-rose-400" />
+            <span>🧹 डुप्लिकेट एंट्रियां साफ करें</span>
           </button>
-        )}
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-900 border border-slate-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Cleanup Notification */}
+      {cleanupMessage && (
+        <div className="p-4 bg-rose-950/40 border border-rose-500/50 rounded-2xl flex items-center justify-between gap-3 text-rose-200 text-xs font-bold">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-rose-400 shrink-0" />
+            <span>{cleanupMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCleanupMessage(null)}
+            className="text-xs px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 rounded-lg text-rose-300"
+          >
+            ठीक है
+          </button>
+        </div>
+      )}
 
       {/* Success Notification */}
       {successMessage && (
@@ -430,6 +546,45 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
       {/* Paste Area & Controls */}
       {!hasParsed && (
         <div className="space-y-4">
+          {/* Mode Switcher */}
+          <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="space-y-0.5">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-amber-400" /> इम्पोर्ट का प्रकार चुनें (Choose Import Mode):
+              </span>
+              <p className="text-[11px] text-slate-400">
+                {importMode === 'itemized' 
+                  ? 'लाइन-वार 40+ खर्चे तारीख सहित अलग-अलग दर्ज होंगे (समरी टोटल को छोड़ दिया जाएगा ताकि डबल न हो)।'
+                  : 'सिर्फ सदस्यों का कुल योग (Self: ₹46,897, Papa: ₹5,428) 1-1 लाइन में दर्ज होगा।'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => setImportMode('itemized')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  importMode === 'itemized'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                📋 सभी अलग-अलग खर्चे (40 Items)
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportMode('summary')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  importMode === 'summary'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                👥 सदस्यवार कुल योग (Summary)
+              </button>
+            </div>
+          </div>
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
               <FileText className="w-4 h-4 text-amber-400" /> WhatsApp / व्यापार ऐप का पूरा मैसेज यहाँ पेस्ट करें:
@@ -447,7 +602,7 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
             rows={8}
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder={`यहाँ अपना मैसेज पेस्ट करें, जैसे:\n\n*🏡 फैमिली घर खर्च रिपोर्ट*\n1. राशन/किराना - Self - ₹200 (6 अक्टू॰)\n2. Dudh ka diya - ₹670 (5 अक्टू॰)\n3. दवाई/अस्पताल - Children - ₹500 (3 अक्टू॰)\n4. बचत किस्त - Post office rd 3000rs - ₹3,000 (23 सित॰)\n...`}
+            placeholder={`यहाँ अपना मैसेज पेस्ट करें, जैसे:\n\n*🏡 फैमिली घर खर्च रिपोर्ट*\n*👥 सदस्यवार खर्च:*\n  • Self: ₹46,897\n  • Papa: ₹5,428\n*📋 प्रमुख खर्चे:*\n1. राशन/किराना - Self - ₹200 (6 अक्टू॰)\n2. Dudh ka diya - ₹670 (5 अक्टू॰)\n3. दवाई/अस्पताल - Children - ₹500 (3 अक्टू॰)\n4. बचत किस्त - Post office rd 3000rs - ₹3,000 (23 सित॰)\n...`}
             className="w-full p-4 bg-[#0B0F19] border border-slate-800 rounded-2xl text-xs text-white font-mono placeholder:text-slate-600 focus:border-amber-500 outline-none transition"
           />
 
@@ -480,9 +635,9 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
             <div className="flex items-end">
               <button
                 type="button"
-                onClick={() => parseTextData()}
+                onClick={() => parseTextData(rawText, importMode)}
                 disabled={!rawText.trim()}
-                className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Sparkles className="w-4 h-4" /> डेटा स्कैन व प्रिव्यू टेबल बनाएं
               </button>
@@ -507,18 +662,28 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
                 </span>
                 <span className="text-xs text-slate-400">•</span>
                 <span className="text-sm font-black text-emerald-400 font-mono">
-                  कुल राशि: ₹{totalSelectedAmount.toLocaleString('en-IN')}
+                  कुल चुनी गई राशि: ₹{totalSelectedAmount.toLocaleString('en-IN')}
                 </span>
               </div>
               {duplicateCount > 0 && (
-                <p className="text-[11px] text-amber-400 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  {duplicateCount} ट्रांजेक्शन संभवतः पहले से दर्ज हैं (उन्हें ऑटो-अनचेक कर दिया गया है ताकि डुप्लिकेट न हो)।
+                <p className="text-[11px] text-amber-300 font-bold flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                  {duplicateCount} ट्रांजेक्शन पहले से आपके ऐप में मौजूद हैं! इन्हें डबल होने से बचाने के लिए ऑटो-अनचेक रखा गया है।
                 </p>
               )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
+              {duplicateCount > 0 && (
+                <button
+                  type="button"
+                  onClick={selectOnlyNewItems}
+                  className="px-2.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-bold"
+                  title="सिर्फ उन खर्चों को चुनें जो अभी तक ऐप में नहीं हैं"
+                >
+                  ✓ सिर्फ नए खर्चे चुनें
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => toggleSelectAll(true)}
@@ -550,7 +715,7 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
           <div className="p-3 bg-purple-950/20 border border-purple-500/30 rounded-xl flex items-start gap-2.5 text-xs text-purple-200">
             <Info className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
             <div>
-              <strong>मैन्युअल एडजस्टमेंट सुविधा:</strong> यदि पापा या किसी सदस्य का कोई लेन-देन पहले से दर्ज है, तो आप उस पंक्ति के चेकबॉक्स को अनचेक कर सकते हैं, या तारीख व सदस्य को सीधे इसी टेबल में क्लिक करके बदल सकते हैं।
+              <strong>मैन्युअल एडजस्टमेंट सुविधा:</strong> यदि कोई खर्चा पहले से दर्ज है, तो उस पंक्ति का चेकबॉक्स अनचेक रखें। यदि तारीख या सदस्य में बदलाव करना हो, तो सीधे इसी टेबल में क्लिक करके बदल सकते हैं।
             </div>
           </div>
 
@@ -581,7 +746,7 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
                     key={item.id}
                     className={`hover:bg-slate-800/40 transition ${
                       !item.selected ? 'opacity-40 bg-slate-950/40' : ''
-                    } ${item.isDuplicate ? 'bg-amber-950/10' : ''}`}
+                    } ${item.isDuplicate ? 'bg-amber-950/20' : ''}`}
                   >
                     <td className="p-3 text-center">
                       <input
@@ -626,15 +791,15 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
                           onChange={(e) => updateItemField(item.id, 'description', e.target.value)}
                           className="p-1.5 bg-[#0B0F19] border border-slate-700 rounded-lg text-white text-[11px] w-full font-medium"
                         />
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           {item.isRdSavings && (
                             <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-bold">
                               🏦 RD बचत (Assets)
                             </span>
                           )}
                           {item.isDuplicate && (
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">
-                              ⚠️ पहले से मौजूद हो सकता है
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-300 font-bold flex items-center gap-0.5">
+                              ⚠️ पहले से दर्ज है (अनचेक रखा गया)
                             </span>
                           )}
                         </div>
@@ -701,7 +866,7 @@ export function SmartWhatsAppImporter({ onClose }: { onClose?: () => void }) {
               type="button"
               onClick={handleSaveAll}
               disabled={totalSelectedCount === 0}
-              className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-2xl shadow-xl transition-all flex items-center gap-2 text-sm disabled:opacity-50"
+              className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-2xl shadow-xl transition-all flex items-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
             >
               <Check className="w-4 h-4 stroke-[3]" /> सभी {totalSelectedCount} ट्रांजेक्शन सिस्टम में जोड़ें (₹{totalSelectedAmount.toLocaleString('en-IN')})
             </button>
