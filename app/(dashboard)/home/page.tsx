@@ -91,7 +91,7 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* 2.6 AI Stock Scanner & Chanakya Advisor Teaser */}
+      {/* 2.6 AI Stock Scanner & Shree Wealth AI Advisor Teaser */}
       <div className="px-4">
         <Link 
           href="/advisor" 
@@ -103,8 +103,8 @@ export default function HomePage() {
             </span>
             <div>
               <p className="text-xs font-bold text-ink group-hover:text-emerald-600 transition-colors flex items-center gap-1.5">
-                <span>चाणक्य AI: लाइव स्टॉक स्कैनर व रडार</span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-700 font-bold">GPT-4o-Mini</span>
+                <span>श्री वेल्थ AI: लाइव स्टॉक स्कैनर व वेल्थ रडार</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-700 font-bold">पारिवारिक वेल्थ AI</span>
               </p>
               <p className="text-[10px] text-ink-muted">
                 निफ्टी 50, ब्लूचिप स्टॉक्स व रेंटल री-इन्वेस्टमेंट सिग्नल्स देखें →

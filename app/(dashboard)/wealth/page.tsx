@@ -12,7 +12,7 @@ import {
   Plus, PiggyBank, Landmark, X, Building2, Home, CheckCircle2, 
   AlertCircle, Sparkles, User, Calendar, Link as LinkIcon, DollarSign,
   TrendingUp, Zap, ChevronRight, Car, CreditCard, Image as ImageIcon,
-  Camera, Trash2, Sprout, Bell
+  Camera, Trash2, Sprout, Bell, BarChart2, Bot
 } from 'lucide-react';
 import { AssetCategory, AssetType, Goal } from '@/types';
 
@@ -340,25 +340,46 @@ export default function WealthPage() {
         );
       })()}
 
-      {/* 📈 AI Stock & Index Scanner Teaser */}
-      <div className="px-4">
+      {/* 📊 Market & AI Advisor Launchers */}
+      <div className="px-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Moneycontrol Terminal Card */}
         <Link 
-          href="/advisor" 
-          className="p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-teal-500/10 border border-emerald-500/30 flex items-center justify-between shadow-2xs hover:border-emerald-500/60 transition-all group"
+          href="/market" 
+          className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-transparent border border-blue-500/25 flex items-center justify-between shadow-2xs hover:border-blue-500/50 hover:bg-blue-600/15 transition-all group"
         >
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
-              <Zap size={16} />
+            <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <BarChart2 size={18} />
             </div>
             <div>
-              <p className="text-xs font-bold text-ink group-hover:text-emerald-600 transition-colors flex items-center gap-1.5">
-                <span>AI स्टॉक व इंडेक्स स्कैनर (Live Market Radar)</span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-700 font-bold">New</span>
+              <p className="text-xs font-bold text-ink group-hover:text-blue-600 transition-colors flex items-center gap-1.5">
+                <span>मनीकंट्रोल मार्केट टर्मिनल</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 font-bold">Live Data</span>
               </p>
-              <p className="text-[10px] text-ink-muted">NIFTY 50, BANKNIFTY, SENSEX, BANKEX व ब्लूचिप शेयर्स का लाइव AI प्रेडिक्शन →</p>
+              <p className="text-[10px] text-ink-muted">NIFTY, SENSEX, बुल्स vs बीयर्स व स्टॉक एनालिसिस →</p>
             </div>
           </div>
-          <ChevronRight size={15} className="text-ink-muted group-hover:translate-x-0.5 transition-transform" />
+          <ChevronRight size={15} className="text-ink-muted group-hover:translate-x-0.5 transition-transform shrink-0" />
+        </Link>
+
+        {/* Shree Wealth AI Advisor Card */}
+        <Link 
+          href="/advisor" 
+          className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-transparent border border-amber-500/25 flex items-center justify-between shadow-2xs hover:border-amber-500/50 hover:bg-amber-500/15 transition-all group"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Bot size={18} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-ink group-hover:text-amber-600 transition-colors flex items-center gap-1.5">
+                <span>श्री वेल्थ AI सलाहकार</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold">AI Scanner</span>
+              </p>
+              <p className="text-[10px] text-ink-muted">स्टॉक प्रेडिक्शन, SIP रडार व पारिवारिक वेल्थ गाइड →</p>
+            </div>
+          </div>
+          <ChevronRight size={15} className="text-ink-muted group-hover:translate-x-0.5 transition-transform shrink-0" />
         </Link>
       </div>
 
@@ -389,34 +410,6 @@ export default function WealthPage() {
             <span>🏢 पूरा किराया व संपत्ति खाता खोलें →</span>
           </Link>
         </div>
-      </div>
-
-      {/* 📈 AI Stock Scanner & Chanakya Investment Radar */}
-      <div className="px-4">
-        <Link
-          href="/advisor"
-          className="rounded-2xl p-3.5 bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-transparent border border-emerald-500/25 flex items-center justify-between shadow-xs hover:border-emerald-500/50 transition-all group block"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Zap size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="text-xs font-bold text-ink group-hover:text-emerald-600 transition-colors">
-                  चाणक्य AI: लाइव स्टॉक स्कैनर व वेल्थ रडार
-                </h4>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 font-bold">
-                  GPT-4o-Mini
-                </span>
-              </div>
-              <p className="text-[11px] text-ink-muted mt-0.5">
-                Nifty 50, ब्लूचिप्स, डिविडेंड स्टॉक्स व रेंटल री-इन्वेस्टमेंट सिग्नल्स देखें →
-              </p>
-            </div>
-          </div>
-          <ChevronRight size={15} className="text-ink-muted group-hover:translate-x-0.5 transition-transform" />
-        </Link>
       </div>
 
       {/* Assets Grid */}

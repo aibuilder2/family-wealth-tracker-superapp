@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Wallet, PiggyBank, FileText, Menu, X, 
-  Check, Plus, Sparkles, ExternalLink, ShieldCheck
+  Check, Plus, Sparkles, ExternalLink, ShieldCheck,
+  BarChart2, Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { ALL_APP_MODULES, STORAGE_KEY_PINNED_MODULES } from '@/lib/constants/modulesRegistry';
@@ -123,6 +124,36 @@ export function BottomNav() {
               >
                 <X size={20} />
               </button>
+            </div>
+
+            {/* Quick Access Top Bar */}
+            <div className="grid grid-cols-2 gap-2">
+              <Link
+                href="/market"
+                onClick={() => setIsMoreOpen(false)}
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/15 border border-blue-500/20 text-ink transition-all"
+              >
+                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                  <BarChart2 size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold truncate">मनीकंट्रोल मार्केट</p>
+                  <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold truncate">लाइव Nifty/Sensex</p>
+                </div>
+              </Link>
+              <Link
+                href="/advisor"
+                onClick={() => setIsMoreOpen(false)}
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-ink transition-all"
+              >
+                <div className="w-8 h-8 rounded-lg bg-amber-500 text-navy flex items-center justify-center shrink-0">
+                  <Bot size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold truncate">श्री वेल्थ AI</p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate">स्टॉक व वेल्थ रडार</p>
+                </div>
+              </Link>
             </div>
 
             {/* Modules List */}

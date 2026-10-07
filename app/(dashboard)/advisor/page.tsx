@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useFamilyStore } from '@/lib/store/familyStore';
 import {
@@ -38,13 +39,11 @@ interface InsightItem {
   color?: string;
 }
 
-const AI_NAMES = [
-  { id: 'chanakya', name: 'चाणक्य AI (Chanakya Wealth)', tag: 'सर्वश्रेष्ठ रणनीतिकार (Top Recommended)' },
-  { id: 'kuber', name: 'कुबेर AI (Kuber Wealth)', tag: 'कोष व संचित पूंजी रक्षक' },
-  { id: 'dhansetu', name: 'धनसेतु AI (DhanSetu)', tag: 'कैशफ्लो से स्टॉक मार्केट का सेतु' },
-  { id: 'lakshmi', name: 'लक्ष्मी AI (Lakshmi Wealth)', tag: 'समृद्धि व शुभ वित्तीय सुरक्षा' },
-  { id: 'artha', name: 'अर्थ AI (Artha Shastra)', tag: 'अनुशासित लक्ष्य-आधारित निवेश' },
-];
+const AI_CONFIG = {
+  id: 'shree-wealth',
+  name: 'श्री वेल्थ AI (Shree Wealth Intelligence)',
+  tag: 'पारिवारिक वेल्थ वॉल्ट व स्टॉक मार्केट सुपर-इंटेलिजेंस',
+};
 
 const SUGGESTED_QUESTIONS = [
   "क्या मुझे दुकान का लोन पहले चुकाना चाहिए या स्टॉक्स में SIP बढ़ानी चाहिए?",
@@ -186,7 +185,7 @@ export default function AdvisorPage() {
     transactions,
   } = useFamilyStore();
 
-  const [selectedAi, setSelectedAi] = useState(AI_NAMES[0]);
+  const [selectedAi] = useState(AI_CONFIG);
   const [activeTab, setActiveTab] = useState<'stocks' | 'predictions' | 'family' | 'all'>('stocks');
   const [questionInput, setQuestionInput] = useState('');
   const [stockSearchInput, setStockSearchInput] = useState('');
@@ -470,7 +469,7 @@ export default function AdvisorPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-ink">{selectedAi.name}</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                    <CheckCircle2 size={10} /> GPT-4o-Mini Active
+                    <CheckCircle2 size={10} /> पारिवारिक वेल्थ AI सक्रिय
                   </span>
                 </div>
                 <p className="text-[11px] text-ink-muted">
@@ -491,22 +490,18 @@ export default function AdvisorPage() {
             </div>
           </div>
 
-          {/* AI Name Dropdown Switcher */}
-          <div className="pt-2 border-t border-paper-dim flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">AI सलाहकार का नाम:</span>
-            {AI_NAMES.map((ai) => (
-              <button
-                key={ai.id}
-                onClick={() => setSelectedAi(ai)}
-                className={`text-[11px] font-medium px-2.5 py-1 rounded-lg transition-all ${
-                  selectedAi.id === ai.id
-                    ? 'bg-amber-500 text-navy font-bold shadow-sm'
-                    : 'bg-paper text-ink-muted hover:text-ink border border-paper-dim'
-                }`}
-              >
-                {ai.name.split(' ')[0]}
-              </button>
-            ))}
+          {/* Quick Nav to Dedicated Market Terminal */}
+          <div className="pt-2 border-t border-paper-dim flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] text-ink-muted flex items-center gap-1.5 font-medium">
+              ✨ <strong className="text-ink">श्री वेल्थ AI</strong> — संपूर्ण भारतीय मार्केट (Nifty, Sensex, BankNifty) व फैमिली कैशफ्लो हेतु प्रशिक्षित।
+            </span>
+            <Link
+              href="/market"
+              className="px-3 py-1.5 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-500/25 text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs"
+            >
+              <BarChart2 size={13} className="text-blue-500" />
+              <span>📊 मनीकंट्रोल लाइव मार्केट टर्मिनल खोलें &rarr;</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -1239,7 +1234,7 @@ export default function AdvisorPage() {
           <div className="flex items-center gap-2">
             <Lightbulb size={16} className="text-amber-500" />
             <span className="text-xs font-bold text-ink">
-              {selectedAi.name.split(' ')[0]} से सलाह लें (Ask Stock, SIP or Family Wealth Question)
+              श्री वेल्थ AI से सलाह लें (Ask Stock, SIP or Family Wealth Question)
             </span>
           </div>
 
