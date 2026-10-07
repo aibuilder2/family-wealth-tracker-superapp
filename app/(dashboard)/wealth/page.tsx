@@ -340,6 +340,28 @@ export default function WealthPage() {
         );
       })()}
 
+      {/* 📈 AI Stock & Index Scanner Teaser */}
+      <div className="px-4">
+        <Link 
+          href="/advisor" 
+          className="p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-teal-500/10 border border-emerald-500/30 flex items-center justify-between shadow-2xs hover:border-emerald-500/60 transition-all group"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+              <Zap size={16} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-ink group-hover:text-emerald-600 transition-colors flex items-center gap-1.5">
+                <span>AI स्टॉक व इंडेक्स स्कैनर (Live Market Radar)</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-700 font-bold">New</span>
+              </p>
+              <p className="text-[10px] text-ink-muted">NIFTY 50, BANKNIFTY, SENSEX, BANKEX व ब्लूचिप शेयर्स का लाइव AI प्रेडिक्शन →</p>
+            </div>
+          </div>
+          <ChevronRight size={15} className="text-ink-muted group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+      </div>
+
       {/* 🏢 Family Real Estate Portfolio (High-level Wealth Summary) */}
       <div className="px-4 pt-1">
         <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 border border-emerald-800/40 text-paper shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">

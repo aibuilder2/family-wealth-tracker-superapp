@@ -442,6 +442,36 @@ export interface StockPrediction {
   pnl_percent?: number;
 }
 
+export interface IndexScanResult {
+  symbol: 'NIFTY 50' | 'SENSEX' | 'BANKNIFTY' | 'BANKEX' | string;
+  name: string;
+  exchange: 'NSE' | 'BSE';
+  current_price: number;
+  change_points: number;
+  change_percent: number;
+  trend: 'BULLISH' | 'BEARISH' | 'SIDEWAYS';
+  trend_label: string;
+  confidence_score: number;
+  target_1: number;
+  target_2: number;
+  stoploss: number;
+  support_1: number;
+  support_2: number;
+  resistance_1: number;
+  resistance_2: number;
+  rsi: number;
+  rsi_signal: string;
+  macd_signal: string;
+  dma_200_status: string;
+  pcr_ratio?: number;
+  timeframe: string;
+  ai_prediction_summary: string;
+  trading_strategy: string;
+  key_drivers: string[];
+  top_movers?: { ticker: string; name: string; change_pct: number; signal: string }[];
+  scanned_at: string;
+}
+
 export type TravelTripType = 'job_official' | 'business_tour' | 'personal_family';
 export type TravelClaimStatus = 'draft' | 'submitted' | 'reimbursed' | 'rejected';
 

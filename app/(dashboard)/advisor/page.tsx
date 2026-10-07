@@ -10,7 +10,13 @@ import {
   Target, AlertTriangle, CheckCircle, Clock, Plus, X, Award
 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
-import { StockPrediction } from '@/types';
+import { StockPrediction, IndexScanResult } from '@/types';
+import { 
+  MAJOR_INDEX_DEFINITIONS, 
+  CONSTITUENT_STOCKS_DATABASE, 
+  ConstituentStockScan, 
+  generateCustomStockScan 
+} from '@/lib/services/stockScannerService';
 
 interface StockScanItem {
   ticker: string;
@@ -189,6 +195,12 @@ export default function AdvisorPage() {
   const [healthScore, setHealthScore] = useState<number>(85);
   const [marketTrend, setMarketTrend] = useState<string>('Healthy Bullish Accumulation Zone');
 
+  // AI Stock & Index Scanner State
+  const [indexScans, setIndexScans] = useState<IndexScanResult[]>(MAJOR_INDEX_DEFINITIONS);
+  const [constituentStocks, setConstituentStocks] = useState<ConstituentStockScan[]>(CONSTITUENT_STOCKS_DATABASE);
+  const [customScannedStock, setCustomScannedStock] = useState<ConstituentStockScan | null>(null);
+  const [selectedIndexFilter, setSelectedIndexFilter] = useState<'ALL' | 'NIFTY 50' | 'BANKNIFTY' | 'SENSEX' | 'BANKEX'>('ALL');
+
   // Predictions state
   const [predictions, setPredictions] = useState<StockPrediction[]>(INITIAL_PREDICTIONS);
   const [predFilter, setPredFilter] = useState<'all' | 'ACTIVE' | 'TARGET_HIT' | 'STOPLOSS_HIT'>('all');
@@ -298,6 +310,7 @@ export default function AdvisorPage() {
   const handleFetchAi = async (customQuestion?: string, stockToScanName?: string) => {
     try {
       setLoading(true);
+      const targetStock = stockToScanName !== undefined ? stockToScanName : stockSearchInput;
       const res = await fetch('/api/advisor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -314,17 +327,25 @@ export default function AdvisorPage() {
           question: customQuestion || questionInput,
           domain: activeTab,
           aiName: selectedAi.name,
-          stockToScan: stockToScanName || stockSearchInput,
+          stockToScan: targetStock,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        if (Array.isArray(data.insights) && data.insights.length > 0) {
-          setInsights(data.insights);
+        if (Array.isArray(data.indexScans) && data.indexScans.length > 0) {
+          setIndexScans(data.indexScans);
         }
         if (Array.isArray(data.stockScans) && data.stockScans.length > 0) {
-          setStockScans(data.stockScans);
+          setConstituentStocks(data.stockScans);
+        }
+        if (data.customScan) {
+          setCustomScannedStock(data.customScan);
+        } else if (targetStock && targetStock.trim()) {
+          setCustomScannedStock(generateCustomStockScan(targetStock));
+        }
+        if (Array.isArray(data.insights) && data.insights.length > 0) {
+          setInsights(data.insights);
         }
         if (Array.isArray(data.predictions) && data.predictions.length > 0) {
           setPredictions(data.predictions);
@@ -787,61 +808,81 @@ export default function AdvisorPage() {
         </div>
       )}
 
-      {/* SECTION: AI STOCK SCANNER RADAR (WHEN STOCKS OR ALL IS ACTIVE) */}
+      {/* SECTION: AI STOCK & INDEX SCANNER (WHEN STOCKS OR ALL IS ACTIVE) */}
       {(activeTab === 'stocks' || activeTab === 'all') && (
-        <div className="px-4 space-y-3">
-          {/* Scanner Header Box */}
+        <div className="px-4 space-y-4">
+          {/* 1. Main Scanner Control Panel */}
           <div className="p-4 bg-paper rounded-2xl border border-paper-dim shadow-xs space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-paper-dim pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                  <Zap size={16} />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-paper-dim pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 flex items-center justify-center">
+                  <Zap size={20} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-ink">AI लाइव स्टॉक स्कैनर (Live Stock Radar)</h3>
-                  <p className="text-[10px] text-ink-muted">बाज़ार स्थिति: <strong className="text-emerald-600">{marketTrend}</strong></p>
+                  <h3 className="text-sm font-bold text-ink">AI इंडेक्स व स्टॉक स्कैनर (Live Market Radar)</h3>
+                  <p className="text-[11px] text-ink-muted">
+                    बाज़ार स्थिति: <strong className="text-emerald-600 font-bold">{marketTrend}</strong> • {activeProvider}
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 font-bold border border-emerald-500/20 animate-pulse">
-                  ● ऑटो-स्कैनर लाइव
-                </span>
+
+              {/* Top Big Action Scan Button */}
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleFetchAi()}
                   disabled={loading}
-                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-paper-subtle hover:bg-paper text-ink border border-paper-dim flex items-center gap-1 cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-60 whitespace-nowrap"
                 >
-                  <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
-                  <span>पुनः स्कैन करें</span>
+                  <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                  <span>{loading ? 'AI स्कैन गणना जारी है...' : '⚡ AI स्कैन रन करें (Scan Now)'}</span>
                 </button>
               </div>
             </div>
 
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-ink-muted pt-0.5">
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>ऑन-डिमांड बटन सिस्टम: केवल आपके क्लिक करने पर स्कैन होता है</span>
+              </span>
+              <span className="font-mono bg-paper-subtle px-2 py-0.5 rounded-md border border-paper-dim">
+                🕒 अंतिम स्कैन: {lastRefreshed || 'आज शाम लाइव'}
+              </span>
+            </div>
+
             {/* Custom Stock Search Bar */}
-            <form onSubmit={(e) => { e.preventDefault(); if (stockSearchInput.trim()) handleFetchAi(undefined, stockSearchInput); }} className="flex gap-2">
+            <form 
+              onSubmit={(e) => { 
+                e.preventDefault(); 
+                if (stockSearchInput.trim()) {
+                  handleFetchAi(undefined, stockSearchInput.trim());
+                }
+              }} 
+              className="flex gap-2 pt-1"
+            >
               <div className="relative flex-1">
-                <Search size={13} className="absolute left-3 top-2.5 text-ink-muted" />
+                <Search size={14} className="absolute left-3 top-2.5 text-ink-muted" />
                 <input
                   type="text"
                   value={stockSearchInput}
                   onChange={(e) => setStockSearchInput(e.target.value)}
-                  placeholder="कोई भी शेयर तुरंत स्कैन करें (उदा. TATA MOTORS, RELIANCE, ITC)..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-paper-subtle border border-paper-dim rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-ink placeholder:text-ink-muted"
+                  placeholder="कोई भी अन्य शेयर नाम / कोड डालें (उदा. TATA MOTORS, ZOMATO, SUZLON, HAL, ADANI)..."
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-paper-subtle border border-paper-dim rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-ink placeholder:text-ink-muted"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading || !stockSearchInput.trim()}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 transition-all disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer shadow-xs whitespace-nowrap"
               >
-                <span>स्कैन करें</span>
+                <Search size={12} />
+                <span>शेयर स्कैन करें</span>
               </button>
             </form>
 
             {/* Quick Stock Chips */}
             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <span className="text-[10px] text-ink-muted font-medium">लोकप्रिय स्टॉक्स:</span>
-              {POPULAR_STOCKS_TO_SCAN.map((stk, idx) => (
+              <span className="text-[10px] text-ink-muted font-medium">त्वरित सर्च:</span>
+              {['NIFTY 50', 'BANKNIFTY', 'SENSEX', 'BANKEX', 'HDFC BANK', 'RELIANCE', 'TATA MOTORS', 'ZOMATO', 'SUZLON', 'ITC'].map((stk, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -849,7 +890,7 @@ export default function AdvisorPage() {
                     setStockSearchInput(stk);
                     handleFetchAi(undefined, stk);
                   }}
-                  className="text-[10px] font-medium text-ink-muted hover:text-ink bg-paper-subtle hover:bg-emerald-500/10 px-2 py-0.5 rounded-md border border-paper-dim transition-all"
+                  className="text-[10px] font-medium text-ink-muted hover:text-ink bg-paper-subtle hover:bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-paper-dim transition-all cursor-pointer"
                 >
                   {stk}
                 </button>
@@ -857,52 +898,337 @@ export default function AdvisorPage() {
             </div>
           </div>
 
-          {/* Scanned Stock Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {stockScans.map((stock, i) => (
-              <div
-                key={i}
-                className="p-3.5 bg-paper rounded-2xl border border-paper-dim shadow-xs space-y-2.5 hover:border-emerald-500/40 hover:shadow-md transition-all animate-fade-in"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block">
-                      {stock.category}
+          {/* 2. Custom Searched Stock Spotlight (If User Searched Any Stock) */}
+          {customScannedStock && (
+            <div className="p-4 bg-gradient-to-br from-amber-500/10 via-paper to-emerald-500/10 rounded-2xl border-2 border-amber-500/40 shadow-sm space-y-3 animate-fade-in">
+              <div className="flex items-start justify-between gap-2 border-b border-paper-dim pb-2.5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black px-2 py-0.5 rounded-md bg-amber-500 text-navy uppercase">
+                      🔍 सर्च किया गया शेयर
                     </span>
-                    <h4 className="text-sm font-bold text-ink flex items-center gap-1">
-                      {stock.ticker}
-                    </h4>
-                    <span className="text-[11px] text-ink-muted">{stock.name}</span>
+                    <span className="text-[11px] font-bold text-ink-muted">({customScannedStock.category})</span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    stock.signal.includes('BUY') 
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' 
-                      : 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                  <h3 className="text-base font-bold text-ink mt-1 flex items-center gap-2">
+                    <span>{customScannedStock.ticker}</span>
+                    <span className="text-xs font-normal text-ink-muted">— {customScannedStock.name}</span>
+                  </h3>
+                </div>
+                <div className="text-right">
+                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border inline-block ${
+                    customScannedStock.signal.includes('BUY')
+                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40'
+                      : 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/40'
                   }`}>
-                    {stock.signal}
+                    {customScannedStock.signal}
+                  </span>
+                  <span className="text-[10px] text-ink-muted block mt-0.5">विश्वसनीयता: {customScannedStock.confidence}</span>
+                </div>
+              </div>
+
+              {/* Levels & Metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 bg-paper rounded-xl border border-paper-dim text-center">
+                <div>
+                  <span className="text-[10px] text-ink-muted uppercase block">वर्तमान भाव</span>
+                  <Mono className="text-sm font-bold text-ink block mt-0.5">₹{customScannedStock.currentPrice}</Mono>
+                  <span className="text-[10px] text-emerald-600 font-semibold">+{customScannedStock.changePercent}%</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400 uppercase font-semibold block">🎯 लक्ष्य (Target)</span>
+                  <Mono className="text-sm font-bold text-emerald-600 block mt-0.5">₹{customScannedStock.targetPrice}</Mono>
+                  <span className="text-[10px] text-emerald-600">
+                    +{Math.round(((customScannedStock.targetPrice - customScannedStock.currentPrice) / customScannedStock.currentPrice) * 100)}% अपसाइड
                   </span>
                 </div>
-
-                <div className="grid grid-cols-3 gap-1 py-1.5 px-2 bg-paper-subtle rounded-xl text-[10px]">
-                  <div>
-                    <span className="text-ink-muted block">वैल्यूएशन</span>
-                    <span className="font-semibold text-ink">{stock.valuation}</span>
-                  </div>
-                  <div>
-                    <span className="text-ink-muted block">विश्वसनीयता</span>
-                    <span className="font-semibold text-emerald-600">{stock.confidence}</span>
-                  </div>
-                  <div>
-                    <span className="text-ink-muted block">बजट आवंटन</span>
-                    <span className="font-semibold text-ink">{stock.targetAllocation}</span>
-                  </div>
+                <div>
+                  <span className="text-[10px] text-rose-700 dark:text-rose-400 uppercase font-semibold block">🛑 स्टॉपलॉस (SL)</span>
+                  <Mono className="text-sm font-bold text-rose-600 block mt-0.5">₹{customScannedStock.stoplossPrice}</Mono>
+                  <span className="text-[10px] text-rose-600">सुरक्षा स्तर</span>
                 </div>
+                <div>
+                  <span className="text-[10px] text-ink-muted uppercase block">परिवार आवंटन</span>
+                  <span className="text-xs font-bold text-ink block mt-0.5">{customScannedStock.targetAllocation}</span>
+                  <span className="text-[10px] text-ink-muted">{customScannedStock.valuation}</span>
+                </div>
+              </div>
 
-                <p className="text-xs text-ink-muted leading-relaxed">
-                  <strong className="text-ink font-semibold">AI विश्लेषण:</strong> {stock.rationale}
+              {/* Indicators Strip */}
+              <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                <span className="px-2 py-0.5 rounded-md bg-paper border border-paper-dim font-medium text-ink">
+                  RSI (14): <strong className="text-amber-600">{customScannedStock.rsi}</strong>
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-paper border border-paper-dim font-medium text-ink">
+                  MACD: <strong className="text-emerald-600">{customScannedStock.macd}</strong>
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-paper border border-paper-dim font-medium text-ink">
+                  200 DMA: <strong className="text-blue-600">{customScannedStock.dma200}</strong>
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-paper border border-paper-dim font-medium text-ink">
+                  P/E रेशियो: <strong className="text-purple-600">{customScannedStock.peRatio}</strong>
+                </span>
+              </div>
+
+              {/* AI Analysis */}
+              <div className="p-3 rounded-xl bg-paper/80 border border-paper-dim text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-ink text-[11px]">
+                  <Bot size={13} className="text-emerald-600" />
+                  <span>AI विस्तृत विश्लेषण व रणनीति:</span>
+                </div>
+                <p className="text-ink-muted leading-relaxed">{customScannedStock.rationale}</p>
+              </div>
+            </div>
+          )}
+
+          {/* 3. Major Indian Indexes Section (NIFTY 50, SENSEX, BANKNIFTY, BANKEX) */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h4 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🇮🇳 प्रमुख भारतीय इंडेक्स (Major Indexes Scan)</span>
+                  <span className="text-[10px] font-normal text-ink-muted">({indexScans.length} इंडेक्स मॉनिटरिंग)</span>
+                </h4>
+                <p className="text-[10px] text-ink-muted">निफ्टी 50, सेंसेक्स, बैंकनिफ्टी और बैंकेक्स के लाइव तकनीकी स्तर व AI प्रेडिक्शन</p>
+              </div>
+
+              {/* Index Filter Tabs */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+                {(['ALL', 'NIFTY 50', 'BANKNIFTY', 'SENSEX', 'BANKEX'] as const).map((idxName) => (
+                  <button
+                    key={idxName}
+                    onClick={() => setSelectedIndexFilter(idxName)}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                      selectedIndexFilter === idxName
+                        ? 'bg-navy text-white shadow-xs'
+                        : 'bg-paper text-ink-muted hover:text-ink border border-paper-dim'
+                    }`}
+                  >
+                    {idxName === 'ALL' ? 'सभी 4 इंडेक्स' : idxName}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Index Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {indexScans
+                .filter(idx => selectedIndexFilter === 'ALL' || idx.symbol === selectedIndexFilter)
+                .map((idx) => {
+                  const isBullish = idx.trend === 'BULLISH';
+                  const isBearish = idx.trend === 'BEARISH';
+
+                  return (
+                    <div
+                      key={idx.symbol}
+                      className="p-4 bg-paper rounded-2xl border border-paper-dim shadow-xs space-y-3 hover:border-emerald-500/40 hover:shadow-md transition-all animate-fade-in"
+                    >
+                      {/* Top Row: Symbol, Exchange, Price, Change */}
+                      <div className="flex items-start justify-between gap-2 border-b border-paper-dim pb-2.5">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-black text-ink">{idx.symbol}</span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-paper-subtle border border-paper-dim text-ink-muted">
+                              {idx.exchange}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-ink-muted mt-0.5">{idx.name}</p>
+                        </div>
+
+                        <div className="text-right">
+                          <Mono className="text-base font-black text-ink block">
+                            ₹{idx.current_price.toLocaleString('en-IN')}
+                          </Mono>
+                          <span className={`text-[11px] font-bold flex items-center justify-end gap-0.5 ${
+                            idx.change_points >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                          }`}>
+                            {idx.change_points >= 0 ? '+' : ''}{idx.change_points.toFixed(2)} ({idx.change_points >= 0 ? '+' : ''}{idx.change_percent.toFixed(2)}%)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* AI Prediction Badge & Confidence */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1 ${
+                          isBullish
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                            : isBearish
+                            ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30'
+                            : 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                        }`}>
+                          <span>{isBullish ? '📈' : isBearish ? '📉' : '↔️'}</span>
+                          <span>{idx.trend_label}</span>
+                        </span>
+
+                        <span className="text-[10px] font-bold text-ink-muted bg-paper-subtle px-2 py-0.5 rounded-md border border-paper-dim">
+                          ⭐ {idx.confidence_score}% AI सटीकता स्कोर
+                        </span>
+                      </div>
+
+                      {/* Key Technical Levels Grid */}
+                      <div className="grid grid-cols-4 gap-1.5 p-2 bg-paper-subtle rounded-xl text-center">
+                        <div className="p-1">
+                          <span className="text-[9px] text-emerald-700 dark:text-emerald-400 font-bold uppercase block">टारगेट 1</span>
+                          <Mono className="text-xs font-bold text-ink block mt-0.5">₹{idx.target_1.toLocaleString('en-IN')}</Mono>
+                        </div>
+                        <div className="p-1">
+                          <span className="text-[9px] text-emerald-700 dark:text-emerald-400 font-bold uppercase block">टारगेट 2</span>
+                          <Mono className="text-xs font-bold text-ink block mt-0.5">₹{idx.target_2.toLocaleString('en-IN')}</Mono>
+                        </div>
+                        <div className="p-1">
+                          <span className="text-[9px] text-rose-700 dark:text-rose-400 font-bold uppercase block">स्टॉपलॉस</span>
+                          <Mono className="text-xs font-bold text-rose-600 block mt-0.5">₹{idx.stoploss.toLocaleString('en-IN')}</Mono>
+                        </div>
+                        <div className="p-1">
+                          <span className="text-[9px] text-ink-muted font-bold uppercase block">सपोर्ट S1</span>
+                          <Mono className="text-xs font-bold text-ink block mt-0.5">₹{idx.support_1.toLocaleString('en-IN')}</Mono>
+                        </div>
+                      </div>
+
+                      {/* Math Indicators Chips */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span className="px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim text-ink">
+                          RSI: <strong className="text-amber-600">{idx.rsi}</strong> ({idx.rsi_signal})
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim text-ink">
+                          MACD: <strong className="text-emerald-600">{idx.macd_signal}</strong>
+                        </span>
+                        {idx.pcr_ratio && (
+                          <span className="px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim text-ink">
+                            PCR: <strong className="text-blue-600">{idx.pcr_ratio}</strong>
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 rounded-md bg-paper-subtle border border-paper-dim text-ink-muted">
+                          {idx.dma_200_status}
+                        </span>
+                      </div>
+
+                      {/* AI Prediction Summary & Trading Strategy */}
+                      <div className="p-2.5 rounded-xl bg-paper-subtle border border-paper-dim text-xs space-y-1.5">
+                        <p className="text-ink-muted leading-relaxed">
+                          <strong className="text-ink font-semibold">AI प्रेडिक्शन:</strong> {idx.ai_prediction_summary}
+                        </p>
+                        <p className="text-ink leading-relaxed font-medium pt-1 border-t border-paper-dim/60">
+                          <strong className="text-emerald-700 dark:text-emerald-400">💡 रणनीति:</strong> {idx.trading_strategy}
+                        </p>
+                      </div>
+
+                      {/* Key Catalysts & Top Movers */}
+                      {idx.top_movers && idx.top_movers.length > 0 && (
+                        <div className="pt-1">
+                          <span className="text-[9px] text-ink-muted uppercase font-bold block mb-1">
+                            इस इंडेक्स के मुख्य चालक शेयर्स:
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {idx.top_movers.map((m, mi) => (
+                              <button
+                                key={mi}
+                                type="button"
+                                onClick={() => {
+                                  setStockSearchInput(m.ticker);
+                                  handleFetchAi(undefined, m.ticker);
+                                }}
+                                className="text-[9px] font-medium px-2 py-0.5 rounded-md bg-paper hover:bg-emerald-500/10 border border-paper-dim text-ink transition-colors cursor-pointer"
+                              >
+                                {m.ticker} (+{m.change_pct}%) • {m.signal}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* 4. Constituent Heavyweight Stocks of the Indexes */}
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <div>
+                <h4 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+                  <span>📊 इंडेक्स के प्रमुख शेयर्स (Index Constituent Stocks)</span>
+                  <span className="text-[10px] font-normal text-ink-muted">
+                    ({constituentStocks.filter(s => selectedIndexFilter === 'ALL' || s.indexAffiliation === selectedIndexFilter).length} स्टॉक्स)
+                  </span>
+                </h4>
+                <p className="text-[10px] text-ink-muted">
+                  NIFTY 50, SENSEX, BANKNIFTY और BANKEX के शीर्ष ब्लूचिप व हाई-वेल्थ शेयर्स
                 </p>
               </div>
-            ))}
+            </div>
+
+            {/* Constituent Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {constituentStocks
+                .filter(s => selectedIndexFilter === 'ALL' || s.indexAffiliation === selectedIndexFilter)
+                .map((stock, i) => (
+                  <div
+                    key={i}
+                    className="p-3.5 bg-paper rounded-2xl border border-paper-dim shadow-xs space-y-2.5 hover:border-emerald-500/40 hover:shadow-md transition-all animate-fade-in"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-paper-subtle border border-paper-dim text-ink-muted">
+                            {stock.indexAffiliation}
+                          </span>
+                          <span className="text-[10px] font-bold text-ink-muted">{stock.category}</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-ink mt-0.5 flex items-center gap-1">
+                          {stock.ticker}
+                        </h4>
+                        <span className="text-[11px] text-ink-muted">{stock.name}</span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border inline-block ${
+                          stock.signal.includes('BUY') 
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' 
+                            : 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                        }`}>
+                          {stock.signal}
+                        </span>
+                        <div className="mt-1">
+                          <Mono className="text-xs font-bold text-ink">₹{stock.currentPrice}</Mono>
+                          <span className="text-[10px] text-emerald-600 block">+{stock.changePercent}%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1 py-1.5 px-2 bg-paper-subtle rounded-xl text-[10px] text-center">
+                      <div>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-semibold block">🎯 लक्ष्य</span>
+                        <Mono className="font-bold text-ink">₹{stock.targetPrice}</Mono>
+                      </div>
+                      <div>
+                        <span className="text-rose-700 dark:text-rose-400 font-semibold block">🛑 स्टॉपलॉस</span>
+                        <Mono className="font-bold text-ink">₹{stock.stoplossPrice}</Mono>
+                      </div>
+                      <div>
+                        <span className="text-ink-muted block">P/E व RSI</span>
+                        <span className="font-semibold text-ink">{stock.peRatio} / {stock.rsi}</span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-ink-muted leading-relaxed">
+                      <strong className="text-ink font-semibold">AI विश्लेषण:</strong> {stock.rationale}
+                    </p>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-paper-dim text-[10px] text-ink-muted">
+                      <span>बजट आवंटन: <strong className="text-ink">{stock.targetAllocation}</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStockSearchInput(stock.ticker);
+                          handleFetchAi(undefined, stock.ticker);
+                        }}
+                        className="text-[10px] font-bold text-emerald-600 hover:underline cursor-pointer"
+                      >
+                        विस्तृत स्कैन →
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
           </div>
         </div>
       )}

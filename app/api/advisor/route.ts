@@ -1,4 +1,9 @@
 import { NextResponse } from 'next/server';
+import { 
+  MAJOR_INDEX_DEFINITIONS, 
+  CONSTITUENT_STOCKS_DATABASE, 
+  generateCustomStockScan 
+} from '@/lib/services/stockScannerService';
 
 export async function POST(request: Request) {
   try {
@@ -37,8 +42,8 @@ export async function POST(request: Request) {
     const systemPrompt = `
 Aap '${aiName}' hain — Bharat ke sarvashreshtha Dual-Core Financial & Stock Market Intelligence AI Advisor.
 Aapke paas do mukhya kshetron ka gahra gyan hai:
-1. INDIAN STOCK MARKET & INVESTMENTS: Nifty 50, Sensex, Bluechip vs Midcap/Smallcap stocks, High Dividend Stocks, Mutual Fund SIP, Asset Allocation, Risk Hedging aur Wealth Compounding.
-2. FAMILY WEALTH & CASHFLOW MANAGEMENT: Parivar ka monthly budget, rental cashflow (dokan, flat, hostel), loan EMIs, gold/real estate capital protection, aur parivarik goals.
+1. INDIAN STOCK MARKET & INVESTMENTS: NIFTY 50, SENSEX, BANKNIFTY, BANKEX, inke mukhya bluechip shares (HDFC Bank, Reliance, ICICI Bank, SBI, TCS, etc.), High Dividend Stocks, Mutual Fund SIP, Technical Levels (Support/Resistance/RSI/MACD/200 DMA).
+2. FAMILY WEALTH & CASHFLOW MANAGEMENT: Parivar ka monthly budget, rental cashflow, loan EMIs, gold/real estate capital protection, aur parivarik goals.
 
 Parivar ka Live Financial Dossier:
 - Kul Net Sampatti (Total Net Worth): ₹${Number(totalWealth).toLocaleString('en-IN')}
@@ -51,96 +56,65 @@ Parivar ka Live Financial Dossier:
 - Shares & Mutual Funds Portfolios: ${JSON.stringify(stockAssets.map((s: any) => ({ label: s.label, value: s.value, inst: s.institution })))}
 - Parivarik Lakshya (Goals): ${JSON.stringify(goals.map((g: any) => ({ title: g.title, target: g.target_amount, saved: g.saved_amount })))}
 ${question ? `- Upyogkarta ka Prashn: "${question}"` : ''}
-${stockToScan ? `- Vishesh Stock Scan Anurodh: "${stockToScan}"` : ''}
+${stockToScan ? `- Vishesh Stock/Index Scan Anurodh: "${stockToScan}"` : ''}
 
 Nirdesh:
-- AI Stock Scanner ke roop me, Bharatiya share bazaar ke 4 se 5 vishisht share/ETF opportunities ko scan karein jo is parivar ki aamdani, rental cashflow aur risk capacity ke anuroop sabse faydemand aur surakshit hon.
-- Agar user ne 'stockToScan' diya hai (e.g. "${stockToScan}"), to pehla stock wahi scan karein aur batayein ki is parivar ko isme kharidna chahiye ya nahi.
-- Har stock me clear signal de: 'STRONG BUY (SIP)', 'ACCUMULATE ON DIPS', 'HOLD FOR DIVIDEND', ya 'WAIT FOR CORRECTION'.
+- Bharat ke 4 mukhya indexes (NIFTY 50, SENSEX, BANKNIFTY, BANKEX) ka technical level, prediction aur support/resistance scan karein.
+- Inke prateek shares (HDFC Bank, Reliance, ICICI Bank, SBI, TCS, etc.) ko scan karein.
+- Agar user ne 'stockToScan' diya hai (e.g. "${stockToScan}"), to uska vishesh technical analysis karein.
+- Har Index aur Stock me clear signal de: 'STRONG BUY (SIP)', 'ACCUMULATE ON DIPS', 'HOLD / RANGEBOUND', ya 'WAIT FOR CORRECTION / CAUTION'.
 
 Strictly JSON format me return karein with this schema:
 {
   "advisorReply": "2-3 paragraph me spasht, nishpaksh Hinglish me summary ya user ke sawal ka uttar.",
   "healthScore": 85,
-  "marketTrend": "Nifty in Consolidation / Healthy Accumulation Zone",
+  "marketTrend": "Nifty in Healthy Accumulation Zone (Bullish)",
+  "indexScans": [
+    {
+      "symbol": "NIFTY 50",
+      "name": "Nifty 50 Benchmark Index",
+      "exchange": "NSE",
+      "current_price": 25015,
+      "change_points": 142.5,
+      "change_percent": 0.57,
+      "trend": "BULLISH",
+      "trend_label": "मजबूत तेजी (Strong Bullish)",
+      "confidence_score": 93,
+      "target_1": 25250,
+      "target_2": 25500,
+      "stoploss": 24800,
+      "support_1": 24880,
+      "support_2": 24750,
+      "resistance_1": 25180,
+      "resistance_2": 25350,
+      "rsi": 56.4,
+      "rsi_signal": "Neutral-Bullish",
+      "macd_signal": "Bullish Crossover",
+      "dma_200_status": "Above 200 DMA",
+      "pcr_ratio": 1.15,
+      "timeframe": "Short Term (1-5 Days)",
+      "ai_prediction_summary": "निफ्टी 24,880 सपोर्ट को बनाए हुए है। 25,180 के पार ब्रेकआउट पर 25,500 की ओर गति संभव।",
+      "trading_strategy": "डिप्स पर खरीदारी की रणनीति (Buy on Dips)। स्टॉपलॉस 24,800 बनाए रखें।",
+      "key_drivers": ["बैंकिंग व आईटी स्टॉक्स में लिवाली", "FIIs का पॉजिटिव फ्लो", "कच्चे तेल में नरमी"],
+      "scanned_at": "Live Scan"
+    }
+  ],
   "stockScans": [
     {
-      "ticker": "NIFTYBEES / NIFTY 50",
-      "name": "Nifty 50 Index Fund / ETF",
-      "category": "Largecap Core Index",
+      "ticker": "HDFCBANK",
+      "name": "HDFC Bank Ltd",
+      "indexAffiliation": "BANKNIFTY",
+      "category": "Banking Core",
       "signal": "STRONG BUY (SIP)",
       "valuation": "Fair Value",
-      "confidence": "94%",
-      "targetAllocation": "35-40% of monthly surplus",
-      "rationale": "Parivar ke liye sabse surakshit compounding. ₹${Math.max(3000, Math.round(monthlySurplus * 0.35)).toLocaleString('en-IN')}/mahina SIP lagane se 12-14% CAGR sambhav.",
-      "riskLevel": "Low-Moderate"
-    },
-    {
-      "ticker": "ITC / BEL / COALINDIA",
-      "name": "High Dividend Defensive Leader",
-      "category": "Dividend Yield & Cashflow",
-      "signal": "ACCUMULATE FOR DIVIDEND",
-      "valuation": "Undervalued",
-      "confidence": "88%",
-      "targetAllocation": "20% of monthly surplus",
-      "rationale": "Rental income ki tarah niyamit quarterly dividend cashflow dene wala mazboot share.",
-      "riskLevel": "Low"
-    },
-    {
-      "ticker": "RELIANCE / HDFCBANK",
-      "name": "Bluechip Growth Anchor",
-      "category": "Mega Cap Growth",
-      "signal": "ACCUMULATE ON DIPS",
-      "valuation": "Near Support Zone",
-      "confidence": "89%",
+      "confidence": "92%",
       "targetAllocation": "25% of monthly surplus",
-      "rationale": "Mazboot balance sheet aur continuous quarterly profit growth jo long-term wealth protect karta hai.",
-      "riskLevel": "Moderate"
-    },
-    {
-      "ticker": "NIFTY MIDCAP 150",
-      "name": "Midcap Alpha Growth Fund",
-      "category": "High Alpha Compounding",
-      "signal": "SYSTEMATIC SIP ONLY",
-      "valuation": "Growth Momentum",
-      "confidence": "83%",
-      "targetAllocation": "15% of monthly surplus",
-      "rationale": "Bacchon ke education ya long-term car/house goals ko jaldi reach karne ke liye 15-18% return potential.",
-      "riskLevel": "Moderate-High"
+      "rationale": "BankNifty aur Nifty dono ka sabse bada pillar. 10-year historic low valuation par trade kar raha hai.",
+      "riskLevel": "Low-Moderate"
     }
   ],
-  "predictions": [
-    {
-      "id": "pred-generated",
-      "ticker": "TICKER (e.g. RELIANCE / TATAMOTORS / ITC)",
-      "name": "Company Full Name",
-      "prediction_date": "YYYY-MM-DD",
-      "entry_price": 2880,
-      "target_price": 3020,
-      "stoploss_price": 2810,
-      "current_price": 2890,
-      "timeframe": "Short Term (7-15 Days)" | "Medium Term (1-3 Months)",
-      "status": "ACTIVE" | "TARGET_HIT" | "STOPLOSS_HIT",
-      "technicals": {
-        "rsi": 44.5,
-        "macd_signal": "Bullish Crossover" | "Bearish Crossover" | "Neutral",
-        "pe_ratio": 23.5,
-        "dma_200_status": "Above 200 DMA" | "Near 200 DMA Support" | "Below 200 DMA",
-        "yearly_high_low": "₹3,020 / ₹2,200"
-      },
-      "ai_reason": "Technical + Fundamental setup reason with RSI and MACD logic.",
-      "post_mortem": "AI ka auto analysis: agar target hit hua to kyu, aur stoploss kata to kyu."
-    }
-  ],
-  "insights": [
-    {
-      "title": "Stock Market Strategy Insight",
-      "desc": "Detail with numeric advice",
-      "tag": "Stock Strategy",
-      "domain": "stocks",
-      "color": "gold"
-    }
-  ]
+  "predictions": [],
+  "insights": []
 }
 Sirf valid JSON return karein.`;
 
@@ -292,7 +266,9 @@ Sirf valid JSON return karein.`;
             advisorReply: parsed.advisorReply || null,
             healthScore: parsed.healthScore || 85,
             marketTrend: parsed.marketTrend || 'Bullish Accumulation Zone',
-            stockScans: parsed.stockScans || [],
+            indexScans: (Array.isArray(parsed.indexScans) && parsed.indexScans.length > 0) ? parsed.indexScans : MAJOR_INDEX_DEFINITIONS,
+            customScan: stockToScan ? generateCustomStockScan(stockToScan) : null,
+            stockScans: (Array.isArray(parsed.stockScans) && parsed.stockScans.length > 0) ? parsed.stockScans : CONSTITUENT_STOCKS_DATABASE,
             predictions: parsed.predictions || defaultPredictions,
             insights: parsed.insights || [],
           });
@@ -333,7 +309,9 @@ Sirf valid JSON return karein.`;
             advisorReply: parsed.advisorReply || null,
             healthScore: parsed.healthScore || 82,
             marketTrend: parsed.marketTrend || 'Healthy Consolidation',
-            stockScans: parsed.stockScans || [],
+            indexScans: (Array.isArray(parsed.indexScans) && parsed.indexScans.length > 0) ? parsed.indexScans : MAJOR_INDEX_DEFINITIONS,
+            customScan: stockToScan ? generateCustomStockScan(stockToScan) : null,
+            stockScans: (Array.isArray(parsed.stockScans) && parsed.stockScans.length > 0) ? parsed.stockScans : CONSTITUENT_STOCKS_DATABASE,
             predictions: parsed.predictions || defaultPredictions,
             insights: parsed.insights || [],
           });
@@ -343,59 +321,12 @@ Sirf valid JSON return karein.`;
       }
     }
 
-    // 4. Deterministic Smart Fallback Stock Scanner Engine
-    const defaultStockScans = [
-      {
-        ticker: stockToScan ? stockToScan.toUpperCase() : "NIFTY 50 INDEX / ETF",
-        name: stockToScan ? `${stockToScan.toUpperCase()} (AI Scan)` : "निफ्टी 50 ईटीएफ (Nippon / SBI Bees)",
-        category: stockToScan ? "Custom Equity Scan" : "Largecap Core Index",
-        signal: "STRONG BUY (SIP)",
-        valuation: "Fair Value (P/E ~22.5)",
-        confidence: "94%",
-        targetAllocation: "35% of monthly surplus",
-        rationale: stockToScan
-          ? `${stockToScan.toUpperCase()} का तकनीकी व मौलिक ढांचा मजबूत है। परिवार के सरप्लस में से सीमित मात्रा में चरणबद्ध (SIP) खरीदारी सुरक्षित रहेगी।`
-          : `परिवार के लिए सबसे सुरक्षित वेल्थ कंपाउंडिंग इंजन। मासिक बचत में से ₹${Math.max(3000, Math.round(monthlySurplus * 0.35)).toLocaleString('en-IN')}/माह इसमें लगाएं।`,
-        riskLevel: "Low-Moderate"
-      },
-      {
-        ticker: "ITC / DIVIDEND LEADER",
-        name: "आईटीसी / भारत इलेक्ट्रॉनिक्स (BEL)",
-        category: "High Dividend Yield & FMCG",
-        signal: "ACCUMULATE FOR CASHFLOW",
-        valuation: "Undervalued / Attractive",
-        confidence: "89%",
-        targetAllocation: "20% of monthly surplus",
-        rationale: "दुकान और मकान के किराए की तरह 3-4% का नियमित डिविडेंड पेआउट देता है, जो परिवार के कैशफ्लो को मज़बूती देता है।",
-        riskLevel: "Low"
-      },
-      {
-        ticker: "RELIANCE / HDFC BANK",
-        name: "रिलायंस इंडस्ट्रीज / एचडीएफसी बैंक",
-        category: "Mega Bluechip Pillar",
-        signal: "ACCUMULATE ON DIPS",
-        valuation: "Near Strong Support Zone",
-        confidence: "91%",
-        targetAllocation: "25% of monthly surplus",
-        rationale: "भारत की अर्थव्यवस्था की रीढ़। जब भी बाजार में 2-3% की गिरावट आए, अतिरिक्त बचत से इसमें निवेश बढ़ाएं।",
-        riskLevel: "Moderate"
-      },
-      {
-        ticker: "NIFTY MIDCAP 150",
-        name: "निफ्टी मिडकैप 150 इंडेक्स फंड",
-        category: "High Alpha Compounding",
-        signal: "SYSTEMATIC SIP ONLY",
-        valuation: "Growth Premium",
-        confidence: "84%",
-        targetAllocation: "20% of monthly surplus",
-        rationale: "लॉन्ग-टर्म पारिवारिक लक्ष्यों (जैसे बच्चों की उच्च शिक्षा, नया वाहन) को तेजी से पूरा करने हेतु 14-16% संभावित सीएजीआर।",
-        riskLevel: "Moderate-High"
-      }
-    ];
+    // 4. Deterministic Smart Fallback Stock & Index Scanner Engine
+    const customStockItem = stockToScan ? generateCustomStockScan(stockToScan) : null;
 
     const fallbackInsights = [
       {
-        title: "शेयर बाज़ार: Nifty 50 व लार्जकैप SIP वृद्धि",
+        title: "शेयर बाज़ार: NIFTY 50 व लार्जकैप SIP वृद्धि",
         desc: `आपके पास ₹${Math.max(0, monthlySurplus).toLocaleString('en-IN')} का मासिक सरप्लस है। इसमें से ₹10,000 - ₹15,000/माह Nifty Index Fund और लार्जकैप में अनुशासित SIP शुरू करने से 12-14% CAGR वेल्थ कंपाउंडिंग प्राप्त हो सकती है।`,
         tag: "Stock Strategy",
         domain: "stocks",
@@ -415,11 +346,13 @@ Sirf valid JSON return karein.`;
       provider: openaiApiKey ? `OpenAI (${openaiModel})` : geminiApiKey ? 'Google Gemini' : 'Chanakya Smart Stock Engine',
       aiName,
       advisorReply: stockToScan 
-        ? `${aiName} ने ${stockToScan.toUpperCase()} का विश्लेषण पूरा किया। यह स्टॉक मौजूदा वैल्यूएशन पर चरणबद्ध SIP खरीदारी के लिए अनुकूल प्रतीत होता है।` 
+        ? `${aiName} ने ${stockToScan.toUpperCase()} का विश्लेषण पूरा किया। यह स्टॉक मौजूदा वैल्यूएशन पर चरणबद्ध SIP/स्विंग के लिए अनुकूल प्रतीत होता है।` 
         : (question ? `${aiName} का विश्लेषण: परिवार के पास ₹${monthlySurplus.toLocaleString('en-IN')} की मासिक बचत है। इसे 60% स्टॉक्स/SIP और 40% फिक्स्ड/इमरजेंसी बफर में बांटना सबसे सुरक्षित रहेगा।` : null),
       healthScore: 85,
-      marketTrend: "Healthy Bullish Accumulation Zone",
-      stockScans: defaultStockScans,
+      marketTrend: "Healthy Bullish Accumulation Zone (तेजी का दौर)",
+      indexScans: MAJOR_INDEX_DEFINITIONS,
+      customScan: customStockItem,
+      stockScans: CONSTITUENT_STOCKS_DATABASE,
       predictions: defaultPredictions,
       insights: fallbackInsights,
     });
