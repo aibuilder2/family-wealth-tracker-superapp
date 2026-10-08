@@ -1090,9 +1090,36 @@ export default function AdvisorPage() {
               </button>
             </div>
 
-            {showChart && (
-              <TradingViewWidget symbol={activeChartSymbol} height={450} />
-            )}
+            {showChart && (() => {
+              const currentIdx = indexScans.find(i => activeChartSymbol.includes(i.symbol)) || indexScans[0];
+              const breakoutData = customScannedStock ? {
+                breakoutResistance: customScannedStock.targetPrice,
+                demandSupport: customScannedStock.stoplossPrice,
+                target1: customScannedStock.targetPrice,
+                target2: Math.round(customScannedStock.targetPrice * 1.03),
+                fibGoldenZone: Math.round(customScannedStock.currentPrice * 0.992),
+                currentPrice: customScannedStock.currentPrice,
+                signal: customScannedStock.signal,
+                verdict: `${customScannedStock.ticker} - ${customScannedStock.valuation}`
+              } : {
+                breakoutResistance: currentIdx?.breakout_line || currentIdx?.resistance_1 || Math.round((currentIdx?.current_price || 22362) * 1.01),
+                demandSupport: currentIdx?.stoploss || currentIdx?.support_1 || Math.round((currentIdx?.current_price || 22362) * 0.99),
+                target1: currentIdx?.target_1 || Math.round((currentIdx?.current_price || 22362) * 1.015),
+                target2: currentIdx?.target_2 || Math.round((currentIdx?.current_price || 22362) * 1.03),
+                fibGoldenZone: currentIdx?.fibonacci_levels?.fib_618 || Math.round((currentIdx?.current_price || 22362) * 0.994),
+                currentPrice: currentIdx?.current_price || 22362,
+                signal: currentIdx?.trend || 'BUY / ACCUMULATE',
+                verdict: currentIdx?.ai_prediction_summary || 'गोल्डन 200 EMA के ऊपर मजबूत आधार'
+              };
+
+              return (
+                <TradingViewWidget
+                  symbol={activeChartSymbol}
+                  height={450}
+                  aiBreakout={breakoutData}
+                />
+              );
+            })()}
           </div>
 
           {/* 3. Major Indian Indexes Section (NIFTY 50, SENSEX, BANKNIFTY, BANKEX) */}
