@@ -267,7 +267,7 @@ Sirf valid JSON return karein.`;
             healthScore: parsed.healthScore || 85,
             marketTrend: parsed.marketTrend || 'Bullish Accumulation Zone',
             indexScans: (Array.isArray(parsed.indexScans) && parsed.indexScans.length > 0) ? parsed.indexScans : MAJOR_INDEX_DEFINITIONS,
-            customScan: stockToScan ? generateCustomStockScan(stockToScan) : null,
+            customScan: stockToScan ? await generateCustomStockScan(stockToScan) : null,
             stockScans: (Array.isArray(parsed.stockScans) && parsed.stockScans.length > 0) ? parsed.stockScans : CONSTITUENT_STOCKS_DATABASE,
             predictions: parsed.predictions || defaultPredictions,
             insights: parsed.insights || [],
@@ -310,7 +310,7 @@ Sirf valid JSON return karein.`;
             healthScore: parsed.healthScore || 82,
             marketTrend: parsed.marketTrend || 'Healthy Consolidation',
             indexScans: (Array.isArray(parsed.indexScans) && parsed.indexScans.length > 0) ? parsed.indexScans : MAJOR_INDEX_DEFINITIONS,
-            customScan: stockToScan ? generateCustomStockScan(stockToScan) : null,
+            customScan: stockToScan ? await generateCustomStockScan(stockToScan) : null,
             stockScans: (Array.isArray(parsed.stockScans) && parsed.stockScans.length > 0) ? parsed.stockScans : CONSTITUENT_STOCKS_DATABASE,
             predictions: parsed.predictions || defaultPredictions,
             insights: parsed.insights || [],
@@ -322,7 +322,7 @@ Sirf valid JSON return karein.`;
     }
 
     // 4. Deterministic Smart Fallback Stock & Index Scanner Engine
-    const customStockItem = stockToScan ? generateCustomStockScan(stockToScan) : null;
+    const customStockItem = stockToScan ? await generateCustomStockScan(stockToScan) : null;
 
     const fallbackInsights = [
       {

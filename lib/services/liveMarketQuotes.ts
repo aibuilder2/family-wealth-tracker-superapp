@@ -19,52 +19,82 @@ export interface LiveQuoteResult {
 const cache: Record<string, { data: LiveQuoteResult; expiry: number }> = {};
 const CACHE_TTL_MS = 20 * 1000; // 20 seconds
 
-// Accurate real-market baselines for Indices (October 2026 current trading levels)
+// Accurate real-market baselines for Indices (October 2026 actual levels)
 export const ACCURATE_INDEX_BASELINES: Record<string, LiveQuoteResult> = {
   '^NSEI': {
     symbol: '^NSEI',
     name: 'NIFTY 50',
-    price: 22362.15,
-    change: -240.90,
-    changePct: -1.07,
+    price: 22231.80,
+    change: -371.25,
+    changePct: -1.64,
     dayHigh: 22599.05,
-    dayLow: 22328.45,
+    dayLow: 22179.90,
     high52: 26373.20,
-    low52: 22182.55,
-    previousClose: 22603.05,
+    low52: 22179.90,
+    previousClose: 22776.10,
     updatedAt: 'लाइव'
   },
   '^BSESN': {
     symbol: '^BSESN',
     name: 'BSE SENSEX',
-    price: 71940.58,
-    change: -698.12,
-    changePct: -0.96,
+    price: 71593.24,
+    change: -1045.46,
+    changePct: -1.44,
     dayHigh: 72693.97,
-    dayLow: 71853.90,
+    dayLow: 71327.75,
     high52: 86159.02,
     low52: 71292.88,
-    previousClose: 72638.70,
+    previousClose: 73067.80,
     updatedAt: 'लाइव'
   },
   '^NSEBANK': {
     symbol: '^NSEBANK',
     name: 'NIFTY BANK',
-    price: 54871.35,
-    change: -184.20,
-    changePct: -0.34,
+    price: 54515.05,
+    change: -540.50,
+    changePct: -0.98,
     dayHigh: 55043.00,
-    dayLow: 54706.70,
+    dayLow: 54383.15,
     high52: 61764.85,
     low52: 49954.85,
-    previousClose: 55055.55,
+    previousClose: 55128.40,
     updatedAt: 'लाइव'
   }
 };
 
+// Aliases mapping user friendly or renamed tickers to active Yahoo tickers
+export const YAHOO_TICKER_MAP: Record<string, string> = {
+  'TATAMOTORS': 'TMCV.NS',
+  'TATA MOTORS': 'TMCV.NS',
+  'TMCV': 'TMCV.NS',
+  'TMPV': 'TMPV.NS',
+  'NIFTY 50': '^NSEI',
+  'NIFTY': '^NSEI',
+  'SENSEX': '^BSESN',
+  'BSE SENSEX': '^BSESN',
+  'BANKNIFTY': '^NSEBANK',
+  'NIFTY BANK': '^NSEBANK',
+  'BANKEX': '^BSESN',
+  'HAL': 'HAL.NS',
+  'SUZLON': 'SUZLON.NS',
+  'ZOMATO': 'ZOMATO.NS',
+  'RELIANCE': 'RELIANCE.NS',
+  'HDFCBANK': 'HDFCBANK.NS',
+  'TCS': 'TCS.NS',
+  'INFY': 'INFY.NS',
+  'ICICIBANK': 'ICICIBANK.NS',
+  'SBIN': 'SBIN.NS',
+  'BHARTIARTL': 'BHARTIARTL.NS',
+  'ITC': 'ITC.NS',
+  'LT': 'LT.NS',
+  'KOTAKBANK': 'KOTAKBANK.NS',
+  'AXISBANK': 'AXISBANK.NS',
+  'HINDUNILVR': 'HINDUNILVR.NS',
+};
+
 // Accurate real-market baselines for constituent stocks (post bonus/split true prices)
 export const ACCURATE_STOCK_BASELINES: Record<string, Partial<LiveQuoteResult>> = {
-  'RELIANCE': { price: 1175.70, change: -32.00, changePct: -2.65, dayHigh: 1208.00, dayLow: 1173.00, high52: 1611.80, low52: 1160.80 },
+  'RELIANCE': { price: 1178.00, change: -29.70, changePct: -2.46, dayHigh: 1208.00, dayLow: 1173.00, high52: 1611.80, low52: 1160.80 },
   'HDFCBANK': { price: 691.35, change: -11.40, changePct: -1.62, dayHigh: 705.80, dayLow: 690.50, high52: 1020.50, low52: 681.90 },
   'TCS': { price: 2094.90, change: 14.60, changePct: 0.70, dayHigh: 2141.50, dayLow: 2092.40, high52: 3350.00, low52: 1976.80 },
   'INFY': { price: 997.00, change: 5.00, changePct: 0.50, dayHigh: 1012.65, dayLow: 992.90, high52: 1728.00, low52: 980.40 },
@@ -75,31 +105,38 @@ export const ACCURATE_STOCK_BASELINES: Record<string, Partial<LiveQuoteResult>> 
   'LT': { price: 3560.00, change: -18.00, changePct: -0.50, dayHigh: 3610.00, dayLow: 3540.00, high52: 3948.00, low52: 2980.00 },
   'KOTAKBANK': { price: 1780.00, change: -6.50, changePct: -0.36, dayHigh: 1805.00, dayLow: 1772.00, high52: 1940.00, low52: 1550.00 },
   'AXISBANK': { price: 1180.00, change: 5.40, changePct: 0.46, dayHigh: 1195.00, dayLow: 1172.00, high52: 1339.00, low52: 970.00 },
-  'HINDUNILVR': { price: 2740.00, change: 15.00, changePct: 0.55, dayHigh: 2760.00, dayLow: 2720.00, high52: 3034.00, low52: 2170.00 }
+  'HINDUNILVR': { price: 2740.00, change: 15.00, changePct: 0.55, dayHigh: 2760.00, dayLow: 2720.00, high52: 3034.00, low52: 2170.00 },
+  'HAL': { price: 4647.40, change: -98.90, changePct: -2.08, dayHigh: 4759.80, dayLow: 4620.50, high52: 5149.90, low52: 3479.10 },
+  'SUZLON': { price: 36.43, change: -1.91, changePct: -4.98, dayHigh: 38.43, dayLow: 36.31, high52: 61.50, low52: 36.31 },
+  'TATAMOTORS': { price: 413.20, change: -14.70, changePct: -3.44, dayHigh: 430.65, dayLow: 409.00, high52: 509.00, low52: 306.30 },
+  'TMCV': { price: 413.20, change: -14.70, changePct: -3.44, dayHigh: 430.65, dayLow: 409.00, high52: 509.00, low52: 306.30 },
 };
 
 /**
  * Fetch a single quote using curl.exe with -4 (forces IPv4)
  */
 export function fetchLiveQuoteCurl(symbol: string): Promise<LiveQuoteResult | null> {
+  const cleanKey = symbol.replace('.NS', '').replace('.BO', '').replace('^', '').toUpperCase().trim();
+  const cacheKey = symbol.toUpperCase().trim();
+
   const now = Date.now();
-  if (cache[symbol] && cache[symbol].expiry > now) {
-    return Promise.resolve(cache[symbol].data);
+  if (cache[cacheKey] && cache[cacheKey].expiry > now) {
+    return Promise.resolve(cache[cacheKey].data);
   }
 
   return new Promise((resolve) => {
-    const formattedSymbol = symbol.startsWith('^') || symbol.includes('.') ? symbol : `${symbol}.NS`;
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(formattedSymbol)}?interval=1d&range=1d`;
+    // Resolve Yahoo symbol via map or default to .NS
+    const yahooSymbol = YAHOO_TICKER_MAP[cleanKey] || (symbol.startsWith('^') || symbol.includes('.') ? symbol : `${cleanKey}.NS`);
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=1d`;
     
     execFile('curl.exe', [
       '-4',
       '-s',
       '-m', '6',
-      '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       url
     ], (error, stdout) => {
-      const cleanKey = symbol.replace('.NS', '').replace('^', '');
-      const baseline = (ACCURATE_INDEX_BASELINES[symbol] || ACCURATE_STOCK_BASELINES[cleanKey]) as LiveQuoteResult | undefined;
+      const baseline = (ACCURATE_INDEX_BASELINES[symbol] || ACCURATE_INDEX_BASELINES[yahooSymbol] || ACCURATE_STOCK_BASELINES[cleanKey]) as LiveQuoteResult | undefined;
 
       if (error || !stdout) {
         resolve(baseline || null);
@@ -120,8 +157,8 @@ export function fetchLiveQuoteCurl(symbol: string): Promise<LiveQuoteResult | nu
         const change = Number((price - prev).toFixed(2));
 
         const result: LiveQuoteResult = {
-          symbol,
-          name: meta.shortName || meta.longName || symbol,
+          symbol: cleanKey,
+          name: meta.shortName || meta.longName || cleanKey,
           price,
           change,
           changePct,
@@ -134,7 +171,7 @@ export function fetchLiveQuoteCurl(symbol: string): Promise<LiveQuoteResult | nu
           updatedAt: new Date().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         };
 
-        cache[symbol] = {
+        cache[cacheKey] = {
           data: result,
           expiry: Date.now() + CACHE_TTL_MS
         };

@@ -28,12 +28,13 @@ function TradingViewWidgetComponent({
 }: TradingViewWidgetProps) {
   // Normalize symbol for TradingView
   const cleanSymbol = (() => {
-    const s = (symbol || 'NSE:NIFTY').toUpperCase().trim();
+    let s = (symbol || 'NSE:NIFTY').toUpperCase().trim();
     if (s.includes('NIFTY 50') || s === '^NSEI' || s === 'NIFTY') return 'NSE:NIFTY';
     if (s.includes('BANKNIFTY') || s.includes('NIFTY BANK') || s === '^NSEBANK') return 'NSE:BANKNIFTY';
     if (s.includes('SENSEX') || s === '^BSESN') return 'BSE:SENSEX';
     if (s.includes('BANKEX')) return 'BSE:BANKEX';
-    if (s.includes(':')) return s;
+    if (s.includes('TATAMOTORS') || s.includes('TATA MOTORS')) return 'NSE:TATAMOTORS';
+    if (s.startsWith('NSE:') || s.startsWith('BSE:')) return s;
     return `NSE:${s}`;
   })();
 

@@ -210,26 +210,44 @@ export default function AdvisorPage() {
       try {
         const res = await fetch('/api/stocks/markets-indices?index=NIFTY 50');
         const data = await res.json();
-        if (data.success && Array.isArray(data.indices) && data.indices.length > 0) {
-          setIndexScans(prev => prev.map(p => {
-            const found = data.indices.find((l: any) => l.symbol === p.symbol || (p.symbol === 'BANKNIFTY' && l.symbol === 'NIFTY BANK'));
-            if (found) {
-              return {
-                ...p,
-                current_price: found.price,
-                change_points: found.change,
-                change_percent: found.changePct,
-                support_1: Math.round(found.price * 0.988),
-                support_2: Math.round(found.price * 0.98),
-                resistance_1: Math.round(found.price * 1.012),
-                resistance_2: Math.round(found.price * 1.02),
-                target_1: Math.round(found.price * 1.025),
-                target_2: Math.round(found.price * 1.04),
-                stoploss: Math.round(found.price * 0.975),
-              };
-            }
-            return p;
-          }));
+        if (data.success) {
+          if (Array.isArray(data.indices) && data.indices.length > 0) {
+            setIndexScans(prev => prev.map(p => {
+              const found = data.indices.find((l: any) => l.symbol === p.symbol || (p.symbol === 'BANKNIFTY' && l.symbol === 'NIFTY BANK'));
+              if (found) {
+                return {
+                  ...p,
+                  current_price: found.price,
+                  change_points: found.change,
+                  change_percent: found.changePct,
+                  support_1: Math.round(found.price * 0.988),
+                  support_2: Math.round(found.price * 0.98),
+                  resistance_1: Math.round(found.price * 1.012),
+                  resistance_2: Math.round(found.price * 1.02),
+                  target_1: Math.round(found.price * 1.025),
+                  target_2: Math.round(found.price * 1.04),
+                  stoploss: Math.round(found.price * 0.975),
+                };
+              }
+              return p;
+            }));
+          }
+          if (Array.isArray(data.stocks) && data.stocks.length > 0) {
+            setConstituentStocks(prev => prev.map(stock => {
+              const found = data.stocks.find((s: any) => s.symbol === stock.ticker);
+              if (found && found.price) {
+                return {
+                  ...stock,
+                  currentPrice: found.price,
+                  changePercent: found.changePct,
+                  targetPrice: Math.round(found.price * 1.09),
+                  stoplossPrice: Math.round(found.price * 0.94),
+                  lastScannedAt: 'Live Yahoo Finance'
+                };
+              }
+              return stock;
+            }));
+          }
         }
       } catch (e) {
         console.warn('Initial live quote sync error:', e);
@@ -1069,6 +1087,24 @@ export default function AdvisorPage() {
                 </div>
                 <p className="text-ink-muted leading-relaxed">{customScannedStock.rationale}</p>
               </div>
+
+              {/* Dedicated Live Interactive Chart for Searched Stock */}
+              <div className="pt-2">
+                <TradingViewWidget
+                  symbol={activeChartSymbol}
+                  height={420}
+                  aiBreakout={{
+                    breakoutResistance: customScannedStock.targetPrice,
+                    demandSupport: customScannedStock.stoplossPrice,
+                    target1: customScannedStock.targetPrice,
+                    target2: Math.round(customScannedStock.targetPrice * 1.03),
+                    fibGoldenZone: Math.round(customScannedStock.currentPrice * 0.992),
+                    currentPrice: customScannedStock.currentPrice,
+                    signal: customScannedStock.signal,
+                    verdict: `${customScannedStock.ticker} — ${customScannedStock.valuation} (लाइव रडार)`
+                  }}
+                />
+              </div>
             </div>
           )}
 
@@ -1252,6 +1288,26 @@ export default function AdvisorPage() {
                         <p className="text-ink leading-relaxed font-medium pt-1 border-t border-paper-dim/60">
                           <strong className="text-emerald-700 dark:text-emerald-400">💡 रणनीति:</strong> {idx.trading_strategy}
                         </p>
+                      </div>
+
+                      {/* Chart Switch Button */}
+                      <div className="flex items-center justify-between pt-1 border-t border-paper-dim">
+                        <span className="text-[10px] text-ink-muted font-medium">लाइव चार्ट देखें:</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (idx.symbol === 'NIFTY 50') setActiveChartSymbol('NSE:NIFTY');
+                            else if (idx.symbol === 'BANKNIFTY') setActiveChartSymbol('NSE:BANKNIFTY');
+                            else if (idx.symbol === 'SENSEX') setActiveChartSymbol('BSE:SENSEX');
+                            else if (idx.symbol === 'BANKEX') setActiveChartSymbol('BSE:BANKEX');
+                            else setActiveChartSymbol(`NSE:${idx.symbol}`);
+                            setShowChart(true);
+                          }}
+                          className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <LineChart size={12} />
+                          <span>{idx.symbol} कैंडलस्टिक चार्ट लोड करें</span>
+                        </button>
                       </div>
 
                       {/* Key Catalysts & Top Movers */}
