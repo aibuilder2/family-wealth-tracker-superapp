@@ -77,7 +77,9 @@ export const YAHOO_TICKER_MAP: Record<string, string> = {
   'BANKEX': '^BSESN',
   'HAL': 'HAL.NS',
   'SUZLON': 'SUZLON.NS',
-  'ZOMATO': 'ZOMATO.NS',
+  'ZOMATO': 'ETERNAL.NS',
+  'ETERNAL': 'ETERNAL.NS',
+  'ETERNAL.NS': 'ETERNAL.NS',
   'RELIANCE': 'RELIANCE.NS',
   'HDFCBANK': 'HDFCBANK.NS',
   'TCS': 'TCS.NS',
@@ -110,6 +112,8 @@ export const ACCURATE_STOCK_BASELINES: Record<string, Partial<LiveQuoteResult>> 
   'SUZLON': { price: 36.43, change: -1.91, changePct: -4.98, dayHigh: 38.43, dayLow: 36.31, high52: 61.50, low52: 36.31 },
   'TATAMOTORS': { price: 413.20, change: -14.70, changePct: -3.44, dayHigh: 430.65, dayLow: 409.00, high52: 509.00, low52: 306.30 },
   'TMCV': { price: 413.20, change: -14.70, changePct: -3.44, dayHigh: 430.65, dayLow: 409.00, high52: 509.00, low52: 306.30 },
+  'ZOMATO': { price: 319.05, change: -8.95, changePct: -2.73, dayHigh: 328.40, dayLow: 317.50, high52: 368.45, low52: 212.60 },
+  'ETERNAL': { price: 319.05, change: -8.95, changePct: -2.73, dayHigh: 328.40, dayLow: 317.50, high52: 368.45, low52: 212.60 },
 };
 
 /**

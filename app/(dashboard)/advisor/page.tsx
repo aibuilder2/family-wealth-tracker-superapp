@@ -391,7 +391,11 @@ export default function AdvisorPage() {
         if (clean.includes('NIFTY 50') || clean === 'NIFTY') setActiveChartSymbol('NSE:NIFTY');
         else if (clean.includes('SENSEX')) setActiveChartSymbol('BSE:SENSEX');
         else if (clean.includes('BANKNIFTY') || clean.includes('BANK NIFTY')) setActiveChartSymbol('NSE:BANKNIFTY');
-        else setActiveChartSymbol(`NSE:${clean}`);
+        else if (clean.includes('BANKEX')) setActiveChartSymbol('BSE:BANKEX');
+        else if (clean.includes('ZOMATO') || clean.includes('ETERNAL')) setActiveChartSymbol('NSE:ETERNAL');
+        else if (clean.includes('TATA') && clean.includes('MOT')) setActiveChartSymbol('NSE:TATAMOTORS');
+        else if (clean.includes('HDFC') && clean.includes('BANK')) setActiveChartSymbol('NSE:HDFCBANK');
+        else setActiveChartSymbol(`NSE:${clean.replace(/\s+/g, '')}`);
       }
 
       const data = await res.json();

@@ -34,8 +34,10 @@ function TradingViewWidgetComponent({
     if (s.includes('SENSEX') || s === '^BSESN') return 'BSE:SENSEX';
     if (s.includes('BANKEX')) return 'BSE:BANKEX';
     if (s.includes('TATAMOTORS') || s.includes('TATA MOTORS')) return 'NSE:TATAMOTORS';
-    if (s.startsWith('NSE:') || s.startsWith('BSE:')) return s;
-    return `NSE:${s}`;
+    if (s.includes('ZOMATO') || s.includes('ETERNAL')) return 'NSE:ETERNAL';
+    if (s.includes('HDFC BANK') || s.includes('HDFCBANK')) return 'NSE:HDFCBANK';
+    if (s.startsWith('NSE:') || s.startsWith('BSE:')) return s.replace(/\s+/g, '');
+    return `NSE:${s.replace(/\s+/g, '')}`;
   })();
 
   const heightStyle = typeof height === 'number' ? `${height}px` : height;
