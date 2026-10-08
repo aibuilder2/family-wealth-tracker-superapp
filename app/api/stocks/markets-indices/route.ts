@@ -46,6 +46,8 @@ interface IndexQuote {
   declines?: number;
   unchanged?: number;
   pcr?: number;
+  is_live?: boolean;
+  source?: string;
 }
 
 // Fallback & Baseline Database of Indian Stocks (Comprehensive with P/E, Industry P/E, 52W levels)
@@ -1031,7 +1033,7 @@ export async function GET(request: Request) {
     const indexName = searchParams.get('index') || 'NIFTY 50';
 
     // 1. Fetch live quotes for major indices in parallel using IPv4-forced curl service
-    const { nifty, sensex, bankNifty } = await fetchAllMajorIndices();
+    const { nifty, sensex, bankNifty, bankex } = await fetchAllMajorIndices();
 
     const liveIndices: IndexQuote[] = [
       {
@@ -1048,7 +1050,9 @@ export async function GET(request: Request) {
         advances: 22,
         declines: 28,
         unchanged: 0,
-        pcr: 1.05
+        pcr: 1.05,
+        is_live: (nifty as any).isLive ?? false,
+        source: (nifty as any).source || 'YAHOO_LIVE'
       },
       {
         symbol: 'BSE SENSEX',
@@ -1064,7 +1068,9 @@ export async function GET(request: Request) {
         advances: 12,
         declines: 18,
         unchanged: 0,
-        pcr: 1.02
+        pcr: 1.02,
+        is_live: (sensex as any).isLive ?? false,
+        source: (sensex as any).source || 'YAHOO_LIVE'
       },
       {
         symbol: 'NIFTY BANK',
@@ -1080,23 +1086,27 @@ export async function GET(request: Request) {
         advances: 7,
         declines: 5,
         unchanged: 0,
-        pcr: 1.18
+        pcr: 1.18,
+        is_live: (bankNifty as any).isLive ?? false,
+        source: (bankNifty as any).source || 'YAHOO_LIVE'
       },
       {
         symbol: 'BSE BANKEX',
         name: 'BANKEX (BSE Banking Index)',
         exchange: 'BSE',
-        price: 58420.30,
-        change: 428.60,
-        changePct: 0.74,
-        dayHigh: 58650.00,
-        dayLow: 58100.00,
-        high52: 60950.00,
-        low52: 48200.00,
+        price: bankex.price,
+        change: bankex.change,
+        changePct: bankex.changePct,
+        dayHigh: bankex.dayHigh,
+        dayLow: bankex.dayLow,
+        high52: bankex.high52,
+        low52: bankex.low52,
         advances: 8,
         declines: 2,
         unchanged: 0,
-        pcr: 1.21
+        pcr: 1.21,
+        is_live: (bankex as any).isLive ?? false,
+        source: (bankex as any).source || 'YAHOO_LIVE'
       },
       {
         symbol: 'NIFTY IT',
@@ -1112,7 +1122,9 @@ export async function GET(request: Request) {
         advances: 8,
         declines: 2,
         unchanged: 0,
-        pcr: 1.08
+        pcr: 1.08,
+        is_live: false,
+        source: 'OFFLINE_FALLBACK'
       }
     ];
 
@@ -1126,12 +1138,14 @@ export async function GET(request: Request) {
     const rawConstituents = STOCKS_DATABASE[indexName] || STOCKS_DATABASE['NIFTY 50'];
     const constituents = await enrichStocksWithLiveQuotes(rawConstituents);
 
+    const isAnyLive = (nifty as any).isLive || (sensex as any).isLive || (bankNifty as any).isLive;
+
     return NextResponse.json({
       success: true,
       market_status: {
-        is_live: true,
-        source: nifty ? 'Yahoo Finance Live Quotes' : 'Simulated Real-Time Engine',
-        status_text: 'BSE & NSE LIVE (Real-Time)',
+        is_live: isAnyLive,
+        source: isAnyLive ? 'Yahoo Finance Live Quotes' : 'Fallback Market Baseline',
+        status_text: isAnyLive ? 'BSE & NSE LIVE (Real-Time)' : 'BSE & NSE OFFLINE BASELINE',
         updated_at: new Date().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       },
       market_breadth: {
@@ -1145,7 +1159,8 @@ export async function GET(request: Request) {
       },
       indices: liveIndices,
       selected_index: indexName,
-      constituents
+      constituents,
+      stocks: constituents
     });
 
   } catch (err: any) {

@@ -35,10 +35,11 @@ export interface TechnicalDataProps {
   breakoutStatus?: string;
   support?: number;
   resistance?: number;
+  isLive?: boolean;
 }
 
 export function TechnicalBenchmarksCard({ data }: { data: TechnicalDataProps }) {
-  const price = data.currentPrice || 1000;
+  const price = data.currentPrice || 500;
   
   // Calculate defaults if not provided
   const pe = data.pe || 21.4;
@@ -81,9 +82,17 @@ export function TechnicalBenchmarksCard({ data }: { data: TechnicalDataProps }) 
           </div>
         </div>
         <div className="flex items-center gap-1.5 self-start sm:self-auto">
-          <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1">
-            <CheckCircle2 size={10} /> मानक बेंचमार्क सत्यापित
-          </span>
+          {data.isLive ? (
+            <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <CheckCircle2 size={10} /> 🟢 लाइव डेटा आधारित (Live Market ✓)
+            </span>
+          ) : (
+            <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+              🔴 संदर्भ फॉलबैक आधारित
+            </span>
+          )}
         </div>
       </div>
 

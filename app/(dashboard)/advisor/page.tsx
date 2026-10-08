@@ -203,6 +203,7 @@ export default function AdvisorPage() {
   const [selectedIndexFilter, setSelectedIndexFilter] = useState<'ALL' | 'NIFTY 50' | 'BANKNIFTY' | 'SENSEX' | 'BANKEX'>('ALL');
   const [activeChartSymbol, setActiveChartSymbol] = useState<string>('NSE:NIFTY');
   const [showChart, setShowChart] = useState<boolean>(true);
+  const [isMarketLiveConnected, setIsMarketLiveConnected] = useState<boolean>(true);
 
   // Auto-sync live quotes on mount
   useEffect(() => {
@@ -211,9 +212,17 @@ export default function AdvisorPage() {
         const res = await fetch('/api/stocks/markets-indices?index=NIFTY 50');
         const data = await res.json();
         if (data.success) {
+          if (data.market_status?.is_live !== undefined) {
+            setIsMarketLiveConnected(data.market_status.is_live);
+          }
           if (Array.isArray(data.indices) && data.indices.length > 0) {
             setIndexScans(prev => prev.map(p => {
-              const found = data.indices.find((l: any) => l.symbol === p.symbol || (p.symbol === 'BANKNIFTY' && l.symbol === 'NIFTY BANK'));
+              const found = data.indices.find((l: any) => 
+                l.symbol === p.symbol || 
+                (p.symbol === 'BANKNIFTY' && (l.symbol === 'NIFTY BANK' || l.symbol === 'BANKNIFTY')) ||
+                (p.symbol === 'SENSEX' && (l.symbol === 'BSE SENSEX' || l.symbol === 'SENSEX')) ||
+                (p.symbol === 'BANKEX' && (l.symbol === 'BSE BANKEX' || l.symbol === 'BANKEX'))
+              );
               if (found) {
                 return {
                   ...p,
@@ -227,22 +236,27 @@ export default function AdvisorPage() {
                   target_1: Math.round(found.price * 1.025),
                   target_2: Math.round(found.price * 1.04),
                   stoploss: Math.round(found.price * 0.975),
+                  is_live: found.is_live ?? true,
+                  source: found.source || 'YAHOO_LIVE'
                 };
               }
               return p;
             }));
           }
-          if (Array.isArray(data.stocks) && data.stocks.length > 0) {
+          const stockList = Array.isArray(data.stocks) ? data.stocks : (Array.isArray(data.constituents) ? data.constituents : []);
+          if (stockList.length > 0) {
             setConstituentStocks(prev => prev.map(stock => {
-              const found = data.stocks.find((s: any) => s.symbol === stock.ticker);
+              const found = stockList.find((s: any) => s.symbol === stock.ticker);
               if (found && found.price) {
                 return {
                   ...stock,
                   currentPrice: found.price,
-                  changePercent: found.changePct,
+                  changePercent: found.changePct ?? found.change_percent ?? stock.changePercent,
                   targetPrice: Math.round(found.price * 1.09),
                   stoplossPrice: Math.round(found.price * 0.94),
-                  lastScannedAt: 'Live Yahoo Finance'
+                  lastScannedAt: found.is_live ? 'Live Yahoo Finance' : 'Market Baseline',
+                  isLive: found.is_live ?? true,
+                  source: found.source || 'YAHOO_LIVE'
                 };
               }
               return stock;
@@ -436,26 +450,57 @@ export default function AdvisorPage() {
       try {
         const liveRes = await fetch('/api/stocks/markets-indices?index=NIFTY 50');
         const liveData = await liveRes.json();
-        if (liveData.success && Array.isArray(liveData.indices) && liveData.indices.length > 0) {
-          setIndexScans(prev => prev.map(p => {
-            const found = liveData.indices.find((l: any) => l.symbol === p.symbol || (p.symbol === 'BANKNIFTY' && l.symbol === 'NIFTY BANK'));
-            if (found) {
-              return {
-                ...p,
-                current_price: found.price,
-                change_points: found.change,
-                change_percent: found.changePct,
-                support_1: Math.round(found.price * 0.988),
-                support_2: Math.round(found.price * 0.98),
-                resistance_1: Math.round(found.price * 1.012),
-                resistance_2: Math.round(found.price * 1.02),
-                target_1: Math.round(found.price * 1.025),
-                target_2: Math.round(found.price * 1.04),
-                stoploss: Math.round(found.price * 0.975),
-              };
-            }
-            return p;
-          }));
+        if (liveData.success) {
+          if (liveData.market_status?.is_live !== undefined) {
+            setIsMarketLiveConnected(liveData.market_status.is_live);
+          }
+          if (Array.isArray(liveData.indices) && liveData.indices.length > 0) {
+            setIndexScans(prev => prev.map(p => {
+              const found = liveData.indices.find((l: any) => 
+                l.symbol === p.symbol || 
+                (p.symbol === 'BANKNIFTY' && (l.symbol === 'NIFTY BANK' || l.symbol === 'BANKNIFTY')) ||
+                (p.symbol === 'SENSEX' && (l.symbol === 'BSE SENSEX' || l.symbol === 'SENSEX')) ||
+                (p.symbol === 'BANKEX' && (l.symbol === 'BSE BANKEX' || l.symbol === 'BANKEX'))
+              );
+              if (found) {
+                return {
+                  ...p,
+                  current_price: found.price,
+                  change_points: found.change,
+                  change_percent: found.changePct,
+                  support_1: Math.round(found.price * 0.988),
+                  support_2: Math.round(found.price * 0.98),
+                  resistance_1: Math.round(found.price * 1.012),
+                  resistance_2: Math.round(found.price * 1.02),
+                  target_1: Math.round(found.price * 1.025),
+                  target_2: Math.round(found.price * 1.04),
+                  stoploss: Math.round(found.price * 0.975),
+                  is_live: found.is_live ?? true,
+                  source: found.source || 'YAHOO_LIVE'
+                };
+              }
+              return p;
+            }));
+          }
+          const stockList = Array.isArray(liveData.stocks) ? liveData.stocks : (Array.isArray(liveData.constituents) ? liveData.constituents : []);
+          if (stockList.length > 0) {
+            setConstituentStocks(prev => prev.map(stock => {
+              const found = stockList.find((s: any) => s.symbol === stock.ticker);
+              if (found && found.price) {
+                return {
+                  ...stock,
+                  currentPrice: found.price,
+                  changePercent: found.changePct ?? found.change_percent ?? stock.changePercent,
+                  targetPrice: Math.round(found.price * 1.09),
+                  stoplossPrice: Math.round(found.price * 0.94),
+                  lastScannedAt: found.is_live ? 'Live Yahoo Finance' : 'Market Baseline',
+                  isLive: found.is_live ?? true,
+                  source: found.source || 'YAHOO_LIVE'
+                };
+              }
+              return stock;
+            }));
+          }
         }
       } catch (e) {
         console.warn('Live quote sync error:', e);
@@ -563,11 +608,26 @@ export default function AdvisorPage() {
                 <Bot size={22} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-ink">{selectedAi.name}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                    <CheckCircle2 size={10} /> पारिवारिक वेल्थ AI सक्रिय
-                  </span>
+                  {loading ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      <RefreshCw size={10} className="animate-spin text-emerald-600" />
+                      <span>🟢 AI लाइव स्कैन जारी है...</span>
+                    </span>
+                  ) : isMarketLiveConnected ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <CheckCircle2 size={10} />
+                      <span>🟢 लाइव मार्केट कनेक्टेड (Yahoo Finance Live ✓)</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                      <span>🔴 ऑफ़लाइन / संदर्भ फॉलबैक डेटा</span>
+                    </span>
+                  )}
                 </div>
                 <p className="text-[11px] text-ink-muted">
                   द्वैत विशेषज्ञता: 📈 <strong className="text-ink">स्टॉक मार्केट (SIP, इक्विटी, हेजिंग)</strong> + 🏠 <strong className="text-ink">फैमिली वेल्थ (किराया, EMI, गोल्ड)</strong>
@@ -933,8 +993,18 @@ export default function AdvisorPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-ink-muted pt-0.5">
               <span className="flex items-center gap-1.5 font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>ऑन-डिमांड बटन सिस्टम: केवल आपके क्लिक करने पर स्कैन होता है</span>
+                {isMarketLiveConnected ? (
+                  <span className="flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/25">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <CheckCircle2 size={11} />
+                    <span>🟢 लाइव डेटा मोड सक्रिय (Yahoo Finance Real-Time Verified ✓)</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-rose-600 font-bold bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/25">
+                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>🔴 फॉलबैक संदर्भ डेटा (नेटवर्क ड्रॉप / ऑफ़लाइन संदर्भ)</span>
+                  </span>
+                )}
               </span>
               <span className="font-mono bg-paper-subtle px-2 py-0.5 rounded-md border border-paper-dim">
                 🕒 अंतिम स्कैन: {lastRefreshed || 'आज शाम लाइव'}
@@ -967,7 +1037,7 @@ export default function AdvisorPage() {
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer shadow-xs whitespace-nowrap"
               >
                 <Search size={12} />
-                <span>शेयर स्कैन करें</span>
+                <span>{loading ? 'स्कैनिंग...' : 'शेयर स्कैन करें'}</span>
               </button>
             </form>
 
@@ -995,11 +1065,23 @@ export default function AdvisorPage() {
             <div className="p-4 bg-gradient-to-br from-amber-500/10 via-paper to-emerald-500/10 rounded-2xl border-2 border-amber-500/40 shadow-sm space-y-3 animate-fade-in">
               <div className="flex items-start justify-between gap-2 border-b border-paper-dim pb-2.5">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-black px-2 py-0.5 rounded-md bg-amber-500 text-navy uppercase">
                       🔍 सर्च किया गया शेयर
                     </span>
                     <span className="text-[11px] font-bold text-ink-muted">({customScannedStock.category})</span>
+                    {customScannedStock.isLive !== false ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <CheckCircle2 size={10} />
+                        <span>🟢 लाइव डेटा (Yahoo Finance Live ✓)</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        <span>🔴 फॉलबैक संदर्भ डेटा</span>
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-base font-bold text-ink mt-1 flex items-center gap-2">
                     <span>{customScannedStock.ticker}</span>
@@ -1079,7 +1161,8 @@ export default function AdvisorPage() {
                     fib786: Math.round(customScannedStock.currentPrice * 0.985),
                   },
                   breakoutLine: customScannedStock.targetPrice,
-                  support: customScannedStock.stoplossPrice
+                  support: customScannedStock.stoplossPrice,
+                  isLive: customScannedStock.isLive !== false
                 }}
               />
 
@@ -1207,11 +1290,23 @@ export default function AdvisorPage() {
                       {/* Top Row: Symbol, Exchange, Price, Change */}
                       <div className="flex items-start justify-between gap-2 border-b border-paper-dim pb-2.5">
                         <div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <span className="text-sm font-black text-ink">{idx.symbol}</span>
                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-paper-subtle border border-paper-dim text-ink-muted">
                               {idx.exchange}
                             </span>
+                            {idx.is_live !== false ? (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <CheckCircle2 size={10} />
+                                <span>लाइव डेटा</span>
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                <span>🔴 फॉलबैक</span>
+                              </span>
+                            )}
                           </div>
                           <p className="text-[11px] text-ink-muted mt-0.5">{idx.name}</p>
                         </div>
@@ -1376,9 +1471,23 @@ export default function AdvisorPage() {
                           </span>
                           <span className="text-[10px] font-bold text-ink-muted">{stock.category}</span>
                         </div>
-                        <h4 className="text-sm font-bold text-ink mt-0.5 flex items-center gap-1">
-                          {stock.ticker}
-                        </h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <h4 className="text-sm font-bold text-ink">
+                            {stock.ticker}
+                          </h4>
+                          {stock.isLive !== false ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <CheckCircle2 size={9} />
+                              <span>लाइव</span>
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30 flex items-center gap-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                              <span>🔴 फॉलबैक</span>
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[11px] text-ink-muted">{stock.name}</span>
                       </div>
 

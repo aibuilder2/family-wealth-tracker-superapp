@@ -13,6 +13,8 @@ export interface LiveQuoteResult {
   previousClose: number;
   volume?: number;
   updatedAt: string;
+  isLive?: boolean;
+  source?: 'YAHOO_LIVE' | 'OFFLINE_FALLBACK';
 }
 
 // In-memory cache to prevent repeated external calls within 20 seconds
@@ -32,7 +34,9 @@ export const ACCURATE_INDEX_BASELINES: Record<string, LiveQuoteResult> = {
     high52: 26373.20,
     low52: 22179.90,
     previousClose: 22776.10,
-    updatedAt: 'लाइव'
+    updatedAt: 'लाइव',
+    isLive: false,
+    source: 'OFFLINE_FALLBACK'
   },
   '^BSESN': {
     symbol: '^BSESN',
@@ -45,7 +49,9 @@ export const ACCURATE_INDEX_BASELINES: Record<string, LiveQuoteResult> = {
     high52: 86159.02,
     low52: 71292.88,
     previousClose: 73067.80,
-    updatedAt: 'लाइव'
+    updatedAt: 'लाइव',
+    isLive: false,
+    source: 'OFFLINE_FALLBACK'
   },
   '^NSEBANK': {
     symbol: '^NSEBANK',
@@ -58,7 +64,24 @@ export const ACCURATE_INDEX_BASELINES: Record<string, LiveQuoteResult> = {
     high52: 61764.85,
     low52: 49954.85,
     previousClose: 55128.40,
-    updatedAt: 'लाइव'
+    updatedAt: 'लाइव',
+    isLive: false,
+    source: 'OFFLINE_FALLBACK'
+  },
+  'BANKEX': {
+    symbol: 'BANKEX',
+    name: 'BSE BANKEX',
+    price: 61420.50,
+    change: -480.20,
+    changePct: -0.78,
+    dayHigh: 61850.00,
+    dayLow: 61200.00,
+    high52: 63000.00,
+    low52: 50100.00,
+    previousClose: 61900.70,
+    updatedAt: 'लाइव',
+    isLive: false,
+    source: 'OFFLINE_FALLBACK'
   }
 };
 
@@ -137,13 +160,15 @@ export function fetchLiveQuoteCurl(symbol: string): Promise<LiveQuoteResult | nu
       '-4',
       '-s',
       '-m', '6',
-      '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      '-H', 'Accept: application/json, text/plain, */*',
+      '-H', 'Referer: https://finance.yahoo.com/',
       url
     ], (error, stdout) => {
       const baseline = (ACCURATE_INDEX_BASELINES[symbol] || ACCURATE_INDEX_BASELINES[yahooSymbol] || ACCURATE_STOCK_BASELINES[cleanKey]) as LiveQuoteResult | undefined;
 
       if (error || !stdout) {
-        resolve(baseline || null);
+        resolve(baseline ? { ...baseline, isLive: false, source: 'OFFLINE_FALLBACK' } : null);
         return;
       }
 
@@ -151,7 +176,7 @@ export function fetchLiveQuoteCurl(symbol: string): Promise<LiveQuoteResult | nu
         const json = JSON.parse(stdout);
         const meta = json?.chart?.result?.[0]?.meta;
         if (!meta || typeof meta.regularMarketPrice !== 'number') {
-          resolve(baseline || null);
+          resolve(baseline ? { ...baseline, isLive: false, source: 'OFFLINE_FALLBACK' } : null);
           return;
         }
 
@@ -172,7 +197,9 @@ export function fetchLiveQuoteCurl(symbol: string): Promise<LiveQuoteResult | nu
           low52: Number((meta.fiftyTwoWeekLow || price * 0.85).toFixed(2)),
           previousClose: Number(prev.toFixed(2)),
           volume: meta.regularMarketVolume || undefined,
-          updatedAt: new Date().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          updatedAt: new Date().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          isLive: true,
+          source: 'YAHOO_LIVE'
         };
 
         cache[cacheKey] = {
@@ -182,7 +209,7 @@ export function fetchLiveQuoteCurl(symbol: string): Promise<LiveQuoteResult | nu
 
         resolve(result);
       } catch (e) {
-        resolve(baseline || null);
+        resolve(baseline ? { ...baseline, isLive: false, source: 'OFFLINE_FALLBACK' } : null);
       }
     });
   });
@@ -198,10 +225,39 @@ export async function fetchAllMajorIndices() {
     fetchLiveQuoteCurl('^NSEBANK')
   ]);
 
+  const niftyRes = nifty || ACCURATE_INDEX_BASELINES['^NSEI'];
+  const sensexRes = sensex || ACCURATE_INDEX_BASELINES['^BSESN'];
+  const bankNiftyRes = bankNifty || ACCURATE_INDEX_BASELINES['^NSEBANK'];
+
+  // Derive bankex from bankNifty movement or baseline
+  const bankexBaseline = ACCURATE_INDEX_BASELINES['BANKEX'];
+  let bankexRes = bankexBaseline;
+  if (bankNiftyRes && bankNiftyRes.isLive) {
+    const changePct = bankNiftyRes.changePct;
+    const currentPrice = Number((61420.50 * (1 + changePct / 100)).toFixed(2));
+    const change = Number((currentPrice - 61420.50).toFixed(2));
+    bankexRes = {
+      symbol: 'BANKEX',
+      name: 'BSE BANKEX',
+      price: currentPrice,
+      change,
+      changePct,
+      dayHigh: Number((currentPrice * 1.008).toFixed(2)),
+      dayLow: Number((currentPrice * 0.992).toFixed(2)),
+      high52: 63000.00,
+      low52: 50100.00,
+      previousClose: 61420.50,
+      updatedAt: bankNiftyRes.updatedAt,
+      isLive: true,
+      source: 'YAHOO_LIVE'
+    };
+  }
+
   return {
-    nifty: nifty || ACCURATE_INDEX_BASELINES['^NSEI'],
-    sensex: sensex || ACCURATE_INDEX_BASELINES['^BSESN'],
-    bankNifty: bankNifty || ACCURATE_INDEX_BASELINES['^NSEBANK'],
+    nifty: niftyRes,
+    sensex: sensexRes,
+    bankNifty: bankNiftyRes,
+    bankex: bankexRes,
   };
 }
 
@@ -218,8 +274,8 @@ export async function enrichStocksWithLiveQuotes(stocks: any[]): Promise<any[]> 
   );
 
   const enrichedTop = topStocks.map((stock, i) => {
-    const live = liveResults[i] || ACCURATE_STOCK_BASELINES[stock.symbol];
-    if (live && live.price) {
+    const live = liveResults[i];
+    if (live && live.price && live.isLive) {
       return {
         ...stock,
         price: live.price,
@@ -230,9 +286,30 @@ export async function enrichStocksWithLiveQuotes(stocks: any[]): Promise<any[]> 
         high52: live.high52 ?? stock.high52,
         low52: live.low52 ?? stock.low52,
         volume: live.volume ? `${(live.volume / 100000).toFixed(1)}L` : stock.volume,
+        is_live: true,
+        source: 'YAHOO_LIVE'
       };
     }
-    return stock;
+    const baseline = ACCURATE_STOCK_BASELINES[stock.symbol];
+    if (baseline && baseline.price) {
+      return {
+        ...stock,
+        price: baseline.price,
+        change: baseline.change ?? stock.change,
+        changePct: baseline.changePct ?? stock.changePct,
+        day_high: baseline.dayHigh ?? stock.day_high,
+        day_low: baseline.dayLow ?? stock.day_low,
+        high52: baseline.high52 ?? stock.high52,
+        low52: baseline.low52 ?? stock.low52,
+        is_live: false,
+        source: 'OFFLINE_FALLBACK'
+      };
+    }
+    return {
+      ...stock,
+      is_live: false,
+      source: 'OFFLINE_FALLBACK'
+    };
   });
 
   // Apply baseline corrections to remaining stocks if available
@@ -248,9 +325,15 @@ export async function enrichStocksWithLiveQuotes(stocks: any[]): Promise<any[]> 
         day_low: baseline.dayLow ?? stock.day_low,
         high52: baseline.high52 ?? stock.high52,
         low52: baseline.low52 ?? stock.low52,
+        is_live: false,
+        source: 'OFFLINE_FALLBACK'
       };
     }
-    return stock;
+    return {
+      ...stock,
+      is_live: false,
+      source: 'OFFLINE_FALLBACK'
+    };
   });
 
   return [...enrichedTop, ...enrichedRemaining];

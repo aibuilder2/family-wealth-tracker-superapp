@@ -492,6 +492,8 @@ export interface IndexScanResult {
   };
   breakout_line?: number;
   breakout_status?: string;
+  is_live?: boolean;
+  source?: string;
 }
 
 export type TravelTripType = 'job_official' | 'business_tour' | 'personal_family';

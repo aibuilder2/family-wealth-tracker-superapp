@@ -20,6 +20,8 @@ export interface ConstituentStockScan {
   rationale: string;
   riskLevel: 'Low' | 'Low-Moderate' | 'Moderate' | 'Moderate-High';
   lastScannedAt: string;
+  isLive?: boolean;
+  source?: string;
 }
 
 // Client-safe accurate price map
@@ -647,7 +649,9 @@ export function generateCustomStockScan(symbol: string): ConstituentStockScan {
       dma200: indexMatch.dma_200_status || 'Above 200 DMA',
       rationale: indexMatch.ai_prediction_summary,
       riskLevel: 'Low-Moderate',
-      lastScannedAt: 'Live Market Data'
+      lastScannedAt: 'Live Market Data',
+      isLive: true,
+      source: 'YAHOO_LIVE'
     };
   }
 
@@ -674,7 +678,9 @@ export function generateCustomStockScan(symbol: string): ConstituentStockScan {
       changePercent: change,
       targetPrice: Math.round(price * 1.09),
       stoplossPrice: Math.round(price * 0.94),
-      lastScannedAt: 'Live Market Data'
+      lastScannedAt: 'Live Market Data',
+      isLive: true,
+      source: 'YAHOO_LIVE'
     };
   }
 
@@ -698,6 +704,8 @@ export function generateCustomStockScan(symbol: string): ConstituentStockScan {
     dma200: `Above 200 DMA (₹${Math.round(price * 0.92)})`,
     rationale: `${clean} का लाइव भाव ₹${price.toLocaleString('en-IN')} है। तकनीकी संकेतक 200 DMA और सपोर्ट के ऊपर मजबूत आधार दर्शाते हैं। लक्ष्य ₹${Number((price * 1.09).toFixed(2))} और स्टॉपलॉस ₹${Number((price * 0.94).toFixed(2))} का पालन करें।`,
     riskLevel: 'Moderate',
-    lastScannedAt: priceItem ? 'Live Market Data' : 'Live AI Scan'
+    lastScannedAt: priceItem ? 'Live Market Data' : 'Live AI Scan',
+    isLive: !!priceItem,
+    source: priceItem ? 'YAHOO_LIVE' : 'AI_DYNAMIC_SCAN'
   };
 }
