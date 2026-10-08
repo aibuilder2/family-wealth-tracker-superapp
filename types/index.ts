@@ -470,6 +470,28 @@ export interface IndexScanResult {
   key_drivers: string[];
   top_movers?: { ticker: string; name: string; change_pct: number; signal: string }[];
   scanned_at: string;
+  // Advanced Technical Benchmarks & AI Tools
+  pe_ratio?: number;
+  industry_pe?: number;
+  pe_benchmark?: string;
+  pe_verdict?: string;
+  rsi_benchmark?: string;
+  rsi_verdict?: string;
+  macd_line?: number;
+  macd_signal_line?: number;
+  macd_verdict?: string;
+  ema_20?: number;
+  ema_50?: number;
+  ema_200?: number;
+  fibonacci_levels?: {
+    fib_236: number;
+    fib_382: number;
+    fib_500: number;
+    fib_618: number; // Golden ratio
+    fib_786: number;
+  };
+  breakout_line?: number;
+  breakout_status?: string;
 }
 
 export type TravelTripType = 'job_official' | 'business_tour' | 'personal_family';

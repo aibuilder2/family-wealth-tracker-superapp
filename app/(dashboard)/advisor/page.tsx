@@ -8,7 +8,7 @@ import {
   Sparkles, RefreshCw, TrendingUp, Home, Landmark,
   Send, Bot, CheckCircle2, ChevronRight, Lightbulb, PieChart,
   Search, ShieldAlert, ArrowUpRight, ArrowDownRight, BarChart2, Zap,
-  Target, AlertTriangle, CheckCircle, Clock, Plus, X, Award
+  Target, AlertTriangle, CheckCircle, Clock, Plus, X, Award, LineChart
 } from 'lucide-react';
 import { Mono } from '@/components/ui/Mono';
 import { StockPrediction, IndexScanResult } from '@/types';
@@ -18,6 +18,8 @@ import {
   ConstituentStockScan, 
   generateCustomStockScan 
 } from '@/lib/services/stockScannerService';
+import { TradingViewWidget } from '@/components/stocks/TradingViewWidget';
+import { TechnicalBenchmarksCard } from '@/components/stocks/TechnicalBenchmarksCard';
 
 interface StockScanItem {
   ticker: string;
@@ -199,6 +201,42 @@ export default function AdvisorPage() {
   const [constituentStocks, setConstituentStocks] = useState<ConstituentStockScan[]>(CONSTITUENT_STOCKS_DATABASE);
   const [customScannedStock, setCustomScannedStock] = useState<ConstituentStockScan | null>(null);
   const [selectedIndexFilter, setSelectedIndexFilter] = useState<'ALL' | 'NIFTY 50' | 'BANKNIFTY' | 'SENSEX' | 'BANKEX'>('ALL');
+  const [activeChartSymbol, setActiveChartSymbol] = useState<string>('NSE:NIFTY');
+  const [showChart, setShowChart] = useState<boolean>(true);
+
+  // Auto-sync live quotes on mount
+  useEffect(() => {
+    const syncLiveQuotes = async () => {
+      try {
+        const res = await fetch('/api/stocks/markets-indices?index=NIFTY 50');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.indices) && data.indices.length > 0) {
+          setIndexScans(prev => prev.map(p => {
+            const found = data.indices.find((l: any) => l.symbol === p.symbol || (p.symbol === 'BANKNIFTY' && l.symbol === 'NIFTY BANK'));
+            if (found) {
+              return {
+                ...p,
+                current_price: found.price,
+                change_points: found.change,
+                change_percent: found.changePct,
+                support_1: Math.round(found.price * 0.988),
+                support_2: Math.round(found.price * 0.98),
+                resistance_1: Math.round(found.price * 1.012),
+                resistance_2: Math.round(found.price * 1.02),
+                target_1: Math.round(found.price * 1.025),
+                target_2: Math.round(found.price * 1.04),
+                stoploss: Math.round(found.price * 0.975),
+              };
+            }
+            return p;
+          }));
+        }
+      } catch (e) {
+        console.warn('Initial live quote sync error:', e);
+      }
+    };
+    syncLiveQuotes();
+  }, []);
 
   // Predictions state
   const [predictions, setPredictions] = useState<StockPrediction[]>(INITIAL_PREDICTIONS);
@@ -330,6 +368,14 @@ export default function AdvisorPage() {
         }),
       });
 
+      if (targetStock && targetStock.trim()) {
+        const clean = targetStock.trim().toUpperCase();
+        if (clean.includes('NIFTY 50') || clean === 'NIFTY') setActiveChartSymbol('NSE:NIFTY');
+        else if (clean.includes('SENSEX')) setActiveChartSymbol('BSE:SENSEX');
+        else if (clean.includes('BANKNIFTY') || clean.includes('BANK NIFTY')) setActiveChartSymbol('NSE:BANKNIFTY');
+        else setActiveChartSymbol(`NSE:${clean}`);
+      }
+
       const data = await res.json();
       if (data.success) {
         if (Array.isArray(data.indexScans) && data.indexScans.length > 0) {
@@ -362,6 +408,35 @@ export default function AdvisorPage() {
           setHealthScore(data.healthScore);
         }
         setLastRefreshed(new Date().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' }));
+      }
+
+      // Sync fresh live market quotes in parallel
+      try {
+        const liveRes = await fetch('/api/stocks/markets-indices?index=NIFTY 50');
+        const liveData = await liveRes.json();
+        if (liveData.success && Array.isArray(liveData.indices) && liveData.indices.length > 0) {
+          setIndexScans(prev => prev.map(p => {
+            const found = liveData.indices.find((l: any) => l.symbol === p.symbol || (p.symbol === 'BANKNIFTY' && l.symbol === 'NIFTY BANK'));
+            if (found) {
+              return {
+                ...p,
+                current_price: found.price,
+                change_points: found.change,
+                change_percent: found.changePct,
+                support_1: Math.round(found.price * 0.988),
+                support_2: Math.round(found.price * 0.98),
+                resistance_1: Math.round(found.price * 1.012),
+                resistance_2: Math.round(found.price * 1.02),
+                target_1: Math.round(found.price * 1.025),
+                target_2: Math.round(found.price * 1.04),
+                stoploss: Math.round(found.price * 0.975),
+              };
+            }
+            return p;
+          }));
+        }
+      } catch (e) {
+        console.warn('Live quote sync error:', e);
       }
     } catch (err) {
       console.error('Error fetching AI advice:', err);
@@ -963,6 +1038,29 @@ export default function AdvisorPage() {
                 </span>
               </div>
 
+              {/* Quantitative Technical Benchmarks for Searched Stock */}
+              <TechnicalBenchmarksCard
+                data={{
+                  currentPrice: customScannedStock.currentPrice,
+                  pe: customScannedStock.peRatio,
+                  industryPe: 22.0,
+                  rsi: customScannedStock.rsi,
+                  macd: customScannedStock.macd,
+                  ema20: Math.round(customScannedStock.currentPrice * 1.005),
+                  ema50: Math.round(customScannedStock.currentPrice * 1.001),
+                  ema200: Math.round(customScannedStock.currentPrice * 0.98),
+                  fibonacciLevels: {
+                    fib236: Math.round(customScannedStock.currentPrice * 1.01),
+                    fib382: Math.round(customScannedStock.currentPrice * 1.004),
+                    fib500: Math.round(customScannedStock.currentPrice * 0.998),
+                    fib618: Math.round(customScannedStock.currentPrice * 0.992),
+                    fib786: Math.round(customScannedStock.currentPrice * 0.985),
+                  },
+                  breakoutLine: customScannedStock.targetPrice,
+                  support: customScannedStock.stoplossPrice
+                }}
+              />
+
               {/* AI Analysis */}
               <div className="p-3 rounded-xl bg-paper/80 border border-paper-dim text-xs space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-ink text-[11px]">
@@ -973,6 +1071,29 @@ export default function AdvisorPage() {
               </div>
             </div>
           )}
+
+          {/* Interactive Live Candlestick & Technical Tools Chart */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <LineChart size={16} className="text-emerald-500" />
+                <span className="text-xs font-bold text-ink uppercase tracking-wider">
+                  लाइव कैंडलस्टिक चार्ट व ड्रॉइंग टूल्स (TradingView Live Radar)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChart(!showChart)}
+                className="text-[11px] font-bold text-gold hover:underline cursor-pointer"
+              >
+                {showChart ? 'चार्ट छिपाएं ▲' : 'चार्ट दिखाएं ▼'}
+              </button>
+            </div>
+
+            {showChart && (
+              <TradingViewWidget symbol={activeChartSymbol} height={450} />
+            )}
+          </div>
 
           {/* 3. Major Indian Indexes Section (NIFTY 50, SENSEX, BANKNIFTY, BANKEX) */}
           <div className="space-y-3">

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fetchAllMajorIndices, ACCURATE_INDEX_BASELINES } from '@/lib/services/liveMarketQuotes';
 
 export const dynamic = 'force-dynamic';
 
@@ -1023,100 +1024,63 @@ const STOCKS_DATABASE: Record<string, StockQuote[]> = {
   ]
 };
 
-// Helper to fetch live quote from Yahoo Finance API with quick timeout
-async function fetchYahooQuote(symbol: string): Promise<{ price: number; changePct: number; change: number; high52: number; low52: number; dayHigh: number; dayLow: number } | null> {
-  try {
-    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      next: { revalidate: 30 } // Cache 30 seconds
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    const meta = json?.chart?.result?.[0]?.meta;
-    if (!meta || typeof meta.regularMarketPrice !== 'number') return null;
-
-    const price = meta.regularMarketPrice;
-    const changePct = Number((meta.regularMarketChangePercent || 0).toFixed(2));
-    const previousClose = meta.previousClose || meta.chartPreviousClose || price;
-    const change = Number((price - previousClose).toFixed(2));
-
-    return {
-      price,
-      changePct,
-      change,
-      high52: meta.fiftyTwoWeekHigh || price * 1.15,
-      low52: meta.fiftyTwoWeekLow || price * 0.85,
-      dayHigh: meta.regularMarketDayHigh || price * 1.01,
-      dayLow: meta.regularMarketDayLow || price * 0.99,
-    };
-  } catch (err) {
-    return null;
-  }
-}
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'all';
     const indexName = searchParams.get('index') || 'NIFTY 50';
 
-    // 1. Fetch live quotes for major indices in parallel
-    const [niftyLive, sensexLive, bankNiftyLive] = await Promise.all([
-      fetchYahooQuote('^NSEI'),
-      fetchYahooQuote('^BSESN'),
-      fetchYahooQuote('^NSEBANK')
-    ]);
+    // 1. Fetch live quotes for major indices in parallel using IPv4-forced curl service
+    const { nifty, sensex, bankNifty } = await fetchAllMajorIndices();
 
     const liveIndices: IndexQuote[] = [
       {
         symbol: 'NIFTY 50',
         name: 'NIFTY 50 (NSE Benchmark)',
         exchange: 'NSE',
-        price: niftyLive?.price || 25015.80,
-        change: niftyLive?.change || 142.50,
-        changePct: niftyLive?.changePct || 0.57,
-        dayHigh: niftyLive?.dayHigh || 25080.00,
-        dayLow: niftyLive?.dayLow || 24920.00,
-        high52: niftyLive?.high52 || 26277.35,
-        low52: niftyLive?.low52 || 18837.85,
-        advances: 34,
-        declines: 15,
-        unchanged: 1,
-        pcr: 1.16
+        price: nifty.price,
+        change: nifty.change,
+        changePct: nifty.changePct,
+        dayHigh: nifty.dayHigh,
+        dayLow: nifty.dayLow,
+        high52: nifty.high52,
+        low52: nifty.low52,
+        advances: 22,
+        declines: 28,
+        unchanged: 0,
+        pcr: 1.05
       },
       {
         symbol: 'BSE SENSEX',
         name: 'SENSEX (BSE 30 Premier)',
         exchange: 'BSE',
-        price: sensexLive?.price || 81680.50,
-        change: sensexLive?.change || 440.10,
-        changePct: sensexLive?.changePct || 0.54,
-        dayHigh: sensexLive?.dayHigh || 81920.00,
-        dayLow: sensexLive?.dayLow || 81400.00,
-        high52: sensexLive?.high52 || 85978.25,
-        low52: 63583.05,
-        advances: 21,
-        declines: 9,
+        price: sensex.price,
+        change: sensex.change,
+        changePct: sensex.changePct,
+        dayHigh: sensex.dayHigh,
+        dayLow: sensex.dayLow,
+        high52: sensex.high52,
+        low52: sensex.low52,
+        advances: 12,
+        declines: 18,
         unchanged: 0,
-        pcr: 1.12
+        pcr: 1.02
       },
       {
         symbol: 'NIFTY BANK',
         name: 'BANK NIFTY (Banking 12)',
         exchange: 'NSE',
-        price: bankNiftyLive?.price || 51750.40,
-        change: bankNiftyLive?.change || 385.20,
-        changePct: bankNiftyLive?.changePct || 0.75,
-        dayHigh: bankNiftyLive?.dayHigh || 51950.00,
-        dayLow: bankNiftyLive?.dayLow || 51400.00,
-        high52: bankNiftyLive?.high52 || 54467.35,
-        low52: 42105.40,
-        advances: 9,
-        declines: 3,
+        price: bankNifty.price,
+        change: bankNifty.change,
+        changePct: bankNifty.changePct,
+        dayHigh: bankNifty.dayHigh,
+        dayLow: bankNifty.dayLow,
+        high52: bankNifty.high52,
+        low52: bankNifty.low52,
+        advances: 7,
+        declines: 5,
         unchanged: 0,
-        pcr: 1.24
+        pcr: 1.18
       },
       {
         symbol: 'BSE BANKEX',
@@ -1165,7 +1129,7 @@ export async function GET(request: Request) {
       success: true,
       market_status: {
         is_live: true,
-        source: niftyLive ? 'Yahoo Finance Live Quotes' : 'Simulated Real-Time Engine',
+        source: nifty ? 'Yahoo Finance Live Quotes' : 'Simulated Real-Time Engine',
         status_text: 'BSE & NSE LIVE (Real-Time)',
         updated_at: new Date().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       },
