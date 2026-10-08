@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, memo } from 'react';
+import React, { memo } from 'react';
 
 export interface AiChartBreakoutOverlay {
   breakoutResistance?: number;
@@ -26,8 +26,6 @@ function TradingViewWidgetComponent({
   theme = 'light',
   aiBreakout
 }: TradingViewWidgetProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
   // Normalize symbol for TradingView
   const cleanSymbol = (() => {
     const s = (symbol || 'NSE:NIFTY').toUpperCase().trim();
@@ -39,52 +37,8 @@ function TradingViewWidgetComponent({
     return `NSE:${s}`;
   })();
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    // Clear previous widget
-    containerRef.current.innerHTML = '';
-
-    const widgetContainer = document.createElement('div');
-    widgetContainer.className = 'tradingview-widget-container__widget';
-    widgetContainer.style.height = '100%';
-    widgetContainer.style.width = '100%';
-    containerRef.current.appendChild(widgetContainer);
-
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.type = 'text/javascript';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol: cleanSymbol,
-      interval: 'D',
-      timezone: 'Asia/Kolkata',
-      theme: theme,
-      style: '1', // Candlestick style
-      locale: 'in',
-      enable_publishing: false,
-      allow_symbol_change: true,
-      calendar: false,
-      hide_top_toolbar: false,
-      hide_legend: false,
-      save_image: true,
-      studies: [
-        'RSI@tv-basicstudies',
-        'MACD@tv-basicstudies',
-        'MASimple@tv-basicstudies'
-      ],
-      support_host: 'https://www.tradingview.com'
-    });
-
-    containerRef.current.appendChild(script);
-
-    return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
-    };
-  }, [cleanSymbol, theme]);
+  const heightStyle = typeof height === 'number' ? `${height}px` : height;
+  const iframeUrl = `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(cleanSymbol)}&interval=D&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%22RSI%40tv-basicstudies%22%2C%22MACD%40tv-basicstudies%22%5D&theme=${theme}&style=1&timezone=Asia%2FKolkata&locale=in`;
 
   return (
     <div className="w-full rounded-2xl overflow-hidden border border-paper-dim bg-paper shadow-sm space-y-0">
@@ -104,9 +58,16 @@ function TradingViewWidgetComponent({
             </span>
           )}
         </div>
-        <span className="text-[10px] text-ink-muted">
-          📐 बाएं टूलबार से ट्रेंडलाइन • हॉरिजॉन्टल ब्रेकआउट लाइन • फाइबोनैचि ड्राइंग उपलब्ध
-        </span>
+        <div className="flex items-center gap-2">
+          <a 
+            href={`https://in.tradingview.com/symbols/${cleanSymbol.replace(':', '-')}/`}
+            target="_blank" 
+            rel="noreferrer"
+            className="text-[10px] font-bold text-blue-600 hover:underline"
+          >
+            TradingView फुलस्क्रीन ↗
+          </a>
+        </div>
       </div>
 
       {/* 2. AI Breakout & Technical HUD Ribbon (Overlaid directly above chart) */}
@@ -153,7 +114,7 @@ function TradingViewWidgetComponent({
                 <span className="font-mono font-black text-xs text-paper block mt-0.5">
                   ₹{aiBreakout.target1.toLocaleString('en-IN')}
                 </span>
-                <span className="text-[8px] text-blue-300">पहला मुनाफावसूली स्तर</span>
+                <span className="text-[8px] text-blue-300">पहला मुनाफा स्तर</span>
               </div>
             )}
 
@@ -179,21 +140,22 @@ function TradingViewWidgetComponent({
               </div>
             )}
           </div>
-
-          <div className="bg-black/20 rounded-md px-2.5 py-1 text-[10px] text-paper-muted flex items-center justify-between">
-            <span>
-              💡 <strong>चार्ट पर लाइन कैसे बनाएं:</strong> चार्ट के बाएं टूलबार (Left Toolbar) से <strong className="text-gold">"Horizontal Line (Alt+H)"</strong> चुनें और ऊपर दिए गए ब्रेकआउट स्तर पर क्लिक करें।
-            </span>
-          </div>
         </div>
       )}
 
-      {/* 3. TradingView Chart Canvas */}
+      {/* 3. Direct TradingView Chart Iframe (Always Loads 100% Reliably) */}
       <div 
-        ref={containerRef} 
-        style={{ height: typeof height === 'number' ? `${height}px` : height }}
-        className="w-full relative"
-      />
+        style={{ height: heightStyle }}
+        className="w-full relative bg-paper-dim/10"
+      >
+        <iframe
+          src={iframeUrl}
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+          title={`TradingView Chart - ${cleanSymbol}`}
+          loading="lazy"
+          allowFullScreen
+        />
+      </div>
     </div>
   );
 }

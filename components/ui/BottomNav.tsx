@@ -13,9 +13,10 @@ import { ALL_APP_MODULES, STORAGE_KEY_PINNED_MODULES } from '@/lib/constants/mod
 
 export const MAIN_TABS = [
   { key: 'home', href: '/home', label: 'Home', icon: Home },
+  { key: 'market', href: '/market', label: 'मार्केट', icon: BarChart2 },
+  { key: 'advisor', href: '/advisor', label: 'AI रडार', icon: Bot },
   { key: 'money', href: '/money', label: 'Money', icon: Wallet },
   { key: 'wealth', href: '/wealth', label: 'Wealth', icon: PiggyBank },
-  { key: 'vault', href: '/vault', label: 'Vault', icon: FileText },
 ];
 
 export function BottomNav() {

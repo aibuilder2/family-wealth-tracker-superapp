@@ -8,7 +8,7 @@ import { ProgressRing } from '@/components/ui/ProgressRing';
 import { Mono } from '@/components/ui/Mono';
 import { TransactionList } from '@/components/money/TransactionList';
 import { BusinessShortcutsGrid } from '@/components/home/BusinessShortcutsGrid';
-import { ArrowUpRight, ArrowDownRight, ChevronRight, HandCoins, PieChart, Bot, Zap } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ChevronRight, HandCoins, PieChart, Bot, Zap, BarChart2 } from 'lucide-react';
 
 export default function HomePage() {
   const {
@@ -84,6 +84,30 @@ export default function HomePage() {
               </p>
               <p className="text-[10px] text-ink-muted">
                 किस मद में ज्यादा खर्च हुआ & वित्तीय स्वतंत्रता स्कोर देखें
+              </p>
+            </div>
+          </div>
+          <ChevronRight size={14} className="text-ink-muted group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+      </div>
+
+      {/* 2.55 Moneycontrol Market Terminal Quick Access Banner */}
+      <div className="px-4">
+        <Link 
+          href="/market" 
+          className="rounded-xl px-4 py-2.5 bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-transparent border border-blue-500/25 flex items-center justify-between shadow-xs hover:border-blue-500/50 transition-all group"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="p-1.5 bg-blue-600/20 text-blue-700 dark:text-blue-400 rounded-lg">
+              <BarChart2 size={15} />
+            </span>
+            <div>
+              <p className="text-xs font-bold text-ink group-hover:text-blue-600 transition-colors flex items-center gap-1.5">
+                <span>मनीकंट्रोल मार्केट टर्मिनल</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-600/20 text-blue-700 dark:text-blue-300 font-bold">NSE & BSE लाइव</span>
+              </p>
+              <p className="text-[10px] text-ink-muted">
+                NIFTY 50, SENSEX, सभी 50+ शेयर्स, P/E वैल्यूएशन व लाइव चार्ट →
               </p>
             </div>
           </div>

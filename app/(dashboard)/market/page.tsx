@@ -110,6 +110,10 @@ export default function MarketTerminalPage() {
 
   useEffect(() => {
     fetchMarketData(selectedIndex);
+    const interval = setInterval(() => {
+      fetchMarketData(selectedIndex);
+    }, 30000);
+    return () => clearInterval(interval);
   }, [selectedIndex]);
 
   // Unique sectors for filter dropdown
