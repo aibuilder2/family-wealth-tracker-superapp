@@ -1,5 +1,3 @@
-import { execFile } from 'child_process';
-
 export interface LiveQuoteResult {
   symbol: string;
   name: string;
@@ -140,79 +138,81 @@ export const ACCURATE_STOCK_BASELINES: Record<string, Partial<LiveQuoteResult>> 
 };
 
 /**
- * Fetch a single quote using curl.exe with -4 (forces IPv4)
+ * Fetch a single quote using native fetch with Yahoo Finance API (works on Windows, Linux, Vercel)
  */
-export function fetchLiveQuoteCurl(symbol: string): Promise<LiveQuoteResult | null> {
+export async function fetchLiveQuoteCurl(symbol: string): Promise<LiveQuoteResult | null> {
   const cleanKey = symbol.replace('.NS', '').replace('.BO', '').replace('^', '').toUpperCase().trim();
   const cacheKey = symbol.toUpperCase().trim();
 
   const now = Date.now();
   if (cache[cacheKey] && cache[cacheKey].expiry > now) {
-    return Promise.resolve(cache[cacheKey].data);
+    return cache[cacheKey].data;
   }
 
-  return new Promise((resolve) => {
-    // Resolve Yahoo symbol via map or default to .NS
-    const yahooSymbol = YAHOO_TICKER_MAP[cleanKey] || (symbol.startsWith('^') || symbol.includes('.') ? symbol : `${cleanKey}.NS`);
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=1d`;
-    
-    execFile('curl.exe', [
-      '-4',
-      '-s',
-      '-m', '6',
-      '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      '-H', 'Accept: application/json, text/plain, */*',
-      '-H', 'Referer: https://finance.yahoo.com/',
-      url
-    ], (error, stdout) => {
-      const baseline = (ACCURATE_INDEX_BASELINES[symbol] || ACCURATE_INDEX_BASELINES[yahooSymbol] || ACCURATE_STOCK_BASELINES[cleanKey]) as LiveQuoteResult | undefined;
+  // Resolve Yahoo symbol via map or default to .NS
+  const yahooSymbol = YAHOO_TICKER_MAP[cleanKey] || (symbol.startsWith('^') || symbol.includes('.') ? symbol : `${cleanKey}.NS`);
+  const baseline = (ACCURATE_INDEX_BASELINES[symbol] || ACCURATE_INDEX_BASELINES[yahooSymbol] || ACCURATE_STOCK_BASELINES[cleanKey]) as LiveQuoteResult | undefined;
 
-      if (error || !stdout) {
-        resolve(baseline ? { ...baseline, isLive: false, source: 'OFFLINE_FALLBACK' } : null);
-        return;
-      }
+  const endpoints = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=1d`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=1d`
+  ];
 
-      try {
-        const json = JSON.parse(stdout);
-        const meta = json?.chart?.result?.[0]?.meta;
-        if (!meta || typeof meta.regularMarketPrice !== 'number') {
-          resolve(baseline ? { ...baseline, isLive: false, source: 'OFFLINE_FALLBACK' } : null);
-          return;
+  for (const url of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Referer': 'https://finance.yahoo.com/'
         }
+      });
+      clearTimeout(timeoutId);
 
-        const price = Number(meta.regularMarketPrice.toFixed(2));
-        const changePct = Number((meta.regularMarketChangePercent || 0).toFixed(2));
-        const prev = meta.previousClose || meta.chartPreviousClose || price;
-        const change = Number((price - prev).toFixed(2));
+      if (!res.ok) continue;
 
-        const result: LiveQuoteResult = {
-          symbol: cleanKey,
-          name: meta.shortName || meta.longName || cleanKey,
-          price,
-          change,
-          changePct,
-          dayHigh: Number((meta.regularMarketDayHigh || price * 1.008).toFixed(2)),
-          dayLow: Number((meta.regularMarketDayLow || price * 0.992).toFixed(2)),
-          high52: Number((meta.fiftyTwoWeekHigh || price * 1.15).toFixed(2)),
-          low52: Number((meta.fiftyTwoWeekLow || price * 0.85).toFixed(2)),
-          previousClose: Number(prev.toFixed(2)),
-          volume: meta.regularMarketVolume || undefined,
-          updatedAt: new Date().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          isLive: true,
-          source: 'YAHOO_LIVE'
-        };
+      const json = await res.json();
+      const meta = json?.chart?.result?.[0]?.meta;
+      if (!meta || typeof meta.regularMarketPrice !== 'number') continue;
 
-        cache[cacheKey] = {
-          data: result,
-          expiry: Date.now() + CACHE_TTL_MS
-        };
+      const price = Number(meta.regularMarketPrice.toFixed(2));
+      const changePct = Number((meta.regularMarketChangePercent || 0).toFixed(2));
+      const prev = meta.previousClose || meta.chartPreviousClose || price;
+      const change = Number((price - prev).toFixed(2));
 
-        resolve(result);
-      } catch (e) {
-        resolve(baseline ? { ...baseline, isLive: false, source: 'OFFLINE_FALLBACK' } : null);
-      }
-    });
-  });
+      const result: LiveQuoteResult = {
+        symbol: cleanKey,
+        name: meta.shortName || meta.longName || cleanKey,
+        price,
+        change,
+        changePct,
+        dayHigh: Number((meta.regularMarketDayHigh || price * 1.008).toFixed(2)),
+        dayLow: Number((meta.regularMarketDayLow || price * 0.992).toFixed(2)),
+        high52: Number((meta.fiftyTwoWeekHigh || price * 1.15).toFixed(2)),
+        low52: Number((meta.fiftyTwoWeekLow || price * 0.85).toFixed(2)),
+        previousClose: Number(prev.toFixed(2)),
+        volume: meta.regularMarketVolume || undefined,
+        updatedAt: new Date().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        isLive: true,
+        source: 'YAHOO_LIVE'
+      };
+
+      cache[cacheKey] = {
+        data: result,
+        expiry: Date.now() + CACHE_TTL_MS
+      };
+
+      return result;
+    } catch (e) {
+      // try fallback endpoint
+    }
+  }
+
+  return baseline ? { ...baseline, isLive: false, source: 'OFFLINE_FALLBACK' } : null;
 }
 
 /**

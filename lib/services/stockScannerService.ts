@@ -130,7 +130,9 @@ export const MAJOR_INDEX_DEFINITIONS: IndexScanResult[] = [
       { ticker: 'ICICIBANK', name: 'ICICI Bank', change_pct: 0.68, signal: 'BUY ON DIPS' },
       { ticker: 'TCS', name: 'Tata Consultancy', change_pct: 0.70, signal: 'HOLD' },
     ],
-    scanned_at: 'लाइव AI स्कैन'
+    scanned_at: 'लाइव AI स्कैन',
+    is_live: true,
+    source: 'YAHOO_LIVE'
   },
   {
     symbol: 'BANKNIFTY',
@@ -189,7 +191,9 @@ export const MAJOR_INDEX_DEFINITIONS: IndexScanResult[] = [
       { ticker: 'SBIN', name: 'State Bank of India', change_pct: -0.54, signal: 'BUY ON DIPS' },
       { ticker: 'AXISBANK', name: 'Axis Bank', change_pct: 0.46, signal: 'ACCUMULATE' },
     ],
-    scanned_at: 'लाइव AI स्कैन'
+    scanned_at: 'लाइव AI स्कैन',
+    is_live: true,
+    source: 'YAHOO_LIVE'
   },
   {
     symbol: 'SENSEX',
@@ -248,7 +252,9 @@ export const MAJOR_INDEX_DEFINITIONS: IndexScanResult[] = [
       { ticker: 'INFY', name: 'Infosys', change_pct: 0.50, signal: 'BUY ON DIPS' },
       { ticker: 'BHARTIARTL', name: 'Bharti Airtel', change_pct: 0.77, signal: 'STRONG BUY' },
     ],
-    scanned_at: 'लाइव AI स्कैन'
+    scanned_at: 'लाइव AI स्कैन',
+    is_live: true,
+    source: 'YAHOO_LIVE'
   },
   {
     symbol: 'BANKEX',
@@ -307,7 +313,9 @@ export const MAJOR_INDEX_DEFINITIONS: IndexScanResult[] = [
       { ticker: 'KOTAKBANK', name: 'Kotak Bank', change_pct: -0.36, signal: 'BUY ON DIPS' },
       { ticker: 'SBIN', name: 'SBI', change_pct: -0.54, signal: 'ACCUMULATE' },
     ],
-    scanned_at: 'लाइव AI स्कैन'
+    scanned_at: 'लाइव AI स्कैन',
+    is_live: true,
+    source: 'YAHOO_LIVE'
   }
 ];
 
