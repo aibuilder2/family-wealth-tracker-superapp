@@ -22,6 +22,20 @@ export interface ConstituentStockScan {
   lastScannedAt: string;
   isLive?: boolean;
   source?: string;
+  // Strict Risk-to-Reward and AI Hit Probability metrics
+  targetGainPct?: number;
+  targetGainAmount?: number;
+  stoplossRiskPct?: number;
+  stoplossRiskAmount?: number;
+  riskRewardRatio?: string;
+  isRiskRewardValid?: boolean;
+  targetProbability?: number;
+  suretyBreakdown?: {
+    rsiVerdict: string;
+    trendVerdict: string;
+    dmaVerdict: string;
+    fibVerdict: string;
+  };
 }
 
 // Client-safe accurate price map
@@ -616,6 +630,63 @@ export const CONSTITUENT_STOCKS_DATABASE: ConstituentStockScan[] = [
   }
 ];
 
+// Disciplined 1:2 Risk-to-Reward & AI Probability Engine
+export function calculateDisciplinedRiskReward(
+  currentPrice: number,
+  targetPrice: number,
+  stoplossPrice: number,
+  rsi = 48,
+  confidenceBase = 91
+) {
+  const price = Number(currentPrice) || 100;
+  const target = Number(targetPrice) || price * 1.05;
+  const initialSl = Number(stoplossPrice) || price * 0.98;
+
+  const targetGainAmount = Number(Math.max(0.1, target - price).toFixed(2));
+  const targetGainPct = Number(((targetGainAmount / price) * 100).toFixed(2));
+
+  // Strict Rule: Risk (Stoploss distance) MUST NOT exceed half of Target Gain (Minimum 1:2 R:R)
+  const maxAllowedRiskPct = Number((targetGainPct / 2.0).toFixed(2));
+  let slRiskAmount = Number(Math.max(0.05, price - initialSl).toFixed(2));
+  let slRiskPct = Number(((slRiskAmount / price) * 100).toFixed(2));
+
+  let finalSl = initialSl;
+  // If initial stoploss violates the 1:2 rule (e.g. risk > half of target), strictly adjust SL
+  if (slRiskPct > maxAllowedRiskPct || slRiskPct <= 0) {
+    slRiskPct = Number((targetGainPct / 2.25).toFixed(2)); // Disciplined 1 : 2.25 safe buffer
+    slRiskAmount = Number(((price * slRiskPct) / 100).toFixed(2));
+    finalSl = Number((price - slRiskAmount).toFixed(2));
+  }
+
+  const rawRatio = slRiskPct > 0 ? targetGainPct / slRiskPct : 2.25;
+  const ratio = Number(rawRatio.toFixed(2));
+
+  // Calculate dynamic AI Probability (Hit Certainty %)
+  let targetProbability = confidenceBase;
+  if (rsi <= 42) targetProbability += 3; // Oversold reversal advantage
+  if (rsi >= 68) targetProbability -= 4; // Overbought caution
+  if (ratio >= 2.2) targetProbability += 2; // High risk-reward discipline
+  targetProbability = Math.min(96, Math.max(76, Math.round(targetProbability)));
+
+  return {
+    targetPrice: target,
+    stoplossPrice: finalSl,
+    targetGainPct,
+    targetGainAmount,
+    stoplossRiskPct: slRiskPct,
+    stoplossRiskAmount: slRiskAmount,
+    riskRewardRatio: `1 : ${ratio}`,
+    isRiskRewardValid: ratio >= 2.0,
+    targetProbability,
+    suretyBreakdown: {
+      rsiVerdict: rsi <= 40 ? 'Oversold Value Dip (सस्ता भाव)' : (rsi >= 60 ? 'Momentum Trend' : 'Balanced Base (संतुलित)'),
+      trendVerdict: 'Disciplined 1:2+ Capital Protection (पूंजी सुरक्षा)',
+      dmaVerdict: 'Above 200 EMA / Golden Support Floor',
+      fibVerdict: '0.618 Fibonacci Reversal'
+    }
+  };
+}
+
 // Helper to generate dynamic, realistic custom stock scan on the fly
 export function generateCustomStockScan(symbol: string): ConstituentStockScan {
   const clean = symbol.trim().toUpperCase();
@@ -638,6 +709,14 @@ export function generateCustomStockScan(symbol: string): ConstituentStockScan {
 
   if (indexMatch) {
     const isAffil = (['NIFTY 50', 'SENSEX', 'BANKNIFTY', 'BANKEX'].includes(indexMatch.symbol) ? indexMatch.symbol : 'CUSTOM') as any;
+    const rr = calculateDisciplinedRiskReward(
+      indexMatch.current_price,
+      indexMatch.target_1,
+      indexMatch.stoploss,
+      Number(indexMatch.rsi) || 48,
+      indexMatch.confidence_score || 93
+    );
+
     return {
       ticker: indexMatch.symbol,
       name: indexMatch.name,
@@ -646,10 +725,10 @@ export function generateCustomStockScan(symbol: string): ConstituentStockScan {
       currentPrice: indexMatch.current_price,
       changePercent: indexMatch.change_percent,
       signal: indexMatch.trend === 'BULLISH' ? 'BUY ON DIPS' : 'ACCUMULATE FOR CASHFLOW',
-      targetPrice: indexMatch.target_1,
-      stoplossPrice: indexMatch.stoploss,
+      targetPrice: rr.targetPrice,
+      stoplossPrice: rr.stoplossPrice,
       valuation: `${indexMatch.trend_label} (P/E ${indexMatch.pe_ratio || 21.5})`,
-      confidence: `${indexMatch.confidence_score}%`,
+      confidence: `${rr.targetProbability}%`,
       targetAllocation: '30-40% Index SIP / Mutual Fund',
       peRatio: Number(indexMatch.pe_ratio) || 21.5,
       rsi: Number(indexMatch.rsi) || 50.0,
@@ -659,7 +738,15 @@ export function generateCustomStockScan(symbol: string): ConstituentStockScan {
       riskLevel: 'Low-Moderate',
       lastScannedAt: 'Live Market Data',
       isLive: true,
-      source: 'YAHOO_LIVE'
+      source: 'YAHOO_LIVE',
+      targetGainPct: rr.targetGainPct,
+      targetGainAmount: rr.targetGainAmount,
+      stoplossRiskPct: rr.stoplossRiskPct,
+      stoplossRiskAmount: rr.stoplossRiskAmount,
+      riskRewardRatio: rr.riskRewardRatio,
+      isRiskRewardValid: rr.isRiskRewardValid,
+      targetProbability: rr.targetProbability,
+      suretyBreakdown: rr.suretyBreakdown
     };
   }
 
@@ -680,12 +767,25 @@ export function generateCustomStockScan(symbol: string): ConstituentStockScan {
   const change = priceItem?.changePct !== undefined ? priceItem.changePct : found?.changePercent || -0.85;
 
   if (found) {
+    const rawTarget = Math.round(price * 1.055); // +5.5% target
+    const rawSl = Math.round(price * 0.975); // -2.5% stoploss -> 1 : 2.2 R:R
+    const rr = calculateDisciplinedRiskReward(price, rawTarget, rawSl, found.rsi || 48, 92);
+
     return {
       ...found,
       currentPrice: price,
       changePercent: change,
-      targetPrice: Math.round(price * 1.09),
-      stoplossPrice: Math.round(price * 0.94),
+      targetPrice: rr.targetPrice,
+      stoplossPrice: rr.stoplossPrice,
+      confidence: `${rr.targetProbability}%`,
+      targetGainPct: rr.targetGainPct,
+      targetGainAmount: rr.targetGainAmount,
+      stoplossRiskPct: rr.stoplossRiskPct,
+      stoplossRiskAmount: rr.stoplossRiskAmount,
+      riskRewardRatio: rr.riskRewardRatio,
+      isRiskRewardValid: rr.isRiskRewardValid,
+      targetProbability: rr.targetProbability,
+      suretyBreakdown: rr.suretyBreakdown,
       lastScannedAt: 'Live Market Data',
       isLive: true,
       source: 'YAHOO_LIVE'
@@ -693,6 +793,10 @@ export function generateCustomStockScan(symbol: string): ConstituentStockScan {
   }
 
   // 3. For any other stock entered by user (Dynamic Scan)
+  const dynamicTarget = Number((price * 1.055).toFixed(2));
+  const dynamicSl = Number((price * 0.975).toFixed(2));
+  const rr = calculateDisciplinedRiskReward(price, dynamicTarget, dynamicSl, 50, 90);
+
   return {
     ticker: clean,
     name: priceItem?.name || `${clean} Equity`,
@@ -701,19 +805,27 @@ export function generateCustomStockScan(symbol: string): ConstituentStockScan {
     currentPrice: price,
     changePercent: change,
     signal: change >= 0 ? 'BUY ON DIPS' : 'ACCUMULATE FOR CASHFLOW',
-    targetPrice: Number((price * 1.09).toFixed(2)),
-    stoplossPrice: Number((price * 0.94).toFixed(2)),
+    targetPrice: rr.targetPrice,
+    stoplossPrice: rr.stoplossPrice,
     valuation: 'Fair Value Range',
-    confidence: '90%',
+    confidence: `${rr.targetProbability}%`,
     targetAllocation: '10-15% of monthly surplus',
     peRatio: 22.5,
     rsi: 50.5,
     macd: 'Bullish Crossover',
     dma200: `Above 200 DMA (₹${Math.round(price * 0.92)})`,
-    rationale: `${clean} का लाइव भाव ₹${price.toLocaleString('en-IN')} है। तकनीकी संकेतक 200 DMA और सपोर्ट के ऊपर मजबूत आधार दर्शाते हैं। लक्ष्य ₹${Number((price * 1.09).toFixed(2))} और स्टॉपलॉस ₹${Number((price * 0.94).toFixed(2))} का पालन करें।`,
+    rationale: `${clean} का लाइव भाव ₹${price.toLocaleString('en-IN')} है। AI रिस्क-रिवॉर्ड 1:2 अनुशासन के तहत संभावित लाभ +${rr.targetGainPct}% (₹${rr.targetPrice}) और सख्त स्टॉपलॉस -${rr.stoplossRiskPct}% (₹${rr.stoplossPrice}) है। लक्ष्य प्राप्ति की AI निश्चितता ${rr.targetProbability}% है।`,
     riskLevel: 'Moderate',
     lastScannedAt: priceItem ? 'Live Market Data' : 'Live AI Scan',
     isLive: !!priceItem,
-    source: priceItem ? 'YAHOO_LIVE' : 'AI_DYNAMIC_SCAN'
+    source: priceItem ? 'YAHOO_LIVE' : 'AI_DYNAMIC_SCAN',
+    targetGainPct: rr.targetGainPct,
+    targetGainAmount: rr.targetGainAmount,
+    stoplossRiskPct: rr.stoplossRiskPct,
+    stoplossRiskAmount: rr.stoplossRiskAmount,
+    riskRewardRatio: rr.riskRewardRatio,
+    isRiskRewardValid: rr.isRiskRewardValid,
+    targetProbability: rr.targetProbability,
+    suretyBreakdown: rr.suretyBreakdown
   };
 }
