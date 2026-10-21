@@ -604,9 +604,30 @@ export function MilkDairyHisabModule() {
                 </div>
               </div>
 
-              {/* 1-Click Quantity Chips */}
-              <div className="space-y-1">
-                <span className="text-[9px] font-bold text-ink-muted uppercase block">दूध मात्रा (लीटर):</span>
+              {/* Quantity Selector: 1-Click Buttons + Direct Custom Number Input */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-bold text-ink-muted uppercase">दूध मात्रा (लीटर):</span>
+                  {/* Direct Custom Editable Input */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-ink-muted">सीधा लिखें:</span>
+                    <input
+                      type="number"
+                      step="0.25"
+                      min="0"
+                      max="100"
+                      value={record.isSkipped ? 0 : record.litres}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        setDayLitres(day, isNaN(val) ? 0 : val, isNaN(val) || val === 0);
+                      }}
+                      className="w-14 px-1.5 py-0.5 rounded-lg border border-paper-dim bg-paper text-xs font-mono font-bold text-ink text-center focus:outline-none focus:border-gold shadow-2xs"
+                      placeholder="0.0"
+                    />
+                    <span className="text-[10px] font-bold text-ink">L</span>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-5 gap-1 text-[10px] font-bold">
                   {/* 0 L (Skip Day) */}
                   <button

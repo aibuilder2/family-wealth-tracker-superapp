@@ -924,6 +924,57 @@ export function HouseholdStaffModule() {
               <button onClick={() => setPayingStaff(null)} className="text-ink-muted hover:text-ink">✕</button>
             </div>
 
+            {/* Detailed Leave & Deduction Transparency Card */}
+            {(() => {
+              const attMap = getAttendanceMap(payingStaff);
+              const presentDays = Object.values(attMap).filter(v => v === 'P').length;
+              const halfDays = Object.values(attMap).filter(v => v === 'H').length;
+              const absentDays = Object.values(attMap).filter(v => v === 'A').length;
+              const allowedLeaves = payingStaff.allowedPaidLeaves ?? 2;
+              const extraAbsent = Math.max(0, absentDays - allowedLeaves);
+              const perDayRate = Math.round(payingStaff.monthlySalary / 30);
+              const leaveDeduction = (payingStaff.wageModel === 'monthly_with_allowed_leaves' && payingStaff.deductLeaveSalary) 
+                ? (extraAbsent * perDayRate) 
+                : 0;
+
+              return (
+                <div className="p-3 bg-paper-dim/30 rounded-xl border border-paper-dim space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between font-bold text-ink border-b border-paper-dim/60 pb-1">
+                    <span>📋 तय वेतन व छुट्टी गणना:</span>
+                    <span className="font-mono text-gold font-bold">₹{payingStaff.monthlySalary}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1 text-ink-muted">
+                    <span>• हाज़िरी (Present): <strong className="text-green">{presentDays} दिन</strong></span>
+                    <span>• आधा दिन (Half Day): <strong className="text-amber-600">{halfDays} दिन</strong></span>
+                    <span>• कुल छुट्टियां (Absent): <strong className="text-coral">{absentDays} दिन</strong></span>
+                    <span>• स्वीकृत पेड कोटा: <strong className="text-purple-600">{allowedLeaves} दिन (फ्री)</strong></span>
+                  </div>
+
+                  <div className="pt-1 border-t border-paper-dim/50 flex items-center justify-between">
+                    <div>
+                      {payingStaff.wageModel === 'monthly_fixed' ? (
+                        <span className="text-green font-bold text-[10px]">✓ फिक्स्ड मासिक वेतन (छुट्टी पर कोई कटौती नहीं)</span>
+                      ) : payingStaff.wageModel === 'daily_wage' ? (
+                        <span className="text-blue-600 font-bold text-[10px]">दैनिक दर: ₹{payingStaff.dailyRate || perDayRate}/दिन के हिसाब से</span>
+                      ) : extraAbsent === 0 ? (
+                        <span className="text-green font-bold text-[10px]">✓ स्वीकृत कोटे ({allowedLeaves} दिन) के अंदर — ₹0 वेतन कटौती</span>
+                      ) : payingStaff.deductLeaveSalary ? (
+                        <span className="text-coral font-bold text-[10px]">
+                          ⚠️ अतिरिक्त छुट्टी: {extraAbsent} दिन (कटौती: ₹{leaveDeduction})
+                        </span>
+                      ) : (
+                        <span className="text-green font-bold text-[10px]">✓ अतिरिक्त छुट्टी पर कटौती बंद है (माफ)</span>
+                      )}
+                    </div>
+                    {leaveDeduction > 0 && (
+                      <span className="text-coral font-mono font-bold">-₹{leaveDeduction}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             <form onSubmit={handleSaveSalary} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2">
                 <div>
