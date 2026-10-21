@@ -7,12 +7,13 @@ import { PapaFamilyFundModule } from '@/components/business-modules/family-hisab
 import { FamilyLoansModule } from '@/components/business-modules/family-loans/FamilyLoansModule';
 import { HouseholdStaffModule } from '@/components/business-modules/household-staff/HouseholdStaffModule';
 import { TravelReimbursementModule } from '@/components/business-modules/family-hisab/TravelReimbursementModule';
+import { MilkDairyHisabModule } from '@/components/business-modules/milk-dairy/MilkDairyHisabModule';
 import Link from 'next/link';
-import { ChevronLeft, Users, Landmark, UserCheck, CreditCard, Plane, Sparkles } from 'lucide-react';
+import { ChevronLeft, Users, Landmark, UserCheck, CreditCard, Plane, Sparkles, Milk } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { SmartWhatsAppImporter } from '@/components/money/SmartWhatsAppImporter';
 
-type TabType = 'fund' | 'loans' | 'aapsi' | 'staff' | 'travel' | 'importer';
+type TabType = 'fund' | 'loans' | 'aapsi' | 'staff' | 'milk' | 'travel' | 'importer';
 
 function FamilyHisabContent() {
   const searchParams = useSearchParams();
@@ -21,7 +22,7 @@ function FamilyHisabContent() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabType;
-    if (tabParam && ['fund', 'loans', 'aapsi', 'staff', 'travel', 'importer'].includes(tabParam)) {
+    if (tabParam && ['fund', 'loans', 'aapsi', 'staff', 'milk', 'travel', 'importer'].includes(tabParam)) {
       setActiveTab(tabParam);
     } else if (searchParams.get('partner')) {
       setActiveTab('aapsi');
@@ -32,7 +33,7 @@ function FamilyHisabContent() {
     <div className="space-y-4">
       <ScreenHeader
         title="Family Finance & Cashflow Hub"
-        subtitle="पारिवारिक केंद्रीय कोष, सदस्य आय स्रोत, लोन व EMI, आपसी लेन-देन व स्टाफ"
+        subtitle="पारिवारिक केंद्रीय कोष, सदस्य आय स्रोत, लोन व EMI, दूध हिसाब, आपसी लेन-देन व स्टाफ"
         action={
           <Link
             href="/family"
@@ -43,9 +44,9 @@ function FamilyHisabContent() {
         }
       />
 
-      {/* 6 Main Tabs Switcher */}
+      {/* 7 Main Tabs Switcher */}
       <div className="px-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 p-1.5 bg-paper rounded-2xl border border-paper-dim shadow-sm gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 p-1.5 bg-paper rounded-2xl border border-paper-dim shadow-sm gap-1.5">
           <button
             type="button"
             onClick={() => setActiveTab('fund')}
@@ -100,6 +101,19 @@ function FamilyHisabContent() {
 
           <button
             type="button"
+            onClick={() => setActiveTab('milk')}
+            className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1.5 ${
+              activeTab === 'milk'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'text-ink-muted hover:text-ink hover:bg-paper-dim/50'
+            }`}
+          >
+            <Milk size={15} />
+            <span className="truncate">🥛 दूध हिसाब</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('travel')}
             className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1.5 ${
               activeTab === 'travel'
@@ -149,6 +163,12 @@ function FamilyHisabContent() {
         {activeTab === 'staff' && (
           <div className="animate-in fade-in duration-150">
             <HouseholdStaffModule />
+          </div>
+        )}
+
+        {activeTab === 'milk' && (
+          <div className="animate-in fade-in duration-150">
+            <MilkDairyHisabModule />
           </div>
         )}
 

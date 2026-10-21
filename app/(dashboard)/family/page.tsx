@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { 
   HeartPulse, Sparkles, Plus, Edit2, Check, Share2, Copy, Users, X, 
   Landmark, UserCheck, ArrowRight, Receipt, CreditCard, Plane, Briefcase, 
-  Store, Clock, MapPin, DollarSign 
+  Store, Clock, MapPin, DollarSign, Milk 
 } from 'lucide-react';
 import { Member } from '@/types';
 
@@ -206,7 +206,7 @@ export default function FamilyPage() {
         <h3 className="text-xs font-bold text-ink uppercase tracking-wider">
           पारिवारिक कोष, टूर क्लेम व हिसाब-किताब
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
           <Link
             href="/family/hisab?tab=fund"
             className="p-3.5 rounded-xl bg-gradient-to-br from-amber-500/10 via-paper to-paper border border-amber-500/30 hover:border-amber-500 transition-all shadow-sm block group"
@@ -274,6 +274,20 @@ export default function FamilyPage() {
             <h4 className="text-xs font-bold text-ink">🧹 घरेलू कर्मचारी</h4>
             <p className="text-[10px] text-ink-muted mt-0.5 leading-relaxed">
               अटेंडेंस, मासिक वेतन व एडवांस
+            </p>
+          </Link>
+
+          <Link
+            href="/family/hisab?tab=milk"
+            className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-500/10 via-paper to-paper border border-emerald-500/30 hover:border-emerald-500 transition-all shadow-sm block group"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <Milk size={20} className="text-emerald-500 group-hover:scale-110 transition-transform" />
+              <ArrowRight size={14} className="text-emerald-500/60 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            <h4 className="text-xs font-black text-ink">🥛 दूध व डेयरी हिसाब</h4>
+            <p className="text-[10px] text-ink-muted mt-0.5 leading-relaxed">
+              दैनिक दूध (0L स्किप), पनीर-खोवा व बिल
             </p>
           </Link>
         </div>
